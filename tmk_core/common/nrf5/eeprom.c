@@ -167,7 +167,7 @@ uint32_t eeprom_read_dword(const uint32_t *addr) {
     return eeprom_read_byte(p) | (eeprom_read_byte(p + 1) << 8) | (eeprom_read_byte(p + 2) << 16) | (eeprom_read_byte(p + 3) << 24);
 }
 
-void eeprom_read_block(void *buf, const void *addr, uint32_t len) {
+void eeprom_read_block(void *buf, const void *addr, size_t len) {
     const uint8_t *p    = (const uint8_t *)addr;
     uint8_t *      dest = (uint8_t *)buf;
     while (len--) {
@@ -199,7 +199,7 @@ void eeprom_write_dword(uint32_t *addr, uint32_t value) {
     fds_update_counter = 0;
 }
 
-void eeprom_write_block(const void *buf, void *addr, uint32_t len) {
+void eeprom_write_block(const void *buf, void *addr, size_t len) {
     if (!fds_inited) {
         eeprom_init();
     }
@@ -218,7 +218,7 @@ void eeprom_update_word(uint16_t *addr, uint16_t value) { eeprom_write_word(addr
 
 void eeprom_update_dword(uint32_t *addr, uint32_t value) { eeprom_write_dword(addr, value); }
 
-void eeprom_update_block(const void *buf, void *addr, uint32_t len) { eeprom_write_block(buf, addr, len); }
+void eeprom_update_block(const void *buf, void *addr, size_t len) { eeprom_write_block(buf, addr, len); }
 
 // Dummy eeprom
 

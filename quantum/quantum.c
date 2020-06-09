@@ -17,7 +17,7 @@
 #include <ctype.h>
 #include "quantum.h"
 
-#ifdef PROTOCOL_LUFA
+#if defined PROTOCOL_LUFA || defined(PROTOCOL_NRF5)
 #    include "outputselect.h"
 #endif
 

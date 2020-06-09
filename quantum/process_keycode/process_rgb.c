@@ -61,76 +61,130 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
             case RGB_TOG:
                 rgblight_toggle();
                 return false;
+            case RGBM_TOG:
+                rgb_matrix_toggle();
+                return false;
             case RGB_MODE_FORWARD:
                 handleKeycodeRGB(shifted, rgblight_step, rgblight_step_reverse);
+                return false;
+            case RGBM_MODE_FORWARD:
+                handleKeycodeRGB(shifted, rgb_matrix_step, rgb_matrix_step_reverse);
                 return false;
             case RGB_MODE_REVERSE:
                 handleKeycodeRGB(shifted, rgblight_step_reverse, rgblight_step);
                 return false;
+            case RGBM_MODE_REVERSE:
+                handleKeycodeRGB(shifted, rgb_matrix_step_reverse, rgb_matrix_step);
+                return false;
             case RGB_HUI:
                 handleKeycodeRGB(shifted, rgblight_increase_hue, rgblight_decrease_hue);
+                return false;
+            case RGBM_HUI:
+                handleKeycodeRGB(shifted, rgb_matrix_increase_hue, rgb_matrix_decrease_hue);
                 return false;
             case RGB_HUD:
                 handleKeycodeRGB(shifted, rgblight_decrease_hue, rgblight_increase_hue);
                 return false;
+            case RGBM_HUD:
+                handleKeycodeRGB(shifted, rgb_matrix_decrease_hue, rgb_matrix_increase_hue);
+                return false;
             case RGB_SAI:
                 handleKeycodeRGB(shifted, rgblight_increase_sat, rgblight_decrease_sat);
+                return false;
+            case RGBM_SAI:
+                handleKeycodeRGB(shifted, rgb_matrix_increase_sat, rgb_matrix_decrease_sat);
                 return false;
             case RGB_SAD:
                 handleKeycodeRGB(shifted, rgblight_decrease_sat, rgblight_increase_sat);
                 return false;
+            case RGBM_SAD:
+                handleKeycodeRGB(shifted, rgb_matrix_decrease_sat, rgb_matrix_increase_sat);
+                return false;
             case RGB_VAI:
                 handleKeycodeRGB(shifted, rgblight_increase_val, rgblight_decrease_val);
                 return false;
+            case RGBM_VAI:
+                handleKeycodeRGB(shifted, rgb_matrix_increase_val, rgb_matrix_decrease_val);
             case RGB_VAD:
                 handleKeycodeRGB(shifted, rgblight_decrease_val, rgblight_increase_val);
+                return false;
+            case RGBM_VAD:
+                handleKeycodeRGB(shifted, rgb_matrix_decrease_val, rgb_matrix_increase_val);
                 return false;
             case RGB_SPI:
                 handleKeycodeRGB(shifted, rgblight_increase_speed, rgblight_decrease_speed);
                 return false;
+            case RGBM_SPI:
+                handleKeycodeRGB(shifted, rgb_matrix_increase_speed, rgb_matrix_decrease_speed);
+                return false;
             case RGB_SPD:
                 handleKeycodeRGB(shifted, rgblight_decrease_speed, rgblight_increase_speed);
                 return false;
+            case RGBM_SPD:
+                handleKeycodeRGB(shifted, rgb_matrix_decrease_speed, rgb_matrix_increase_speed);
+                return false;
             case RGB_MODE_PLAIN:
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_RAINBOW_SWIRL)
                 rgblight_mode(RGBLIGHT_MODE_STATIC_LIGHT);
+#endif
+                return false;
+            case RGBM_MODE_PLAIN:
+#if defined(RGB_MATRIX_ENABLE) && !defined(RGB_MATRIX_DISABLE_KEYCODES) && !defined(DISABLE_RGB_MATRIX_RAINBOW_PINWHEELS)
+                rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR);
+#endif
                 return false;
             case RGB_MODE_BREATHE:
-#ifdef RGBLIGHT_EFFECT_BREATHING
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_RAINBOW_SWIRL)
                 handleKeycodeRGBMode(RGBLIGHT_MODE_BREATHING, RGBLIGHT_MODE_BREATHING_end);
 #endif
                 return false;
+            case RGBM_MODE_BREATHE:
+#if defined(RGB_MATRIX_ENABLE) && !defined(RGB_MATRIX_DISABLE_KEYCODES) && !defined(DISABLE_RGB_MATRIX_RAINBOW_PINWHEELS)
+                rgb_matrix_mode(RGB_MATRIX_BREATHING);
+#endif
+                return false;
             case RGB_MODE_RAINBOW:
-#ifdef RGBLIGHT_EFFECT_RAINBOW_MOOD
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_RAINBOW_SWIRL)
                 handleKeycodeRGBMode(RGBLIGHT_MODE_RAINBOW_MOOD, RGBLIGHT_MODE_RAINBOW_MOOD_end);
 #endif
                 return false;
+            case RGBM_MODE_RAINBOW:
+#if defined(RGB_MATRIX_ENABLE) && !defined(RGB_MATRIX_DISABLE_KEYCODES) && !defined(DISABLE_RGB_MATRIX_RAINBOW_PINWHEELS)
+                rgb_matrix_mode(RGB_MATRIX_CYCLE_LEFT_RIGHT);
+#endif
+                return false;
             case RGB_MODE_SWIRL:
-#ifdef RGBLIGHT_EFFECT_RAINBOW_SWIRL
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_RAINBOW_SWIRL)
                 handleKeycodeRGBMode(RGBLIGHT_MODE_RAINBOW_SWIRL, RGBLIGHT_MODE_RAINBOW_SWIRL_end);
 #endif
                 return false;
+            case RGBM_MODE_SWIRL:
+#if defined(RGB_MATRIX_ENABLE) && !defined(RGB_MATRIX_DISABLE_KEYCODES) && !defined(DISABLE_RGB_MATRIX_RAINBOW_PINWHEELS)
+                rgb_matrix_mode(RGB_MATRIX_CYCLE_PINWHEEL);
+#endif
+                return false;
             case RGB_MODE_SNAKE:
-#ifdef RGBLIGHT_EFFECT_SNAKE
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_SNAKE)
                 handleKeycodeRGBMode(RGBLIGHT_MODE_SNAKE, RGBLIGHT_MODE_SNAKE_end);
 #endif
                 return false;
             case RGB_MODE_KNIGHT:
-#ifdef RGBLIGHT_EFFECT_KNIGHT
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_KNIGHT)
                 handleKeycodeRGBMode(RGBLIGHT_MODE_KNIGHT, RGBLIGHT_MODE_KNIGHT_end);
 #endif
                 return false;
             case RGB_MODE_XMAS:
-#ifdef RGBLIGHT_EFFECT_CHRISTMAS
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_CHRISTMAS)
                 rgblight_mode(RGBLIGHT_MODE_CHRISTMAS);
 #endif
                 return false;
             case RGB_MODE_GRADIENT:
-#ifdef RGBLIGHT_EFFECT_STATIC_GRADIENT
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_STATIC_GRADIENT)
                 handleKeycodeRGBMode(RGBLIGHT_MODE_STATIC_GRADIENT, RGBLIGHT_MODE_STATIC_GRADIENT_end);
 #endif
                 return false;
             case RGB_MODE_RGBTEST:
-#ifdef RGBLIGHT_EFFECT_RGB_TEST
+#if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES) && defined( RGBLIGHT_EFFECT_RGB_TEST)
                 rgblight_mode(RGBLIGHT_MODE_RGB_TEST);
 #endif
                 return false;

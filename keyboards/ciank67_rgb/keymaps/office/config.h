@@ -27,6 +27,9 @@
 #define MATRIX_COL_PINS \
 { 41, 28, 12, 42, 7, 3, 38, 36, 34, 32, 24, 22, 13, 20 }
 
+/* COL2ROW, ROW2COL*/
+#define DIODE_DIRECTION COL2ROW
+
 #ifdef RGBLIGHT_ENABLE
 	#define RGB_DI_PIN 6
 	#define RGBLED_NUM 20
