@@ -50,13 +50,6 @@
 #ifdef MIDI_ENABLE
 #include "qmk_midi.h"
 #endif
-#ifdef RGBLIGHT_ENABLE
-#include "rgblight.h"
-#ifdef RGBLIGHT_SPLIT
-rgblight_syncinfo_t rgblight_sync;
-#endif
-#endif
-
 
 uint16_t m_conn_handle     = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
 uint8_t  keyboard_protocol = 1;
@@ -70,18 +63,6 @@ APP_TIMER_DEF(m_keyboard_scan_timer); /**< keyboard scan timer. */
 static void keyboard_scan_handler(void* p_context) {
     UNUSED_PARAMETER(p_context);
     keyboard_task();
-#if defined(RGBLIGHT_ENABLE) && defined(RGBLIGHT_ANIMATIONS)
-  rgblight_task();
-
-#ifdef RGBLIGHT_SPLIT
-  if (rgblight_get_change_flags()) {
-    rgblight_get_syncinfo(&rgblight_sync);
-    ble_nus_send_bytes_to_slave((uint8_t*)&rgblight_sync, sizeof(rgblight_sync));
-    rgblight_clear_change_flags();
-  }
-#endif
-
-#endif
     eeprom_update();
 }
 

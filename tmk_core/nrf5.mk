@@ -249,6 +249,8 @@ generate-keys: $(BUILD_DIR)/private.key $(BUILD_DIR)/public_key.c
 bin: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
 	$(COPY) $(BUILD_DIR)/$(TARGET).bin $(TARGET).bin;
 
+	python ./util/uf2conv.py $(BUILD_DIR)/$(TARGET).hex -c -f 0xADA52840 -o $(BUILD_DIR)/$(TARGET).uf2
+
 export GNU_INSTALL_ROOT
 export GNU_PREFIX
 generate-bootloader:
@@ -274,9 +276,6 @@ bootloader: generate-bootloader
 nrfutil: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
 	nrfutil pkg generate --hw-version 52 --application-version 1 --sd-req 0xB6 --application $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).zip
 	$(call EXEC_NRFUTIL)
-
-	python ./util/uf2conv.py $(BUILD_DIR)/$(TARGET).hex -c -f 0xADA52840 -o $(TARGET).uf2
-	mv $(TARGET).uf2 $(BUILD_DIR)
 
 GREP ?= grep
 
