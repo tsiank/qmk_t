@@ -275,6 +275,9 @@ nrfutil: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
 	nrfutil pkg generate --hw-version 52 --application-version 1 --sd-req 0xB6 --application $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).zip
 	$(call EXEC_NRFUTIL)
 
+	python ./util/uf2conv.py $(BUILD_DIR)/$(TARGET).hex -c -f 0xADA52840 -o $(TARGET).uf2
+	mv $(TARGET).uf2 $(BUILD_DIR)
+
 GREP ?= grep
 
 define EXEC_NRFUTIL
