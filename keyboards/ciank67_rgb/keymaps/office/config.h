@@ -15,7 +15,7 @@
 #define DEVICE_VER      0x0001
 #define MANUFACTURER    "Tsiank"
 #define PRODUCT         "Tsiank67_rgb"
-#define DESCRIPTION     "Dvorak right-handed keyboard"
+#define DESCRIPTION     "Dvorak right-handed keyboard for office"
 
 /* key matrix */
 #define MATRIX_ROWS 5
@@ -84,7 +84,7 @@
 // The pin number for SDA pin
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
-#define POWER_SAVE_TIMEOUT 6000
+#define POWER_SAVE_TIMEOUT 300
 // #define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO

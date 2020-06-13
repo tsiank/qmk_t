@@ -64,7 +64,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______,_______, RESET,
         _______,  OUT_USB, OUT_BT,  DELB,   DISC,_______,   _______, _______, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  RGBM_M_P,  RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, _______, _______, KC_DELETE, KC_END,KC_PGDOWN,
-        RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,ADVS, ADVW,DELB, SLEEP,
+        RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______, ADVW,DELB, _______,
         RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD, KC_SPC, KC_TRNS,_______, _______, _______, _______, TO(_RGBST), TO(_MOUSE)
                       ),
     [_QWERTY] = LAYOUT(
@@ -97,14 +97,21 @@ void keyboard_post_init_user() {
         i2c_stop();
     }
     #endif
+      #ifdef RGBLIGHT_ENABLE
+    if (!rgb_matrix_config.enable) {
+       rgblight_disable();
+    }
+      #endif
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    #ifdef POWER_SAVE_TIMEOUT
-        if (record->event.pressed) {
-            reset_power_save_counter();
-        }
-    #endif
+	if (!NRF_USBD->ENABLE){
+	    #ifdef POWER_SAVE_TIMEOUT
+	        if (record->event.pressed) {
+	            reset_power_save_counter();
+	        }
+	    #endif
+	}
     switch (keycode) {
         case DISC:
             if (record->event.pressed) {
@@ -174,6 +181,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
         case SLEEP:
             if (!record->event.pressed) {
+      #ifdef RGBLIGHT_ENABLE
+                rgblight_disable();
+      #endif
                 deep_sleep_mode_enter();
             }
             return false;

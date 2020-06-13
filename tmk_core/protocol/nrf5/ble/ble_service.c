@@ -78,7 +78,14 @@
 #include "ble_service.h"
 #include "ble_hids_service.h"
 #include "outputselect.h"
+
+#ifdef RGBLIGHT_ENABLE
+#include "progmem.h"
+#include "rgblight.h"
+#endif
+#ifdef RGB_MATRIX_ENABLE
 #include "i2c_master.h"
+#endif
 
 uint8_t              keyboard_ble_led_stats = 0;
 static volatile bool ble_disable            = true; /**< Handle of the current connection. */
@@ -520,21 +527,29 @@ void battery_level_update(nrf_saadc_value_t value, uint16_t size) {
  */
 static void battery_level_meas_timeout_handler(void *p_context) {
     UNUSED_PARAMETER(p_context);
-#ifdef POWER_SAVE_TIMEOUT
-    if (power_save_counter++ > POWER_SAVE_TIMEOUT / 2) {
-        sleep_mode_enter();
-    }
-#endif
+		if (!NRF_USBD->ENABLE){
+	#ifdef POWER_SAVE_TIMEOUT
+		    if (power_save_counter++ > POWER_SAVE_TIMEOUT / 2) {
+			#ifdef RGBLIGHT_ENABLE
+			       rgblight_disable();
+			#endif
+		        sleep_mode_enter();
+		    }
+	#endif
+
 #ifdef KBD_WDT_ENABLE
     nrf_drv_wdt_channel_feed(m_channel_id);
 #endif
     adc_start();
+		}
 }
 
 void reset_power_save_counter() {
+	if (!NRF_USBD->ENABLE){
 #ifdef POWER_SAVE_TIMEOUT
-    power_save_counter = 0;
+    		power_save_counter = 0;
 #endif
+	}
 }
 
 /**@brief Function for the GAP initialization.
@@ -765,6 +780,7 @@ static void sleep_mode_enter(void) {
 #ifdef IS31FL3737
     i2c_stop();
 #endif
+
     NRF_LOG_INFO("Sleep mode");
     ret_code_t err_code;
 
@@ -789,6 +805,7 @@ void deep_sleep_mode_enter(void) {
 #ifdef IS31FL3737
     i2c_stop();
 #endif
+
     NRF_LOG_INFO("Deep sleep mode");
     ret_code_t err_code;
 
@@ -847,6 +864,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
             break;
 
         case BLE_ADV_EVT_IDLE:
+		#ifdef RGBLIGHT_ENABLE
+		       rgblight_disable();
+		#endif
             sleep_mode_enter();
             break;
 
