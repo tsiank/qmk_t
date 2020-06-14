@@ -18,6 +18,15 @@
 //#include "muse.h"
 #include "ble_service.h"
 
+#include "nrf_gpio.h"
+
+// adafruit bootloader, send "dfu" to debug serial port
+#define DFU_MAGIC_UF2_RESET             0x57
+void bootloader_jump_uf2(void) {
+  sd_power_gpregret_set(0, DFU_MAGIC_UF2_RESET);
+  NVIC_SystemReset();
+}
+
 #ifdef RGB_MATRIX_ENABLE
 #include "rgb_matrix.h"
 #include "i2c_master.h"
@@ -42,7 +51,7 @@ enum ciank67_layers {
 };
 
 
-enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, RGBRST};
+enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -56,12 +65,12 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_SIGN]   = LAYOUT(
         _______,  KC_F1,  KC_F2,  KC_F3,  KC_TAB,  KC_EXCLAIM,    KC_AT,    KC_HASH,   KC_LBRC,   KC_RBRC  , KC_SLSH, _______,    _______,   _______,
         _______,  KC_F4,  KC_F5,  KC_F6,    KC_LCBR,  KC_DOLLAR, KC_PERCENT,   KC_CIRCUMFLEX,    KC_COLON,  KC_EQL,    KC_PIPE,    _______,   _______,   _______,
-        _______,    KC_F7,  KC_F8,  KC_F9,    KC_RCBR ,   KC_AMPERSAND,   KC_ASTERISK,     KC_LEFT_PAREN,   KC_MINS,    KC_PLUS,    KC_TILDE,   _______,  _______,
+        ENT_DFU,    KC_F7,  KC_F8,  KC_F9,    KC_RCBR ,   KC_AMPERSAND,   KC_ASTERISK,     KC_LEFT_PAREN,   KC_MINS,    KC_PLUS,    KC_TILDE,   _______,  _______,
         RESET,       KC_F10,  KC_F11,   KC_F12,   KC_BSLS,         KC_RIGHT_PAREN,    KC_QUOT,    KC_DOUBLE_QUOTE,   KC_UNDERSCORE,    _______,   _______, _______,_______, _______,
         _______,    _______, _______, KC_TRNS,              RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    _______, _______, _______
                       ),
     [_FN]   = LAYOUT(
-       _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______,_______, RESET,
+       _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______,ENT_DFU, RESET,
         _______,  OUT_USB, OUT_BT,  DELB,   DISC,_______,   _______, _______, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  RGBM_M_P,  RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, _______, _______, KC_DELETE, KC_END,KC_PGDOWN,
         RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______, ADVW,DELB, _______,
@@ -158,6 +167,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case REBOOT:
             if (record->event.pressed) {
                 NVIC_SystemReset();
+            }
+            
+        case ENT_DFU:
+            if (record->event.pressed) {
+      		bootloader_jump_uf2();
             }
             
     case RGBRST:
