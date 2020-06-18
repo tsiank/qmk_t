@@ -51,7 +51,7 @@ enum ciank67_layers {
 };
 
 
-enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST};
+enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -70,8 +70,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______,    _______, _______, KC_TRNS,              RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    _______, _______, _______
                       ),
     [_FN]   = LAYOUT(
-       _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______,ENT_DFU, RESET,
-        _______,  OUT_USB, OUT_BT,  DELB,   DISC,_______,   _______, _______, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
+        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______,ENT_DFU, RESET,
+        RGBG_TOG,  OUT_USB, OUT_BT,  DELB,   DISC,_______,   _______, _______, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  RGBM_M_P,  RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, _______, _______, KC_DELETE, KC_END,KC_PGDOWN,
         RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______, ADVW,DELB, _______,
         RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD, KC_SPC, KC_TRNS,_______, _______, _______, _______, TO(_RGBST), TO(_MOUSE)
@@ -106,11 +106,6 @@ void keyboard_post_init_user() {
         i2c_stop();
     }
     #endif
-      #ifdef RGBLIGHT_ENABLE
-    if (!rgb_matrix_config.enable) {
-       rgblight_disable();
-    }
-      #endif
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -183,21 +178,33 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       #endif
       break;
       
-        case RGBM_TOG:
-            if (record->event.pressed) {
-                if (rgb_matrix_config.enable) {
-                    i2c_stop();
-                } else {
-                    i2c_start();
-                }
+    case RGBM_TOG:
+        if (record->event.pressed) {
+            if (rgb_matrix_config.enable) {
+                i2c_stop();
+            } else {
+                i2c_start();
             }
-            return true;
+        }
+        return true;
+        
+    case RGBG_TOG:
+        if (record->event.pressed) {
+	    	#ifdef IS31FL3737
+	            rgb_matrix_toggle();
+	  	#endif
+	  	
+	      #ifdef RGBLIGHT_ENABLE
+	        	rgblight_toggle();
+		#endif
+        }
+    	return true;
 
         case SLEEP:
-            if (!record->event.pressed) {
-      #ifdef RGBLIGHT_ENABLE
+              #ifdef RGBLIGHT_ENABLE
                 rgblight_disable();
-      #endif
+      		#endif
+            if (!record->event.pressed) {
                 deep_sleep_mode_enter();
             }
             return false;
