@@ -19,6 +19,7 @@
 #include "ble_service.h"
 
 #include "nrf_gpio.h"
+#include "adc.h"
 
 // adafruit bootloader, send "dfu" to debug serial port
 #define DFU_MAGIC_UF2_RESET             0x57
@@ -51,7 +52,7 @@ enum ciank67_layers {
 };
 
 
-enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG};
+enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -74,7 +75,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         RGBG_TOG,  OUT_USB, OUT_BT,  DELB,   DISC,_______,   _______, _______, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  RGBM_M_P,  RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, _______, _______, KC_DELETE, KC_END,KC_PGDOWN,
         RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______, ADVW,DELB, _______,
-        RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD, KC_SPC, KC_TRNS,_______, _______, _______, _______, TO(_RGBST), TO(_MOUSE)
+        RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD, KC_SPC, KC_TRNS, BATT_LV, BATT_LV2, _______, _______, TO(_RGBST), TO(_MOUSE)
                       ),
     [_QWERTY] = LAYOUT(
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,
@@ -213,6 +214,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 deep_sleep_mode_enter();
             }
             return false;
+
+        case BATT_LV:
+            if (record->event.pressed) {
+      		char str[16];
+      		sprintf(str, "%4dmV", get_vcc());
+      		send_string(str);
+    		}
+    	 break;
+        case BATT_LV2:
+            if (record->event.pressed) {
+      		char str2[8];
+      		sprintf(str2, "%d%%", get_battery_level());
+      		send_string(str2);
+    		}
+    	 break;
     }
     return true;
 }

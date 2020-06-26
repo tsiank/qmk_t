@@ -4,6 +4,9 @@
 
 host_driver_t *nrf5_ble_driver(void);
 
+uint8_t    battery_level;
+uint32_t voltage;
+
 /**@brief Function for starting advertising.
  */
 void advertising_start(bool erase_bonds);

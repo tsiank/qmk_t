@@ -36,7 +36,7 @@ static void adc_event_handler(nrf_drv_saadc_evt_t const* p_event) {
         }
 
         battery_level_update(value, p_event->data.done.size);
-
+         
         err_code = nrfx_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_BUFFER_LEN);
 
         APP_ERROR_CHECK(err_code);
@@ -61,3 +61,11 @@ void adc_init() {
 }
 
 void adc_start() { nrfx_saadc_sample(); }
+
+uint16_t get_vcc() {
+  return voltage;
+}
+
+uint8_t get_battery_level() {
+  return battery_level;
+}
