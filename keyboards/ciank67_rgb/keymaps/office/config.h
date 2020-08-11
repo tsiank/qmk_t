@@ -4,14 +4,14 @@
 #include "config_common.h"
 
 /* Bluetooth connection setting*/
-#define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
-#define BLE_HID_MAX_INTERVAL 25   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
+#define BLE_HID_MIN_INTERVAL 7.5   /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
+#define BLE_HID_MAX_INTERVAL 15   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
 #define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
-#define BLE_HID_TIMEOUT 1000       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
+#define BLE_HID_TIMEOUT 600       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xFEED
-#define PRODUCT_ID      0xC475
+#define VENDOR_ID       0xFEEE
+#define PRODUCT_ID      0xC476
 #define DEVICE_VER      0x0001
 #define MANUFACTURER    "Tsiank"
 #define PRODUCT         "Tsiank67_rgb"
@@ -132,7 +132,7 @@
 // The pin number for SDA pin
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
-#define POWER_SAVE_TIMEOUT 300
+#define POWER_SAVE_TIMEOUT 3000
 // #define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO

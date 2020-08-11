@@ -1,6 +1,5 @@
 #pragma once
 
-#include "ciank67_rgb.h"
 #include "quantum.h"
 
 #define LAYOUT( \
