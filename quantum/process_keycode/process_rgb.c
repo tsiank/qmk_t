@@ -39,11 +39,21 @@ static void __attribute__((noinline)) handleKeycodeRGB(const uint8_t is_shifted,
  * noinline to optimise for firmware size not speed (not in hot path)
  */
 static void __attribute__((noinline, unused)) handleKeycodeRGBMode(const uint8_t start, const uint8_t end) {
+#ifdef RGBLIGHT_ENABLE
     if ((start <= rgblight_get_mode()) && (rgblight_get_mode() < end)) {
         rgblight_step();
     } else {
         rgblight_mode(start);
     }
+#endif
+
+#ifdef RGB_MATRIX_ENABLE
+    if ((start <= rgb_matrix_get_mode()) && (rgb_matrix_get_mode() < end)) {
+        rgb_matrix_step();
+    } else {
+        rgb_matrix_mode(start);
+    }
+#endif
 }
 
 /**

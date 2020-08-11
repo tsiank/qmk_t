@@ -35,6 +35,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define MATRIX_ROW_PINS { B2, B10, A1, B13, C15, B0, C14, A0, C13, B11, B1, B15, A10, A7, A6 }
 #define MATRIX_COL_PINS { B8, B9, A8, A9, B12 }
 
+/* COL2ROW, ROW2COL*/
+#define DIODE_DIRECTION ROW2COL
+
 /* Set 0 if debouncing isn't needed */
 #define DEBOUNCE 2
 
