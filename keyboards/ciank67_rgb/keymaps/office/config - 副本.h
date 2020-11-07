@@ -4,24 +4,24 @@
 #include "config_common.h"
 
 /* Bluetooth connection setting*/
-#define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
-#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
-#define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
-#define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
+#define BLE_HID_MIN_INTERVAL 7.5   /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
+#define BLE_HID_MAX_INTERVAL 50  /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
+#define BLE_HID_SLAVE_LATENCY 3  /**< Slave latency. */
+#define BLE_HID_TIMEOUT 1000       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xFEED
-#define PRODUCT_ID      0xC475
+#define VENDOR_ID       0xEEEE
+#define PRODUCT_ID      0xC376
 #define DEVICE_VER      0x0001
 #define MANUFACTURER    "Tsiank"
-#define PRODUCT         "Cank67_rgb"
-#define DESCRIPTION     "Dvorak right-handed keyboard"
+#define PRODUCT         "Tsiank67_rgb for work"
+#define DESCRIPTION     "Dvorak right-handed keyboard for office"
 
 /* key matrix */
 #define MATRIX_ROWS 5
 #define MATRIX_COLS 14
 
-// NRF52840 pin map: ((port << 5) | (pin & 0x1F)
+// NRF52840 pin map: ((port << 5) | (pin & 0x1F))
 // <0=> 0 (P0.0)
 // <1=> 1 (P0.1)
 // <2=> 2 (P0.2)
@@ -132,7 +132,7 @@
 // The pin number for SDA pin
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
-#define POWER_SAVE_TIMEOUT 2000
+#define POWER_SAVE_TIMEOUT 3000
 // #define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO
