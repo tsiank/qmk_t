@@ -57,8 +57,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
     [_BASE]=LAYOUT(
     KC_MUTE,
-    KC_VOLU, KC_VOLD, VOLUP, ADVW,KC_9,
-    KC_4, KC_5, KC_6, KC_7, TO(2),
+    KC_9, KC_VOLU, KC_VOLD, VOLUP, TO(_BLE_SETTINGS),
+    KC_4, KC_VOLU, KC_6, KC_VOLU, TO(2),
     KC_1, KC_2, KC_3, KC_PAST, TO(3),
     KC_0, M(0), KC_DOT, KC_PSLS, KC_EQL),
 

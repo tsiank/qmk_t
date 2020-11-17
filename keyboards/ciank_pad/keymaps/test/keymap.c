@@ -57,10 +57,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
     [_BASE]=LAYOUT(
     KC_MUTE,
-    KC_VOLU, KC_VOLD, VOLUP, ADVW,KC_9,
-    KC_4, KC_5, KC_6, KC_7, TO(2),
-    KC_1, KC_2, KC_3, KC_PAST, TO(3),
-    KC_0, M(0), KC_DOT, KC_PSLS, KC_EQL),
+    KC_7, KC_8, KC_9, KC_0, ADVW,
+    KC_VOLU, DELB, KC_6, KC_7, TO(2),
+    OUT_BT, KC_2, KC_3, KC_PAST, TO(3),
+    ADVW, M(0), KC_DOT, KC_PSLS, KC_EQL),
 
     [_DIR]=LAYOUT(
     KC_TRNS,
@@ -190,36 +190,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
 
-keyevent_t encoder_volu  = {
-    .key = (keypos_t){.row = 1, .col = 1},
-    .pressed = false,
-    .time = 1
-};
-
-keyevent_t encoder_vold  = {
-    .key = (keypos_t){.row = 1, .col = 2},
-    .pressed = false,
-    .time = 1
-};
-
-bool encoder_rot = true;
-
-static void my_timeout_handler_volu (void * p_context){
-				// unregister_code(KC_VOLU);
-    encoder_volu.pressed = false;
-    encoder_rot = true;
-    encoder_volu.time = (timer_read() | 1); 
-    action_exec(encoder_volu);
-}
-
-static void my_timeout_handler_vold (void * p_context){
-				// unregister_code(KC_VOLU);
-    encoder_vold.pressed = false;
-    encoder_rot = true;
-    encoder_vold.time = (timer_read() | 1); 
-    action_exec(encoder_vold);
-}
-
 //Media keys WORKS
 #ifdef ENCODER_ENABLE
 void encoder_update_user(uint8_t index, bool clockwise) {
@@ -227,22 +197,10 @@ void encoder_update_user(uint8_t index, bool clockwise) {
   {
     case _BASE:
       if(clockwise){
-        encoder_volu.pressed = true;
-        encoder_rot = true;
-        encoder_volu.time = (timer_read() | 1);  //time should not be 0 
-        action_exec(encoder_volu);
-        APP_TIMER_DEF(my_timer_id);
-        app_timer_create(&my_timer_id, APP_TIMER_MODE_SINGLE_SHOT, my_timeout_handler_volu);
-        app_timer_start(my_timer_id, APP_TIMER_TICKS(16), NULL); 
+        tap_code(KC_AUDIO_VOL_UP);
       }
       else{
-        encoder_vold.pressed = true;
-        encoder_rot = true;
-        encoder_vold.time = (timer_read() | 1);  //time should not be 0 
-        action_exec(encoder_vold);
-        APP_TIMER_DEF(my_timer_id);   
-        app_timer_create(&my_timer_id, APP_TIMER_MODE_SINGLE_SHOT, my_timeout_handler_vold);
-        app_timer_start(my_timer_id, APP_TIMER_TICKS(16), NULL);
+        tap_code(KC_PGDN);
       }
       break;
     case _DIR:

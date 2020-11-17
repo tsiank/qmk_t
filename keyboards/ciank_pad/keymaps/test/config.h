@@ -10,18 +10,18 @@
 #define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xEEEE
-#define PRODUCT_ID      0xC376
+#define VENDOR_ID       0x3D92
+#define PRODUCT_ID      0x8A42
 #define DEVICE_VER      0x0001
 #define MANUFACTURER    "Tsiank"
-#define PRODUCT         "Tsiank67_rgb"
-#define DESCRIPTION     "Standard keyboard"
+#define PRODUCT         "Ciank_test"
+#define DESCRIPTION     "Ciank_test"
 
 /* key matrix */
 #define MATRIX_ROWS 5
-#define MATRIX_COLS 14
+#define MATRIX_COLS 5
 
-// NRF52840 pin map: ((port << 5) | (pin & 0x1F))
+// NRF52840 pin map: ((port << 5) | (pin & 0x1F)
 // <0=> 0 (P0.0)
 // <1=> 1 (P0.1)
 // <2=> 2 (P0.2)
@@ -71,12 +71,12 @@
 // <46=> 46 (P1.14)
 // <47=> 47 (P1.15)
 #define MATRIX_ROW_PINS \
-{ 26, 29, 2, 45, 43}
+{ 41, 5, 43, 38, 36}
 #define MATRIX_COL_PINS \
-{ 41, 28, 12, 42, 7, 3, 38, 36, 34, 32, 24, 22, 13, 20 }
+{ 29, 45, 9, 10, 13 }
 
 /* COL2ROW, ROW2COL*/
-#define DIODE_DIRECTION COL2ROW
+#define DIODE_DIRECTION ROW2COL
 
 #ifdef RGBLIGHT_ENABLE
 	#define RGB_DI_PIN 6
@@ -131,6 +131,13 @@
 #define I2C1_SCL 15
 // The pin number for SDA pin
 #define I2C1_SDA 17
+
+#define ENCODERS_PAD_A { 24 }
+#define ENCODERS_PAD_B { 22 }
+#define TAP_CODE_DELAY 20
+#define ENCODER_DIRECTION_FLIP
+#define ENCODER_RESOLUTION 2
+
 // Enter sleep modes after 600 seconds
 #define POWER_SAVE_TIMEOUT 2000
 // #define BLE_NKRO
@@ -164,5 +171,26 @@
 
 /* override number of MIDI tone keycodes (each octave adds 12 keycodes and allocates 12 bytes) */
 //#define MIDI_TONE_KEYCODE_OCTAVES 6
+
+//analog battery measure
+//#define ADC_PIN NRF_SAADC_INPUT_AIN3
+#define ADC_PIN NRF_SAADC_INPUT_AIN3 ADC_PIN NRF_SAADC_INPUT_AIN2
+
+//#define NRF_LOG_ENABLED 0
+//#define NRF_LOG_BACKEND_SERIAL_USES_UART 0
+//#define NRF_LOG_BACKEND_SERIAL_UART_TX_PIN 5
+#define NRF_LOG_BACKEND_UART_TX_PIN 8
+
+// NRF_CLOCK_LF_SRC_RC - internal oscillator
+// NRF_CLOCK_LF_SRC_XTAL - external crystal
+
+// NRF_CLOCK_LF_SRC_RC - internal oscillator
+// NRF_CLOCK_LF_SRC_XTAL - external crystal
+// using E73 internal oscillator (assume there's no external crystal soldered)
+#define NRF_SDH_CLOCK_LF_SRC 0
+#define NRF_SDH_CLOCK_LF_RC_CTIV 16
+#define NRF_SDH_CLOCK_LF_RC_TEMP_CTIV 2
+#define NRF_SDH_CLOCK_LF_ACCURACY 1
+
 
 #endif

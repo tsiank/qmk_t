@@ -82,6 +82,8 @@
 	#define RGB_DI_PIN 6
 	#define RGBLED_NUM 20
 	#define RGBLIGHT_ANIMATIONS
+	#define RGBLIGHT_LAYERS
+	#define RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
 #endif
 
 #define DEBOUNCE 20
