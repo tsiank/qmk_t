@@ -183,22 +183,22 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     case RGBG_TOG:
         if (record->event.pressed) {
 	    	#ifdef IS31FL3737
-            if (rgb_matrix_config.enable) {
-                i2c_stop();
-            } else {
-                i2c_start();
-            }
-            	 rgb_matrix_toggle();
-	  	#endif
+                if (rgb_matrix_config.enable) {
+                    i2c_stop();
+                } else {
+                    i2c_start();
+                }
+                    rgb_matrix_toggle();
+	  	    #endif
 	  	
-	      #ifdef RGBLIGHT_ENABLE
+	        #ifdef RGBLIGHT_ENABLE
 	        	rgblight_toggle();
-		#endif
+		    #endif
         }
     	return true;
 
         case SLEEP:
-              #ifdef RGBLIGHT_ENABLE
+            #ifdef RGBLIGHT_ENABLE
                 rgblight_disable();
       		#endif
             if (!record->event.pressed) {
