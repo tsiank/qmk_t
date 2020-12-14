@@ -4,18 +4,18 @@
 #include "config_common.h"
 
 /* Bluetooth connection setting*/
-#define BLE_HID_MIN_INTERVAL 7.5   /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
-#define BLE_HID_MAX_INTERVAL 50  /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
-#define BLE_HID_SLAVE_LATENCY 3  /**< Slave latency. */
-#define BLE_HID_TIMEOUT 1000       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
+#define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
+#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
+#define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
+#define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xEEEE
-#define PRODUCT_ID      0xC376
+#define VENDOR_ID       0xFEEE
+#define PRODUCT_ID      0xD376
 #define DEVICE_VER      0x0001
-#define MANUFACTURER    "Tsiank"
-#define PRODUCT         "Tsiank67_rgb for work"
-#define DESCRIPTION     "Dvorak right-handed keyboard for office"
+#define MANUFACTURER    "Ciank"
+#define PRODUCT         "Ciank64_rgb"
+#define DESCRIPTION     "Standard keyboard"
 
 /* key matrix */
 #define MATRIX_ROWS 5
@@ -73,20 +73,25 @@
 #define MATRIX_ROW_PINS \
 { 26, 29, 2, 45, 43}
 #define MATRIX_COL_PINS \
-{ 41, 28, 12, 42, 7, 3, 38, 36, 34, 32, 24, 22, 13, 20 }
+{ 41, 28, 12, 42, 7, 3, 20, 13, 22, 24, 32, 34,36,38}
 
+#define IGNORE_ATOMIC_BLOCK
 /* COL2ROW, ROW2COL*/
 #define DIODE_DIRECTION COL2ROW
 
 #ifdef RGBLIGHT_ENABLE
-	#define RGB_DI_PIN 6
-	#define RGBLED_NUM 20
+	#define RGB_DI_PIN 4
+	#define RGBLED_NUM 10
 	#define RGBLIGHT_ANIMATIONS
+	#define RGBLIGHT_LAYERS
+	#define RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
+
+//#define RGB_PWR_PIN 8 // P-mos
+//#define RGB_PWR_PIN_REVERSE 20 // N-mos
 #endif
 
 #define DEBOUNCE 20
 #define BLUETOOTH_ENABLE
-
 
 #define PERMISSVIE_HOLD
 #define IGNORE_MOD_TAP_INTERRUPT
@@ -100,12 +105,11 @@
 	#define RGB_MATRIX_LED_PROCESS_LIMIT 20
 	#define RGB_MATRIX_LED_FLUSH_LIMIT 26
 	#define DRIVER_ADDR_1 0b1010000
-	#define DRIVER_ADDR_2 0b1011111
+	#define DRIVER_ADDR_2 0b1010000
 
 	#define DRIVER_COUNT 2
-	#define DRIVER_1_LED_TOTAL 47
-	#define DRIVER_2_LED_TOTAL 36
-	#define DRIVER_LED_TOTAL DRIVER_1_LED_TOTAL + DRIVER_2_LED_TOTAL
+	#define DRIVER_1_LED_TOTAL 64
+	#define DRIVER_LED_TOTAL DRIVER_1_LED_TOTAL
 
 	// #define DISABLE_RGB_MATRIX_ALPHAS_MODS
 	// #define DISABLE_RGB_MATRIX_GRADIENT_UP_DOWN
@@ -132,7 +136,7 @@
 // The pin number for SDA pin
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
-#define POWER_SAVE_TIMEOUT 3000
+#define POWER_SAVE_TIMEOUT 2000
 // #define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO

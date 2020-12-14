@@ -3,6 +3,8 @@
 
 #include "config_common.h"
 
+#define BLUETOOTH_ENABLE
+
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
 #define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
@@ -88,8 +90,6 @@
 #endif
 
 #define DEBOUNCE 20
-#define BLUETOOTH_ENABLE
-
 
 #define PERMISSVIE_HOLD
 #define IGNORE_MOD_TAP_INTERRUPT
@@ -135,8 +135,8 @@
 // The pin number for SDA pin
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
-#define POWER_SAVE_TIMEOUT 3000
-// #define BLE_NKRO
+#define POWER_SAVE_TIMEOUT 2000
+// define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO
 #define NKRO_EPSIZE 22
