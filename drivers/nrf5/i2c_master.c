@@ -40,9 +40,13 @@ void i2c_start(void) {
     nrfx_twim_enable(&m_twim_master);
     twim_enable = true;
     
-#if defined(IS31FL3733) || defined(IS31FL3737)
+#if defined(IS31FL3733) || defined(IS31FL3737) || defined(IS31FL3741)
     i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
+#ifdef IS31FL3741
+    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); 
+#else
     i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x03);
+#endif
     i2c_write_register(DRIVER_ADDR_1, 0x00, 0x01);
     
      #ifdef DRIVER_2_LED_TOTAL
@@ -50,19 +54,18 @@ void i2c_start(void) {
 	    i2c_write_register(DRIVER_ADDR_2, 0xFD, 0x03);
 	    i2c_write_register(DRIVER_ADDR_2, 0x00, 0x01);
     #endif
-#endif
-
-#ifdef IS31FL3741
-    i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
-    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); //ISSI_PAGE_FUNCTION?
-    i2c_write_register(DRIVER_ADDR_1, 0x00, 0x01);
+    
 #endif
 }
 
 void i2c_stop(void) {
-#if defined(IS31FL3733) || defined(IS31FL3737)
+#if defined(IS31FL3733) || defined(IS31FL3737) || defined(IS31FL3741)
     i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
+#ifdef IS31FL3741
+    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); 
+#else
     i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x03);
+#endif
     i2c_write_register(DRIVER_ADDR_1, 0x00, 0x00);
 
      #ifdef DRIVER_2_LED_TOTAL
@@ -70,14 +73,8 @@ void i2c_stop(void) {
 	    i2c_write_register(DRIVER_ADDR_2, 0xFD, 0x03);
 	    i2c_write_register(DRIVER_ADDR_2, 0x00, 0x00);
     #endif
+    
 #endif
-
-#ifdef IS31FL3741
-    i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
-    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); //ISSI_PAGE_FUNCTION?
-    i2c_write_register(DRIVER_ADDR_1, 0x00, 0x00);
-#endif
-
     twim_enable = false;
     nrfx_twim_disable(&m_twim_master);
 }

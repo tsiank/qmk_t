@@ -8,6 +8,7 @@ SRC += \
 	$(NRF_DIR)/outputselect.c \
 	$(NRF_DIR)/usb/nrf5_usb.c \
 	$(NRF_DIR)/usb/fixed/app_usbd_hid_generic.c \
+	$(NRF_DIR)/usb/fixed/app_usbd_audio.c \
 	$(NRF_DIR)/ble/ble_service.c \
 	$(NRF_DIR)/ble/ble_hids_service.c \
 	$(NRF_DIR)/ble/ble_midi.c \

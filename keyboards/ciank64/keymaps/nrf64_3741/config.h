@@ -3,8 +3,6 @@
 
 #include "config_common.h"
 
-#define BLUETOOTH_ENABLE
-
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
 #define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
@@ -12,12 +10,12 @@
 #define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xEEEE
-#define PRODUCT_ID      0xC376
+#define VENDOR_ID       0xFEEE
+#define PRODUCT_ID      0xD376
 #define DEVICE_VER      0x0001
-#define MANUFACTURER    "Tsiank"
-#define PRODUCT         "Tsiank67_rgb for work"
-#define DESCRIPTION     "Dvorak right-handed keyboard for office"
+#define MANUFACTURER    "Ciank"
+#define PRODUCT         "Ciank64_rgb"
+#define DESCRIPTION     "Standard keyboard"
 
 /* key matrix */
 #define MATRIX_ROWS 5
@@ -75,7 +73,7 @@
 #define MATRIX_ROW_PINS \
 { 26, 29, 2, 45, 43}
 #define MATRIX_COL_PINS \
-{ 41, 28, 12, 42, 7, 3, 38, 36, 34, 32, 24, 22, 13, 20 }
+{ 41, 28, 12, 42, 7, 3, 20, 13, 22, 24, 32, 34,36,38}
 
 #define IGNORE_ATOMIC_BLOCK
 /* COL2ROW, ROW2COL*/
@@ -83,7 +81,7 @@
 
 #ifdef RGBLIGHT_ENABLE
 	#define RGB_DI_PIN 6
-	#define RGBLED_NUM 20
+	#define RGBLED_NUM 2
 	#define RGBLIGHT_ANIMATIONS
 	#define RGBLIGHT_LAYERS
 	#define RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
@@ -93,6 +91,7 @@
 #endif
 
 #define DEBOUNCE 20
+#define BLUETOOTH_ENABLE
 
 #define PERMISSVIE_HOLD
 #define IGNORE_MOD_TAP_INTERRUPT
@@ -105,13 +104,12 @@
 	#define RGB_MATRIX_FRAMEBUFFER_EFFECTS
 	#define RGB_MATRIX_LED_PROCESS_LIMIT 20
 	#define RGB_MATRIX_LED_FLUSH_LIMIT 26
-	#define DRIVER_ADDR_1 0b1010000
-	#define DRIVER_ADDR_2 0b1011111
+	#define DRIVER_ADDR_1 0b0110000
+	#define DRIVER_ADDR_2 0b0110000 // this is here for compliancy reasons.
 
-	#define DRIVER_COUNT 2
-	#define DRIVER_1_LED_TOTAL 47
-	#define DRIVER_2_LED_TOTAL 36
-	#define DRIVER_LED_TOTAL DRIVER_1_LED_TOTAL + DRIVER_2_LED_TOTAL
+	#define DRIVER_COUNT 1
+	#define DRIVER_1_LED_TOTAL 64
+	#define DRIVER_LED_TOTAL DRIVER_1_LED_TOTAL
 
 	// #define DISABLE_RGB_MATRIX_ALPHAS_MODS
 	// #define DISABLE_RGB_MATRIX_GRADIENT_UP_DOWN
@@ -139,7 +137,7 @@
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
 #define POWER_SAVE_TIMEOUT 2000
-// define BLE_NKRO
+// #define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO
 #define NKRO_EPSIZE 22
@@ -147,18 +145,20 @@
 // #define KBD_WDT_ENABLE
 #define MAX_ENDPOINTS 8
 
+#define AUDIO_CLICKY
+
 /*
  * MIDI options
  */
 
 /* Prevent use of disabled MIDI features in the keymap */
-//#define MIDI_ENABLE_STRICT 1
+// #define MIDI_ENABLE_STRICT 1
 
 /* enable basic MIDI features:
    - MIDI notes can be sent when in Music mode is on
 */
 
-//#define MIDI_BASIC
+// #define MIDI_BASIC
 
 /* enable advanced MIDI features:
    - MIDI notes can be added to the keymap
@@ -166,9 +166,9 @@
    - Virtual sustain, portamento, and modulation wheel
    - etc.
 */
-//#define MIDI_ADVANCED
+// #define MIDI_ADVANCED
 
 /* override number of MIDI tone keycodes (each octave adds 12 keycodes and allocates 12 bytes) */
-//#define MIDI_TONE_KEYCODE_OCTAVES 6
+// #define MIDI_TONE_KEYCODE_OCTAVES 6
 
 #endif

@@ -12,18 +12,18 @@
 #define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xEEEE
-#define PRODUCT_ID      0xC376
+#define VENDOR_ID       0xFEED
+#define PRODUCT_ID      0xC475
 #define DEVICE_VER      0x0001
 #define MANUFACTURER    "Tsiank"
-#define PRODUCT         "Tsiank67_rgb for work"
-#define DESCRIPTION     "Dvorak right-handed keyboard for office"
+#define PRODUCT         "Cank67_rgb"
+#define DESCRIPTION     "Dvorak right-handed keyboard"
 
 /* key matrix */
 #define MATRIX_ROWS 5
 #define MATRIX_COLS 14
 
-// NRF52840 pin map: ((port << 5) | (pin & 0x1F))
+// NRF52840 pin map: ((port << 5) | (pin & 0x1F)
 // <0=> 0 (P0.0)
 // <1=> 1 (P0.1)
 // <2=> 2 (P0.2)
@@ -87,9 +87,6 @@
 	#define RGBLIGHT_ANIMATIONS
 	#define RGBLIGHT_LAYERS
 	#define RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
-
-	#define RGB_PWR_PIN 8 // P-mos
-//#define RGB_PWR_PIN_REVERSE 20 // N-mos
 #endif
 
 #define DEBOUNCE 20
@@ -139,7 +136,7 @@
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
 #define POWER_SAVE_TIMEOUT 2000
-// define BLE_NKRO
+#define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO
 #define NKRO_EPSIZE 22

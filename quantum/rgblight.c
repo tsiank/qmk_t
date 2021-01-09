@@ -39,6 +39,8 @@
 #    include "velocikey.h"
 #endif
 
+#include "nrf_gpio.h"
+
 #ifndef MIN
 #    define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
@@ -194,6 +196,28 @@ void eeconfig_debug_rgblight(void) {
     dprintf("rgblight_config.speed = %d\n", rgblight_config.speed);
 }
 
+//开启RGB电源
+void rgb_pwr_on(void)
+{
+#ifdef RGB_PWR_PIN
+    nrf_gpio_pin_write(RGB_PWR_PIN, 0);
+#endif
+#ifdef RGB_PWR_PIN_REVERSE
+    nrf_gpio_pin_write(RGB_PWR_PIN_REVERSE, 1);
+#endif
+}
+
+//关闭RGB电源
+void rgb_pwr_off(void)
+{
+#ifdef RGB_PWR_PIN
+    nrf_gpio_pin_write(RGB_PWR_PIN, 1);
+#endif
+#ifdef RGB_PWR_PIN_REVERSE
+    nrf_gpio_pin_write(RGB_PWR_PIN_REVERSE, 0);
+#endif
+}
+
 void rgblight_init(void) {
     /* if already initialized, don't do it again.
        If you must do it again, extern this and set to false, first.
@@ -222,8 +246,21 @@ void rgblight_init(void) {
 
     rgblight_timer_init();  // setup the timer
 
+//初始化RGB power控制脚
+#ifdef RGB_PWR_PIN
+    nrf_gpio_cfg_output(RGB_PWR_PIN);
+#endif
+#ifdef RGB_PWR_PIN_REVERSE
+    nrf_gpio_cfg_output(RGB_PWR_PIN_REVERSE);
+#endif
+
     if (rgblight_config.enable) {
         rgblight_mode_noeeprom(rgblight_config.mode);
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE) 
+        rgb_pwr_on();
+    } else {
+        rgb_pwr_off();
+#endif
     }
 
     is_rgblight_initialized = true;
@@ -338,6 +375,9 @@ void rgblight_toggle_noeeprom(void) {
 }
 
 void rgblight_enable(void) {
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE) 
+    rgb_pwr_on();
+#endif
     rgblight_config.enable = 1;
     // No need to update EEPROM here. rgblight_mode() will do that, actually
     // eeconfig_update_rgblight(rgblight_config.raw);
@@ -346,12 +386,22 @@ void rgblight_enable(void) {
 }
 
 void rgblight_enable_noeeprom(void) {
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE) 
+    rgb_pwr_on();
+#endif
     rgblight_config.enable = 1;
     dprintf("rgblight enable [NOEEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
     rgblight_mode_noeeprom(rgblight_config.mode);
 }
 
 void rgblight_disable(void) {
+#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //如果无电源控制则关机前逐步降低亮度
+    rgblight_set_val(120);
+    wait_ms(1);
+    rgblight_set_val(60);
+    wait_ms(1);
+#endif
+
     rgblight_config.enable = 0;
     eeconfig_update_rgblight(rgblight_config.raw);
     dprintf("rgblight disable [EEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
@@ -359,15 +409,29 @@ void rgblight_disable(void) {
     RGBLIGHT_SPLIT_SET_CHANGE_MODE;
     wait_ms(50);
     rgblight_set();
+    wait_ms(2);
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE) 
+    rgb_pwr_off();
+#endif
 }
 
 void rgblight_disable_noeeprom(void) {
+#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //如果无电源控制则关机前逐步降低亮度
+    rgblight_set_val(120);
+    wait_ms(1);
+    rgblight_set_val(60);
+    wait_ms(1);
+#endif
     rgblight_config.enable = 0;
     dprintf("rgblight disable [NOEEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
     rgblight_timer_disable();
     RGBLIGHT_SPLIT_SET_CHANGE_MODE;
     wait_ms(50);
     rgblight_set();
+    wait_ms(2);
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE) 
+    rgb_pwr_off();
+#endif
 }
 
 bool rgblight_is_enabled(void) { return rgblight_config.enable; }
