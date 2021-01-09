@@ -1,5 +1,4 @@
-#ifndef TMK_CORE_COMMON_EEPROM_H_
-#define TMK_CORE_COMMON_EEPROM_H_
+#pragma once
 
 #if defined(__AVR__) && !defined(EEPROM_DRIVER)
 #    include <avr/eeprom.h>
@@ -23,5 +22,3 @@ void     eeprom_update_block(const void *__src, void *__dst, size_t __n);
 void     eeprom_update(void);
 #endif
 #endif
-
-#endif /* TMK_CORE_COMMON_EEPROM_H_ */
