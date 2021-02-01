@@ -400,13 +400,14 @@ void rgblight_enable_noeeprom(void) {
 }
 
 void rgblight_disable(void) {
+/*
 #if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //如果无电源控制则关机前逐步降低亮度
     rgblight_set_val(120);
     wait_ms(1);
     rgblight_set_val(60);
     wait_ms(1);
 #endif
-
+*/
     rgblight_config.enable = 0;
     eeconfig_update_rgblight(rgblight_config.raw);
     dprintf("rgblight disable [EEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
@@ -421,12 +422,14 @@ void rgblight_disable(void) {
 }
 
 void rgblight_disable_noeeprom(void) {
+/*
 #if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //如果无电源控制则关机前逐步降低亮度
     rgblight_set_val(120);
     wait_ms(1);
     rgblight_set_val(60);
     wait_ms(1);
 #endif
+*/
     rgblight_config.enable = 0;
     dprintf("rgblight disable [NOEEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
     rgblight_timer_disable();
@@ -712,6 +715,9 @@ void rgblight_set_layer_state(uint8_t layer, bool enabled) {
 #    ifdef RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
     // If not enabled, then nothing else will actually set the LEDs...
     if (!rgblight_config.enable) {
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)    //tsiank add
+    	rgb_pwr_on();
+#endif
         rgblight_set();
     }
 #    endif
