@@ -81,7 +81,7 @@
 
 #ifdef RGBLIGHT_ENABLE
 	#define RGB_DI_PIN 6
-	#define RGBLED_NUM 2
+	#define RGBLED_NUM 18
 	#define RGBLIGHT_ANIMATIONS
 	#define RGBLIGHT_LAYERS
 	#define RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
@@ -145,7 +145,7 @@
 // #define KBD_WDT_ENABLE
 #define MAX_ENDPOINTS 8
 
-#define AUDIO_CLICKY
+// #define AUDIO_CLICKY
 
 /*
  * MIDI options

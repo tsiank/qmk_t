@@ -3,6 +3,8 @@
 
 #include "config_common.h"
 
+#define BLUETOOTH_ENABLE
+
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
 #define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
@@ -75,6 +77,8 @@
 #define MATRIX_COL_PINS \
 { 29, 45, 9, 10, 13 }
 
+#define IGNORE_ATOMIC_BLOCK
+
 /* COL2ROW, ROW2COL*/
 #define DIODE_DIRECTION ROW2COL
 
@@ -85,7 +89,6 @@
 #endif
 
 #define DEBOUNCE 20
-#define BLUETOOTH_ENABLE
 
 
 #define PERMISSVIE_HOLD
@@ -148,6 +151,7 @@
 // #define KBD_WDT_ENABLE
 #define MAX_ENDPOINTS 8
 
+
 /*
  * MIDI options
  */
@@ -174,12 +178,12 @@
 
 //analog battery measure
 //#define ADC_PIN NRF_SAADC_INPUT_AIN3
-#define ADC_PIN NRF_SAADC_INPUT_AIN3 ADC_PIN NRF_SAADC_INPUT_AIN2
+//#define ADC_PIN NRF_SAADC_INPUT_AIN3 ADC_PIN NRF_SAADC_INPUT_AIN2
 
 //#define NRF_LOG_ENABLED 0
 //#define NRF_LOG_BACKEND_SERIAL_USES_UART 0
 //#define NRF_LOG_BACKEND_SERIAL_UART_TX_PIN 5
-#define NRF_LOG_BACKEND_UART_TX_PIN 8
+//#define NRF_LOG_BACKEND_UART_TX_PIN 8
 
 // NRF_CLOCK_LF_SRC_RC - internal oscillator
 // NRF_CLOCK_LF_SRC_XTAL - external crystal

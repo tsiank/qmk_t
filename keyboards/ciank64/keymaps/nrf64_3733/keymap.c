@@ -258,7 +258,7 @@ void rgb_matrix_indicators_user(void) {
 #endif
 
 const rgblight_segment_t PROGMEM my_capslock_layer[] = RGBLIGHT_LAYER_SEGMENTS(
-    { 0, 8, HSV_WHITE} //从第一个灯开始，点亮8个灯，颜色为白色
+    { 9, 8, HSV_WHITE} //从第一个灯开始，点亮8个灯，颜色为白色
 );
 
 const rgblight_segment_t* const PROGMEM my_rgb_layers[] = RGBLIGHT_LAYERS_LIST(

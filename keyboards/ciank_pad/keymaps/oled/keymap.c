@@ -53,6 +53,12 @@ extern rgblight_config_t rgblight_config;
   #include "wpm.h"
 #endif
 
+const char *read_layer_state(void);
+const char *read_logo(void);
+void set_keylog(uint16_t keycode, keyrecord_t *record);
+const char *read_keylog(void);
+const char *read_keylogs(void);
+
 enum ciank_pad_layers {
     _BASE = 0,
     _DIR,
@@ -102,43 +108,6 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_TRNS, KC_TRNS, KC_TRNS, BATT_LV, BATT_LV2),
 };
 
-const char *read_layer_state(void);
-const char *read_logo(void);
-void set_keylog(uint16_t keycode, keyrecord_t *record);
-const char *read_keylog(void);
-const char *read_keylogs(void);
-
-static bool process_record_user_special(uint16_t keycode, bool pressed) {
-  #ifdef SSD1306OLED
-  iota_gfx_flush(); // wake up screen
-#endif
-  return false;
-}
-
-char bat_state_str[24];
-char bat_percentage_str[24];
-void set_bat_state(void) {
-
-  if(1)
-  {
-    snprintf(bat_state_str, sizeof(bat_state_str), "VOLT: %4d MV",
-           get_vcc());
-    snprintf(bat_percentage_str, sizeof(bat_percentage_str), "&': %d %%",
-           (get_vcc()-2400)/18);
-  } else {
-    snprintf(bat_state_str, sizeof(bat_state_str), "VOLT: CHECK SWITCH");
-    snprintf(bat_percentage_str, sizeof(bat_percentage_str), "&': CHECK SWITCH");
-  }
-
-}
-
-const char *read_bat_state(void) {
-  return bat_state_str;
-}
-
-const char *read_bat_percentage(void) {
-  return bat_percentage_str;
-}
 
 char hid_state_str[24];
 const char *read_hid_state(void) {
@@ -205,28 +174,6 @@ const char *read_caps_lock_state(void)
     (leds & (1 << USB_LED_CAPS_LOCK)) ? "1" : "0");
   return caps_lock_state;
 }
-
-char battery_charging_state[24];
-const char *read_battery_charging_state(void)
-{
-  // if (nrfx_power_usbstatus_get() != NRFX_POWER_USB_STATE_CONNECTED ||
-  //     nrfx_power_usbstatus_get() != NRFX_POWER_USB_STATE_READY) {
-  //   snprintf(battery_charging_state, sizeof(battery_charging_state), "NO USB");
-  //   return battery_charging_state;
-  // }
-
-  if(0){ //switch not open
-     snprintf(battery_charging_state, sizeof(battery_charging_state), "CHECK SWITCH");
-     return battery_charging_state;
-  }
-  if(1){ // high: charged
-    snprintf(battery_charging_state, sizeof(battery_charging_state), "CHARGE DONE");
-  }else{
-    snprintf(battery_charging_state, sizeof(battery_charging_state), "CHARGING");
-  }
-  return battery_charging_state;
-}
-
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 	if (!NRF_USBD->ENABLE){
@@ -326,21 +273,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     		}
     	 break;
     }
-  if (record->event.pressed) {
-    set_bat_state();
-    // set_keylog(keycode, record);
-    #ifdef WPM_ENABLE
-      update_wpm(keycode);
-      set_wpm();
-    #endif
-    // eeprom_write_dword(EECONFIG_RGBLIGHT, 666);`
-  }
-  switch (keycode) {
-  default:
-    // unset_layer(record);
-    return process_record_user_special(keycode, record->event.pressed);
-  }
-    return false;
+    return true;
 }
 
 
@@ -437,70 +370,67 @@ void encoder_update_user(uint8_t index, bool clockwise) {
 }
 #endif
 
-#ifdef SSD1306OLED
-
-void matrix_update(struct CharacterMatrix *dest,
-                          const struct CharacterMatrix *source) {
-  if (memcmp(dest->display, source->display, sizeof(dest->display))) {
-    memcpy(dest->display, source->display, sizeof(dest->display));
-    dest->dirty = true;
-  }
+#ifdef OLED_DRIVER_ENABLE
+oled_rotation_t oled_init_user(oled_rotation_t rotation) {
+    //   oled_scroll_set_area(0,2);
+    // oled_scroll_set_speed(4);
+    // oled_scroll_right();
+    return OLED_ROTATION_0;
 }
-
-void matrix_render_user(struct CharacterMatrix *matrix) {
+void oled_task_user() {
     switch(biton32(layer_state))
     {
       case _BASE:
       case _DIR:
-        matrix_write_ln(matrix, read_layer_state());
-        matrix_write_ln(matrix, read_hid_state());
-        matrix_write_ln(matrix, read_bat_percentage());
+        oled_write_ln(read_layer_state(), false);
+        oled_write_ln(read_hid_state(), false);
         #ifdef WPM_ENABLE
-          matrix_write_ln(matrix, read_wpm());
+          oled_write_ln(read_wpm(), false);
+        #else
+          oled_write_ln("JasonRen_Pad", false);
         #endif
-        // matrix_write_ln(matrix,read_shift_win_state());
-        // matrix_write(matrix,read_ctrl_alt_state());
+        // oled_write_ln(ead_shift_win_state(, false);
+        // matrix_write(matrix,read_ctrl_alt_state(, false);
         //others:
-        // matrix_write(matrix,read_caps_lock_state());
-        // matrix_write_ln(matrix, read_keylog());
-        // matrix_write_ln(matrix, read_keylogs());
-        //matrix_write_ln(matrix, read_mode_icon(keymap_config.swap_lalt_lgui));
-        //matrix_write_ln(matrix, read_host_led_state());
-        //matrix_write_ln(matrix, read_timelog());
+        // matrix_write(matrix,read_caps_lock_state(, false);
+        // oled_write_ln(read_keylog(, false);
+        // oled_write_ln(read_keylogs(, false);
+        //oled_write_ln(read_mode_icon(keymap_config.swap_lalt_lgui, false);
+        //oled_write_ln(read_host_led_state(, false);
+        //oled_write_ln(read_timelog(, false);
       break;
       case _SYS:
-        matrix_write_ln(matrix, ",- =>          [ESC");
-        matrix_write_ln(matrix, "B: ENTER BOOT");
-        matrix_write_ln(matrix, read_version());
+        oled_write_ln(",- =>          [ESC", false);
+        oled_write_ln("B: ENTER BOOT", false);
+        oled_write_ln(read_version(), false);
       break;
       case _BLE_SETTINGS:
-        matrix_write_ln(matrix, ",- #$          [ESC");
-        matrix_write_ln(matrix, "T: TOGGLE HID");
-        matrix_write_ln(matrix, "DEL: DEL BONDS");
+        oled_write_ln(",- #$          [ESC", false);
+        oled_write_ln("T: TOGGLE HID", false);
+        oled_write_ln("DEL: DEL BONDS", false);
+        oled_write_ln("JasonRen_Pad", false);
       break;
       case _RGB_SETTINGS:
       #ifdef RGBLIGHT_ENABLE
-        matrix_write_ln(matrix, ",- ;<          [ESC");
-        matrix_write_ln(matrix, read_rgb_state());
-        matrix_write_ln(matrix, "T: TOGGLE E: RESET ");
-        matrix_write(matrix, "M: MODE HUE:ENCODER");
+        oled_write_ln(",- ;<          [ESC", false);
+        oled_write_ln(read_rgb_state(), false);
+        oled_write_ln("T: TOGGLE E: RESET ", false);
+        oled_write_ln( "M: MODE HUE:ENCODER", false);
       #else
-        matrix_write_ln(matrix, ",- ;<          [ESC");
-        matrix_write_ln(matrix, "RGB NOT SUPPORTED");
+        oled_write_ln(",- ;<          [ESC", false);
+        oled_write_ln("RGB NOT SUPPORTED", false);
+        oled_write_ln("JasonRen_Pad", false);
+        oled_write_ln("", false);
+
       #endif
       break;
       default:
-      matrix_write_ln(matrix, "ERROR LAYER");
+      oled_write_ln("ERROR LAYER", false);
+      oled_write_ln("JasonRen_Pad", false);
+      oled_write_ln("JasonRen_Pad", false);
+      oled_write_ln("JasonRen_Pad", false);
       break;
     }
 }
 
-void iota_gfx_task_user(void) {
-  struct CharacterMatrix matrix;
-  matrix_clear(&matrix);
-  matrix_render_user(&matrix);
-  matrix_update(&display, &matrix);
-}
-
 #endif
-

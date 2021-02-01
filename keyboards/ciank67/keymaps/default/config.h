@@ -139,13 +139,15 @@
 #define I2C1_SDA 17
 // Enter sleep modes after 600 seconds
 #define POWER_SAVE_TIMEOUT 2000
-#define BLE_NKRO
+//#define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO
 #define NKRO_EPSIZE 22
 // Enable watchdog
 // #define KBD_WDT_ENABLE
 #define MAX_ENDPOINTS 8
+
+#define WPM_ENABLE
 
 /*
  * MIDI options

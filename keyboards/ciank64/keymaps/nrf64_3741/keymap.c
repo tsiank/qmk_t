@@ -48,11 +48,10 @@ extern rgblight_config_t rgblight_config;
 
 
 enum ciank64_layers {
-    _DVORAKR,
+    _QWERTY,
     _SIGN,
     _FN,
-//    _MIDI,
-    _QWERTY,
+    _DVORAKR,
     _SIGN0,
     _FN0,
     _RGBST,
@@ -63,19 +62,19 @@ enum ciank64_layers {
 enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    [_DVORAKR] = LAYOUT(
-        KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_J,  KC_L,  KC_M,    KC_F,    KC_P,    KC_SLSH,    KC_LBRC,        KC_RBRC,   KC_BSPC,
-        KC_TAB,   KC_5,    KC_6,    KC_Q,    KC_DOT,  KC_O,  KC_R,  KC_S,    KC_U,    KC_Y,    KC_B,          KC_SCLN,        KC_EQL,  KC_BSLS,
-        KC_CAPS,   KC_7,    KC_8,    KC_Z,    KC_A,             KC_E,    KC_H,    KC_T,    KC_D,    KC_C,    KC_K,          KC_MINS,           KC_ENT,
-        KC_LSFT,      KC_9,    KC_0,    KC_X,     KC_COMM,     KC_I,    KC_N,    KC_W,    KC_V, KC_G,      KC_QUOT,   KC_GRAVE, KC_UP,   KC_F5,
-        KC_LCTL,    KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN),              KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
-                        ),
+    [_QWERTY] = LAYOUT(
+        GRAVE_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,
+        KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC, KC_RBRC, KC_BSLS,
+        KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,          KC_ENTER,
+        KC_LSFT,          KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,  KC_UP, KC_DELETE,
+        KC_LCTL,    KC_LALT, MO(_SIGN),             KC_SPC, MO(_FN),          MO(_FN), KC_LEFT, KC_DOWN, KC_RGHT
+                       ),
     [_SIGN]   = LAYOUT(
-        _______,  KC_F1,  KC_F2,  KC_F3,  KC_TAB,  KC_EXCLAIM,    KC_AT,    KC_HASH,   KC_LBRC,   KC_RBRC  , KC_SLSH, _______,    _______,   VOLUP,
-        _______,  KC_F4,  KC_F5,  KC_F6,    KC_LCBR,  KC_DOLLAR, KC_PERCENT,   KC_CIRCUMFLEX,    KC_COLON,  KC_EQL,    KC_PIPE,    _______,   _______,   _______,
-        ENT_DFU,    KC_F7,  KC_F8,  KC_F9,    KC_RCBR ,   KC_AMPERSAND,   KC_ASTERISK,     KC_LEFT_PAREN,   KC_MINS,    KC_PLUS,    KC_TILDE,   AU_ON,    AU_OFF,
-        RESET,       KC_F10,  KC_F11,   KC_F12,   KC_BSLS,         KC_RIGHT_PAREN,    KC_QUOT,    KC_DOUBLE_QUOTE,   KC_UNDERSCORE,    CLICKY_TOGGLE,  MI_G, MU_ON,   MU_OFF, TG(_QWERTY),
-        _______,    _______, KC_TRNS,              RSFT_T(KC_SPC),       KC_TRNS,  _______,  SEL0, SEL1, SEL2
+        _______,  KC_F1,  KC_F2,  KC_F3,  KC_F4,  KC_F5,    KC_F6,    KC_F7,   KC_F8,   KC_F9  , KC_F10, KC_F11,    KC_F12,  _______, 
+        SLEEP,  ADVW,  DELB,  DISC,    OUT_USB,  OUT_BT, _______,   _______,    _______,  _______,    KC_PSCREEN,    KC_SCROLLLOCK,   KC_PAUSE,   _______,
+        _______,    SEL0,  SEL1,  SEL2,    _______ ,   _______,   _______,     _______,   _______,    KC_HOME,    KC_PGUP,   KC_INSERT,  _______,
+        RESET,       _______,  _______,   _______,   _______,         _______,    _______,    _______,   _______,    KC_END,   KC_PGDOWN, KC_DELETE,_______, _______,
+        _______,    _______, KC_TRNS,             KC_SPC,       KC_TRNS,  _______, _______, _______,   _______
                       ),
     [_FN]   = LAYOUT(
         _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______,ENT_DFU, RESET,
@@ -84,22 +83,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______, DELB, ADVW,_______,
         RGB_TOG, RGBRST, RGB_MOD,   KC_SPC, KC_TRNS, BATT_LV, BATT_LV2, TO(_RGBST), TO(_MOUSE)
                       ),
- /*
-    [_MIDI]   = LAYOUT(
-	    MI_SUS , MI_G,    MI_B,    MI_Ds_1, MI_G_1,  MI_B_1,  MI_Ds_2, MI_G_2,  MI_B_2,  MI_Ds_3, MI_G_3,  MI_B_3,  MI_Ds_4, MI_G_4,
-	    MI_OCTU, MI_Fs,   MI_As,   MI_D_1,  MI_Fs_1, MI_As_1, MI_D_2,  MI_Fs_2, MI_As_2, MI_D_3,  MI_Fs_3, MI_As_3, MI_D_4,  MI_Fs_4, 
-	    MI_OCTD, MI_F,    MI_A,    MI_Cs_1, MI_F_1,  MI_A_1,  MI_Cs_2, MI_F_2,  MI_A_2,  MI_Cs_3, MI_F_3,  MI_A_3,  MI_Cs_4, 
-	    MI_VELU, MI_E,    MI_Gs,   MI_C_1,  MI_E_1,  MI_Gs_1, MI_C_2,  MI_E_2,  MI_Gs_2, MI_C_3,  MI_E_3,  MI_Gs_3, MI_C_4,  TO(_DVORAKR), 
-	    MI_VELD, MI_Ds,   MI_G,    MI_B,    MI_Ds_1, MI_G_1,  MI_B_1,  MI_Ds_2, MI_G_2
-                      ),
-*/
-    [_QWERTY] = LAYOUT(
-        GRAVE_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,
-        KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC, KC_RBRC, KC_BSLS,
-        KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,          KC_ENTER,
-        KC_LSFT,          KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,  KC_UP, KC_DELETE,
-        KC_LCTL,    KC_LALT, MO(_SIGN),             KC_SPC, MO(_FN),          KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
-                       ),
+    [_DVORAKR] = LAYOUT(
+        KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_J,  KC_L,  KC_M,    KC_F,    KC_P,    KC_SLSH,    KC_LBRC,        KC_RBRC,   KC_BSPC,
+        KC_TAB,   KC_5,    KC_6,    KC_Q,    KC_DOT,  KC_O,  KC_R,  KC_S,    KC_U,    KC_Y,    KC_B,          KC_SCLN,        KC_EQL,  KC_BSLS,
+        KC_CAPS,   KC_7,    KC_8,    KC_Z,    KC_A,             KC_E,    KC_H,    KC_T,    KC_D,    KC_C,    KC_K,          KC_MINS,           KC_ENT,
+        KC_LSFT,      KC_9,    KC_0,    KC_X,     KC_COMM,     KC_I,    KC_N,    KC_W,    KC_V, KC_G,      KC_QUOT,   KC_GRAVE, KC_UP,   KC_F5,
+        KC_LCTL,    KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN),              KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
+                        ),
     [_SIGN0]   = LAYOUT(
         _______,  KC_F1,  KC_F2,  KC_F3,  KC_F4,  KC_F5,    KC_F6,    KC_F7,   KC_F8,   KC_F9  , KC_F10, KC_F11,    KC_F12,  _______, 
         SLEEP,  ADVW,  DELB,  DISC,    OUT_USB,  OUT_BT, _______,   _______,    _______,  _______,    KC_PSCREEN,    KC_SCROLLLOCK,   KC_PAUSE,   _______,
@@ -291,7 +281,7 @@ void rgb_matrix_indicators_user(void) {
 #endif
 
 const rgblight_segment_t PROGMEM my_capslock_layer[] = RGBLIGHT_LAYER_SEGMENTS(
-    { 0, 8, HSV_WHITE} //从第一个灯开始，点亮8个灯，颜色为白色
+    { 9, 8, HSV_WHITE} //从第一个灯开始，点亮8个灯，颜色为白色
 );
 
 const rgblight_segment_t* const PROGMEM my_rgb_layers[] = RGBLIGHT_LAYERS_LIST(

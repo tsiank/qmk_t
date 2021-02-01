@@ -21,6 +21,11 @@
 #include "nrf_gpio.h"
 #include "adc.h"
 
+#include "nrf_delay.h"
+#include "nrf_power.h"
+#include "nrfx_power.h"
+#include "nrf.h"
+
 // adafruit bootloader, send "dfu" to debug serial port
 #define DFU_MAGIC_UF2_RESET             0x57
 void bootloader_jump_uf2(void) {

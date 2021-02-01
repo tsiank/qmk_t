@@ -1,4 +1,4 @@
-#pragma once
+#ifndef CONFIG_H
 #define CONFIG_H
 
 #include "config_common.h"
@@ -7,25 +7,23 @@
 
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
-//#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
-//#define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
-#define BLE_HID_MAX_INTERVAL 20  /**UNIT_1_25_MS< Maximum connection interval (30 ms). */  //Decreasing the maximum communication interval (ms) with the terminal reduces the delay between the terminal and the master, but increases power consumption. The default is 60 (90 before 2020/07/27)
-#define BLE_HID_SLAVE_LATENCY 3  /**< Slave latency. */  //If you lower the communication parameters with the terminal, the communication frequency will increase, but the power consumption will increase. Should it be inversely proportional to HID_INTERVAL? The default is 3 (4 before 2020/07/27)
+#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
+#define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
 #define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
-#define VENDOR_ID       0xEEEE
-#define PRODUCT_ID      0xC376
+#define VENDOR_ID       0x3D92
+#define PRODUCT_ID      0x8A42
 #define DEVICE_VER      0x0001
 #define MANUFACTURER    "Tsiank"
-#define PRODUCT         "Tsiank67_rgb for work"
-#define DESCRIPTION     "Dvorak right-handed keyboard for office"
+#define PRODUCT         "Ciank_pad"
+#define DESCRIPTION     "Ciank_pad"
 
 /* key matrix */
 #define MATRIX_ROWS 5
-#define MATRIX_COLS 14
+#define MATRIX_COLS 5
 
-// NRF52840 pin map: ((port << 5) | (pin & 0x1F))
+// NRF52840 pin map: ((port << 5) | (pin & 0x1F)
 // <0=> 0 (P0.0)
 // <1=> 1 (P0.1)
 // <2=> 2 (P0.2)
@@ -75,27 +73,23 @@
 // <46=> 46 (P1.14)
 // <47=> 47 (P1.15)
 #define MATRIX_ROW_PINS \
-{ 26, 29, 2, 45, 43}
+{ 41, 5, 43, 38, 36}
 #define MATRIX_COL_PINS \
-{ 41, 28, 12, 42, 7, 3, 20, 13, 22, 24, 32, 34,36,38}
+{ 29, 45, 9, 10, 13 }
 
 #define IGNORE_ATOMIC_BLOCK
+
 /* COL2ROW, ROW2COL*/
-#define DIODE_DIRECTION COL2ROW
+#define DIODE_DIRECTION ROW2COL
 
 #ifdef RGBLIGHT_ENABLE
 	#define RGB_DI_PIN 6
-	#define RGBLED_NUM 18
+	#define RGBLED_NUM 20
 	#define RGBLIGHT_ANIMATIONS
-	#define RGBLIGHT_LAYERS
-	#define RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
-	#define RGBLIGHT_LAYER_BLINK
-
-	#define RGB_PWR_PIN 8 // P-mos
-//#define RGB_PWR_PIN_REVERSE 20 // N-mos
 #endif
 
 #define DEBOUNCE 20
+
 
 #define PERMISSVIE_HOLD
 #define IGNORE_MOD_TAP_INTERRUPT
@@ -108,12 +102,13 @@
 	#define RGB_MATRIX_FRAMEBUFFER_EFFECTS
 	#define RGB_MATRIX_LED_PROCESS_LIMIT 20
 	#define RGB_MATRIX_LED_FLUSH_LIMIT 26
-	#define DRIVER_ADDR_1 0b0110000
-	#define DRIVER_ADDR_2 0b0110000 // this is here for compliancy reasons.
+	#define DRIVER_ADDR_1 0b1010000
+	#define DRIVER_ADDR_2 0b1011111
 
-	#define DRIVER_COUNT 1
-	#define DRIVER_1_LED_TOTAL 67
-	#define DRIVER_LED_TOTAL DRIVER_1_LED_TOTAL
+	#define DRIVER_COUNT 2
+	#define DRIVER_1_LED_TOTAL 47
+	#define DRIVER_2_LED_TOTAL 36
+	#define DRIVER_LED_TOTAL DRIVER_1_LED_TOTAL + DRIVER_2_LED_TOTAL
 
 	// #define DISABLE_RGB_MATRIX_ALPHAS_MODS
 	// #define DISABLE_RGB_MATRIX_GRADIENT_UP_DOWN
@@ -139,9 +134,16 @@
 #define I2C1_SCL 15
 // The pin number for SDA pin
 #define I2C1_SDA 17
+
+#define ENCODERS_PAD_A { 24 }
+#define ENCODERS_PAD_B { 22 }
+#define TAP_CODE_DELAY 20
+#define ENCODER_DIRECTION_FLIP
+#define ENCODER_RESOLUTION 2
+
 // Enter sleep modes after 600 seconds
 #define POWER_SAVE_TIMEOUT 2000
-//#define BLE_NKRO
+// #define BLE_NKRO
 // Force NKRO
 // #define FORCE_NKRO
 #define NKRO_EPSIZE 22
@@ -172,3 +174,26 @@
 
 /* override number of MIDI tone keycodes (each octave adds 12 keycodes and allocates 12 bytes) */
 //#define MIDI_TONE_KEYCODE_OCTAVES 6
+
+//analog battery measure
+//#define ADC_PIN NRF_SAADC_INPUT_AIN3
+//#define ADC_PIN NRF_SAADC_INPUT_AIN3 ADC_PIN NRF_SAADC_INPUT_AIN2
+
+//#define NRF_LOG_ENABLED 0
+//#define NRF_LOG_BACKEND_SERIAL_USES_UART 0
+//#define NRF_LOG_BACKEND_SERIAL_UART_TX_PIN 5
+//#define NRF_LOG_BACKEND_UART_TX_PIN 8
+
+// NRF_CLOCK_LF_SRC_RC - internal oscillator
+// NRF_CLOCK_LF_SRC_XTAL - external crystal
+
+// NRF_CLOCK_LF_SRC_RC - internal oscillator
+// NRF_CLOCK_LF_SRC_XTAL - external crystal
+// using E73 internal oscillator (assume there's no external crystal soldered)
+#define NRF_SDH_CLOCK_LF_SRC 0
+#define NRF_SDH_CLOCK_LF_RC_CTIV 16
+#define NRF_SDH_CLOCK_LF_RC_TEMP_CTIV 2
+#define NRF_SDH_CLOCK_LF_ACCURACY 1
+
+
+#endif
