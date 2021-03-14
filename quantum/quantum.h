@@ -24,6 +24,10 @@
 #    include <hal.h>
 #    include "chibios_config.h"
 #endif
+#if defined(PROTOCOL_NRF5)
+#include "nrf.h"
+#include "nrf_gpio.h"
+#endif
 
 #include "wait.h"
 #include "matrix.h"
@@ -209,7 +213,7 @@ extern layer_state_t layer_state;
 #    endif
 #    define waitInputPinDelay() wait_cpuclock(GPIO_INPUT_PIN_DELAY)
 
-#elif defined(__ARMEL__) || defined(__ARMEB__)
+#elif defined(__ARMEL__) || defined(__ARMEB__) 
 
 /* For GPIOs on ARM-based MCUs, the input pins are sampled by the clock of the bus
  * to which the GPIO is connected.
@@ -230,6 +234,13 @@ extern layer_state_t layer_state;
 #    endif
 #    define waitInputPinDelay() wait_cpuclock(GPIO_INPUT_PIN_DELAY)
 
+#endif
+
+#if defined(PROTOCOL_NRF5)
+#    if !defined(GPIO_INPUT_PIN_DELAY)
+#        define GPIO_INPUT_PIN_DELAY 2
+#    endif
+#    define waitInputPinDelay() wait_cpuclock(GPIO_INPUT_PIN_DELAY)
 #endif
 
 // For tri-layer

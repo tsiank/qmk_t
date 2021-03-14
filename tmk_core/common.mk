@@ -20,6 +20,8 @@ TMK_COMMON_SRC +=	$(COMMON_DIR)/host.c \
 # Use platform provided print - fall back to lib/printf
 ifneq ("$(wildcard $(TMK_PATH)/$(PLATFORM_COMMON_DIR)/printf.mk)","")
     include $(TMK_PATH)/$(PLATFORM_COMMON_DIR)/printf.mk
+else ifneq ("$(wildcard $(TMK_PATH)/$(PLATFORM_COMMON_DIR)/nrf5_printf.mk)","")
+    include $(TMK_PATH)/$(PLATFORM_COMMON_DIR)/nrf5_printf.mk
 else
     include $(TMK_PATH)/$(COMMON_DIR)/lib_printf.mk
 endif

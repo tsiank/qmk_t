@@ -147,7 +147,7 @@
 // #define KBD_WDT_ENABLE
 #define MAX_ENDPOINTS 8
 
-#define WPM_ENABLE
+//#define WPM_ENABLE
 
 /*
  * MIDI options
