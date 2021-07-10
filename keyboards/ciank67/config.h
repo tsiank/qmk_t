@@ -7,8 +7,10 @@
 
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
-#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
-#define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
+//#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
+//#define BLE_HID_SLAVE_LATENCY 6  /**< Slave latency. */
+#define BLE_HID_MAX_INTERVAL 20  /**UNIT_1_25_MS< Maximum connection interval (30 ms). */  //Decreasing the maximum communication interval (ms) with the terminal reduces the delay between the terminal and the master, but increases power consumption. The default is 60 (90 before 2020/07/27)
+#define BLE_HID_SLAVE_LATENCY 3  /**< Slave latency. */  //If you lower the communication parameters with the terminal, the communication frequency will increase, but the power consumption will increase. Should it be inversely proportional to HID_INTERVAL? The default is 3 (4 before 2020/07/27)
 #define BLE_HID_TIMEOUT 430       /**UNIT_10_MS< Connection supervisory timeout (430 ms). */
 
 /* USB Device descriptor parameter */
