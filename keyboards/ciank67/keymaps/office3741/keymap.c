@@ -84,7 +84,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         RGBG_TOG,  OUT_USB, OUT_BT,  DISC,   _______,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDOWN, _______, _______,
         _______, _______, _______, _______, _______, KC_7, KC_8, KC_9, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
-        RGB_MOD, RGBRST, RGB_MOD,  RGB_RMOD,               KC_0,                        KC_TRNS, BATT_LV, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
+        RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD,               KC_0,                        KC_TRNS, BATT_LV, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_FN]   = LAYOUT(
         _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    KC_F1, KC_F2,  KC_F3, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______, _______,ENT_DFU, RESET,
@@ -252,7 +252,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     	#ifdef IS31FL3741
 void rgb_matrix_indicators_user(void) {
-	  if (!g_suspend_state) {
 	    switch (biton32(layer_state)) {
 	      case _SIGN:
 	        rgb_matrix_set_color(66,0xFF, 0x56, 0x20);
@@ -266,7 +265,6 @@ void rgb_matrix_indicators_user(void) {
 	      case _MOUSE:
 	        rgb_matrix_set_color(63,0xFF, 0x60, 0x40);
           break;
-      }
     }
     uint8_t this_led = host_keyboard_leds();
     if ( this_led & (1<<USB_LED_CAPS_LOCK)) {

@@ -252,7 +252,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     	#ifdef IS31FL3741
 void rgb_matrix_indicators_user(void) {
-	  if (!g_suspend_state) {
 	    switch (biton32(layer_state)) {
 	      case _SIGN:
 	        rgb_matrix_set_color(66,0xFF, 0x56, 0x20);
@@ -266,7 +265,6 @@ void rgb_matrix_indicators_user(void) {
 	      case _MOUSE:
 	        rgb_matrix_set_color(63,0xFF, 0x60, 0x40);
           break;
-      }
     }
     uint8_t this_led = host_keyboard_leds();
     if ( this_led & (1<<USB_LED_CAPS_LOCK)) {

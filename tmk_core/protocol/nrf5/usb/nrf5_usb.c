@@ -14,7 +14,8 @@ static uint8_t keyboard_led_stats = 0;
 static bool m_report_pending;
 
 static const app_usbd_hid_subclass_desc_t *keyboard_hid_report_desc[] = {&kbd_desc};
-APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_kbd, HID_KBD_INTERFACE, hid_kbd_user_ev_handler, (NRF_DRV_USBD_EPIN6), keyboard_hid_report_desc, 1, 1, APP_USBD_HID_SUBCLASS_BOOT, APP_USBD_HID_PROTO_KEYBOARD);
+//APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_kbd, HID_KBD_INTERFACE, hid_kbd_user_ev_handler, (NRF_DRV_USBD_EPIN6), keyboard_hid_report_desc, 1, 1, APP_USBD_HID_SUBCLASS_BOOT, APP_USBD_HID_PROTO_KEYBOARD);
+APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_kbd, HID_KBD_INTERFACE, hid_kbd_user_ev_handler, (NRF_DRV_USBD_EPIN6), keyboard_hid_report_desc, 1, 1, APP_USBD_HID_SUBCLASS_NONE, APP_USBD_HID_PROTO_KEYBOARD);  //tsiank modified
 
 #ifdef NKRO_ENABLE
 static const app_usbd_hid_subclass_desc_t *keyboard2_hid_report_desc[] = {&kbd2_desc};

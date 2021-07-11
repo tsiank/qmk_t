@@ -338,6 +338,7 @@ enum quantum_keycodes {
     BL_STEP,  // 5CC1
     BL_BRTG,  // 5CC2
 
+    // RGB functionality
     // RGB underglow/matrix
     RGB_TOG,            // 5CC3
     RGB_MODE_FORWARD,   // 5CC4
@@ -359,6 +360,23 @@ enum quantum_keycodes {
     RGB_MODE_XMAS,      // 5CD4
     RGB_MODE_GRADIENT,  // 5CD5
     RGB_MODE_RGBTEST,   // 5CD6
+
+    // For RGB matrix
+    RGBM_TOG,
+    RGBM_MODE_FORWARD,
+    RGBM_MODE_REVERSE,
+    RGBM_HUI,
+    RGBM_HUD,
+    RGBM_SAI,
+    RGBM_SAD,
+    RGBM_VAI,
+    RGBM_VAD,
+    RGBM_SPI,
+    RGBM_SPD,
+    RGBM_MODE_PLAIN,
+    RGBM_MODE_BREATHE,
+    RGBM_MODE_RAINBOW,
+    RGBM_MODE_SWIRL,
 
     // Velocikey
     VLK_TOG,  // 5CD7
@@ -662,6 +680,14 @@ enum quantum_keycodes {
 #define RGB_M_G RGB_MODE_GRADIENT
 #define RGB_M_T RGB_MODE_RGBTEST
 #define RGB_M_TW RGB_MODE_TWINKLE
+
+//RGB matrix aliases
+#define RGBM_MOD RGBM_MODE_FORWARD
+#define RGBM_RMOD RGBM_MODE_REVERSE
+#define RGBM_M_P RGBM_MODE_PLAIN
+#define RGBM_M_B RGBM_MODE_BREATHE
+#define RGBM_M_R RGBM_MODE_RAINBOW
+#define RGBM_M_SW RGBM_MODE_SWIRL
 
 // Magic aliases
 #define CL_SWAP MAGIC_SWAP_CONTROL_CAPSLOCK

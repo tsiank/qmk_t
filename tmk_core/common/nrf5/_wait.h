@@ -15,17 +15,9 @@
  */
 #pragma once
 
-#include "nrf.h"
-#include "nrf_gpio.h"
+#include "wait_api.h"
 
-    typedef uint8_t pin_t;
-
-    #define setPinInputHigh(pin)    nrf_gpio_cfg_input(pin, NRF_GPIO_PIN_PULLUP)
-    #define setPinInputLow(pin)     nrf_gpio_cfg_input(pin, NRF_GPIO_PIN_PULLDOWN)
-    #define setPinOutput(pin)       nrf_gpio_cfg_output(pin)
-
-    #define writePinHigh(pin)       nrf_gpio_pin_set(pin)
-    #define writePinLow(pin)        nrf_gpio_pin_clear(pin)
-    #define writePin(pin, level)    ((level) ? writePinHigh(pin) : writePinLow(pin))
-
-    #define readPin(pin)            nrf_gpio_pin_read(pin)
+#    if !defined(GPIO_INPUT_PIN_DELAY)
+#        define GPIO_INPUT_PIN_DELAY 2
+#    endif
+#    define waitInputPinDelay()
