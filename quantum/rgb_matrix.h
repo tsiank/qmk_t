@@ -23,7 +23,7 @@
 #include "rgb_matrix_types.h"
 #include "color.h"
 #include "quantum.h"
-#include "rgblight_list.h"
+#include "rgb_matrix_legacy_enables.h"
 
 #ifdef IS31FL3731
 #    include "is31fl3731.h"
@@ -33,6 +33,8 @@
 #    include "is31fl3737.h"
 #elif defined(IS31FL3741)
 #    include "is31fl3741.h"
+#elif defined(AW20216)
+#    include "aw20216.h"
 #elif defined(WS2812)
 #    include "ws2812.h"
 #endif
@@ -70,7 +72,7 @@ enum rgb_matrix_effects {
 // --------------------------------------
 // -----Begin rgb effect enum macros-----
 #define RGB_MATRIX_EFFECT(name, ...) RGB_MATRIX_##name,
-#include "rgb_matrix_animations/rgb_matrix_effects.inc"
+#include "rgb_matrix_effects.inc"
 #undef RGB_MATRIX_EFFECT
 
 #if defined(RGB_MATRIX_CUSTOM_KB) || defined(RGB_MATRIX_CUSTOM_USER)
@@ -157,8 +159,7 @@ void        rgb_matrix_decrease_speed(void);
 void        rgb_matrix_decrease_speed_noeeprom(void);
 led_flags_t rgb_matrix_get_flags(void);
 void        rgb_matrix_set_flags(led_flags_t flags);
-   
-  /* 
+
 #ifndef RGBLIGHT_ENABLE
 #    define eeconfig_update_rgblight_current eeconfig_update_rgb_matrix
 #    define rgblight_toggle rgb_matrix_toggle
@@ -201,7 +202,6 @@ void        rgb_matrix_set_flags(led_flags_t flags);
 #    define rgblight_decrease_speed rgb_matrix_decrease_speed
 #    define rgblight_decrease_speed_noeeprom rgb_matrix_decrease_speed_noeeprom
 #endif
-*/
 
 typedef struct {
     /* Perform any initialisation required for the other driver functions to work. */

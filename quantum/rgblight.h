@@ -79,7 +79,6 @@
 #    define RGBLIGHT_EFFECT_STATIC_GRADIENT
 #    define RGBLIGHT_EFFECT_RGB_TEST
 #    define RGBLIGHT_EFFECT_ALTERNATING
-#    define RGBLIGHT_EFFECT_TWINKLE
 #endif
 
 #ifdef RGBLIGHT_STATIC_PATTERNS
@@ -315,11 +314,6 @@ void rgblight_enable_noeeprom(void);
 void rgblight_disable(void);
 void rgblight_disable_noeeprom(void);
 
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)   //tsiank add
-void rgb_pwr_on(void);
-void rgb_pwr_off(void);
-#endif
-	
 /*   hue, sat, val change */
 void rgblight_increase_hue(void);
 void rgblight_increase_hue_noeeprom(void);
