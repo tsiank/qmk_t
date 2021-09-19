@@ -49,7 +49,7 @@
         "oneOf": [
             {
                 "type": "string",
-                "pattern": "^[A-K]\\d{1,2}$"
+                "pattern": "^[A-K]\\d{1,2}|(\\d)$"
             },
             {
                 "type": "string",

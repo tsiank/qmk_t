@@ -159,7 +159,7 @@ void        rgb_matrix_decrease_speed(void);
 void        rgb_matrix_decrease_speed_noeeprom(void);
 led_flags_t rgb_matrix_get_flags(void);
 void        rgb_matrix_set_flags(led_flags_t flags);
-
+  /* 
 #ifndef RGBLIGHT_ENABLE
 #    define eeconfig_update_rgblight_current eeconfig_update_rgb_matrix
 #    define rgblight_toggle rgb_matrix_toggle
@@ -202,7 +202,7 @@ void        rgb_matrix_set_flags(led_flags_t flags);
 #    define rgblight_decrease_speed rgb_matrix_decrease_speed
 #    define rgblight_decrease_speed_noeeprom rgb_matrix_decrease_speed_noeeprom
 #endif
-
+*/
 typedef struct {
     /* Perform any initialisation required for the other driver functions to work. */
     void (*init)(void);
