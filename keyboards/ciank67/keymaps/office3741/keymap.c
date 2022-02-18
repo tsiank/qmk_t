@@ -62,7 +62,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_J,  KC_L,  KC_M,    KC_F,    KC_P,    KC_SLSH,    KC_LBRC,        KC_RBRC,   KC_BSPC,
         KC_TAB,   KC_5,    KC_6,    KC_Q,    KC_DOT,  KC_O,  KC_R,  KC_S,    KC_U,    KC_Y,    KC_B,          KC_SCLN,        KC_EQL,  KC_BSLS,
         KC_CAPS,   KC_7,    KC_8,    KC_Z,    KC_A,             KC_E,    KC_H,    KC_T,    KC_D,    KC_C,    KC_K,          KC_MINS,           KC_ENT,
-        KC_LSFT,      KC_9,    KC_0,    KC_X,     KC_COMM,     KC_I,    KC_N,    KC_W,    KC_V, KC_G,      KC_QUOT,   KC_GRAVE, KC_UP,   KC_F5,
+        KC_LSFT,      KC_9,    KC_0,    KC_X,     KC_COMM,     KC_I,    KC_N,    KC_W,    KC_V, KC_G,   KC_QUOT,   KC_GRAVE, KC_UP,   KC_F5,
         KC_LCTL,    KC_LWIN, LALT_T(KC_1),  LT(_SIGN, KC_TAB),          RSFT_T(KC_SPC), LT(_NUM, KC_ENT),  MO(_FN), KC_SPC,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
                         ),
         /*
@@ -91,7 +91,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         RGBG_TOG,  OUT_USB, OUT_BT,  DISC,   _______,KC_F4,   KC_F5, KC_F6, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_F7, KC_F8, KC_F9, KC_DELETE, KC_END,KC_PGDOWN, _______, _______,
         _______, _______, _______, _______, _______, KC_F10, KC_F11, KC_F12, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
-        RGB_MOD, RGBRST, RGB_MOD,  RGB_RMOD,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
+        RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_QWERTY] = LAYOUT(
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,
