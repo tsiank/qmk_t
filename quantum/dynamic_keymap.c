@@ -14,6 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "keymap.h"  // to get keymaps[][][]
 #include "eeprom.h"
 #include "progmem.h"  // to read default from flash

@@ -11,12 +11,7 @@ diablo_timer_t diablo_timer[NUM_OF_DIABLO_KEYS];
 // Otherwise, you will need to hit a bunch of times, or hit the "clear" command
 uint8_t diablo_times[] = {0, 1, 3, 5, 10, 30};
 
-/**
- * @brief Main function for handling diable related tap dances.
- *
- * @param state Main data struction contining information about events
- * @param user_data Local data for the dance. Allows customization to be passed on to function
- */
+// Cycle through the times for the macro, starting at 0, for disabled.
 void diablo_tapdance_master(qk_tap_dance_state_t *state, void *user_data) {
     diable_keys_t *diablo_keys = (diable_keys_t *)user_data;
     // Sets the keycode based on the index
@@ -48,10 +43,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
     [TD_D3_4] = ACTION_TAP_DANCE_DIABLO(3, KC_4),
 };
 
-/**
- * @brief Runs check to see if timer has elapsed for each dance, and sends keycodes, if it has.
- *
- */
+// Checks each of the 4 timers/keys to see if enough time has elapsed
 void run_diablo_macro_check(void) {
     for (uint8_t index = 0; index < NUM_OF_DIABLO_KEYS; index++) {
         // if key_interval is 0, it's disabled, so only run if it's set.  If it's set, check the timer.

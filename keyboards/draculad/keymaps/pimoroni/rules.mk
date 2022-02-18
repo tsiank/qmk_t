@@ -1,6 +1,7 @@
 # only uncomment on the side you have your trackball on
 POINTING_DEVICE_ENABLE = yes
-POINTING_DEVICE_DRIVER = pimoroni_trackball
+SRC += drivers/sensors/pimoroni_trackball.c
+QUANTUM_LIB_SRC += i2c_master.c
 OLED_ENABLE = yes
 OLED_DRIVER = SSD1306
-MOUSEKEY_ENABLE = yes
+MOUSEKEY_ENABLE = no

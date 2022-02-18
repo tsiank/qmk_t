@@ -19,21 +19,17 @@
 #define EE_HANDS
 
 #ifdef OLED_ENABLE
-#    ifdef OLED_DRIVER_SH1107
-#        undef OLED_DISPLAY_128X64
-#        define OLED_DISPLAY_128X128
-#    endif
+#    define OLED_DISPLAY_128X64
 #endif
 
 #ifdef RGBLIGHT_ENABLE
 #    define RGBLIGHT_SLEEP
-#    undef RGBLIGHT_LIMIT_VAL
-#    define RGBLIGHT_LIMIT_VAL 120
+#    define RGBLIGHT_LIMIT_VAL 200
 #    define RGBLIGHT_HUE_STEP  8
 #    define RGBLIGHT_SAT_STEP  8
 #    define RGBLIGHT_VAL_STEP  8
 #    define RGBLIGHT_SPLIT
-#    define RGBLIGHT_LAYERS
+// #    define RGBLIGHT_LAYERS
 #endif
 
 #define KEYLOGGER_LENGTH            10
@@ -45,6 +41,3 @@
 #define BOOTMAGIC_LITE_COLUMN       7
 #define BOOTMAGIC_LITE_ROW_RIGHT    4
 #define BOOTMAGIC_LITE_COLUMN_RIGHT 7
-
-#define I2C1_CLOCK_SPEED 400000
-#define I2C1_DUTY_CYCLE  FAST_DUTY_CYCLE_2

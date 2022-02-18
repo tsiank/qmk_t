@@ -53,23 +53,23 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * | Brite| Ctrl | Alt  | GUI  |Lower |    Space    |Raise | Left | Down |  Up  |Right |
  * `-----------------------------------------------------------------------------------'
  */
-/* Qwerty - jimmysjolund 2022-02-06
+/* Qwerty - jimmysjolund 2021-09-22
  * ,-----------------------------------------------------------------------------------.
- * | `    |   Q  |   W  |   E  |   R  |   T  |   Y  |   U  |   I  |   O  |   P  | Del  |
+ * | Esc  |   Q  |   W  |   E  |   R  |   T  |   Y  |   U  |   I  |   O  |   P  | Bksp |
  * |------+------+------+------+------+-------------+------+------+------+------+------|
- * |Raise |   A  |   S  |   D  |   F  |   G  |   H  |   J  |   K  |   L  |   ;  |  "   |
+ * | Tab  |   A  |   S  |   D  |   F  |   G  |   H  |   J  |   K  |   L  |   ;  |  "   |
  * |------+------+------+------+------+------|------+------+------+------+------+------|
- * |Lower |   Z  |   X  |   C  |   V  |   B  |   N  |   M  |   ,  |   .  |   /  |Shift |
+ * | Shift|   Z  |   X  |   C  |   V  |   B  |   N  |   M  |   ,  |   .  |   /  |Shift |
  * |------+------+------+------+------+------+------+------+------+------+------+------|
- * | Esc  | Tab  | GUI  |Shift | Bksp | Ctrl |Enter |Space |AltGr | Alt  | Down |  Up  |
+ * | Del  | Ctrl | GUI  | Alt  |Lower |Raise |Enter |Space |AltGr | Down |  Up  |Enter |
  * `-----------------------------------------------------------------------------------'
  */
 
 [_QWERTY] = LAYOUT_planck_grid(
-    KC_GRV,  KC_Q,    KC_W,     KC_E,     KC_R,     KC_T,     KC_Y,    KC_U,    KC_I,     KC_O,     KC_P,     KC_DEL,
-    RAISE,   KC_A,    KC_S,     KC_D,     KC_F,     KC_G,     KC_H,    KC_J,    KC_K,     KC_L,     KC_SCLN,  KC_QUOT,
-    LOWER,   KC_Z,    KC_X,     KC_C,     KC_V,     KC_B,     KC_N,    KC_M,    KC_COMM,  KC_DOT,   KC_SLSH,  KC_RSFT,
-    KC_ESC,  KC_TAB,  KC_LGUI,  KC_LSFT,  KC_BSPC,  KC_LCTL,  KC_ENT,  KC_SPC,  KC_ALGR,  KC_LALT,  KC_DOWN,  KC_UP
+    KC_ESC,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_BSPC,
+    KC_TAB,  KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,
+    KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
+    KC_DEL, KC_LCTL, KC_LGUI, KC_LALT, LOWER,   RAISE,  KC_ENT,  KC_SPC,   KC_ALGR, KC_DOWN, KC_UP,   KC_ENT
 ),
 
 /* Colemak Original
@@ -85,20 +85,20 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  */
 /* Colemak jimmysjolund
  * ,-----------------------------------------------------------------------------------.
- * |  `   |   Q  |   W  |   F  |   P  |   G  |   J  |   L  |   U  |   Y  |   ;  | Del  |
+ * | Esc  |   Q  |   W  |   F  |   P  |   G  |   J  |   L  |   U  |   Y  |   ;  | Bksp |
  * |------+------+------+------+------+-------------+------+------+------+------+------|
- * |Raise |   A  |   R  |   S  |   T  |   D  |   H  |   N  |   E  |   I  |   O  |  "   |
+ * | Tab  |   A  |   R  |   S  |   T  |   D  |   H  |   N  |   E  |   I  |   O  |  "   |
  * |------+------+------+------+------+------|------+------+------+------+------+------|
- * |Lower |   Z  |   X  |   C  |   V  |   B  |   K  |   M  |   ,  |   .  |   /  |Shift |
+ * | Shift|   Z  |   X  |   C  |   V  |   B  |   K  |   M  |   ,  |   .  |   /  |Shift |
  * |------+------+------+------+------+------+------+------+------+------+------+------|
- * | Esc  | Tab  | GUI  |Shift | Bksp | Ctrl |Enter |Space |AltGr | Alt  | Down |  Up  |
+ * | Del  | Ctrl | GUI  | Alt  |Lower |Raise |Enter |Space |AltGr | Down |  Up  |Enter |
  * `-----------------------------------------------------------------------------------'
  */
 [_COLEMAK] = LAYOUT_planck_grid(
-    KC_GRV, KC_Q,   KC_W,    KC_F,    KC_P,    KC_G,    KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_DEL,
-    RAISE,  KC_A,   KC_R,    KC_S,    KC_T,    KC_D,    KC_H,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
-    LOWER,  KC_Z,   KC_X,    KC_C,    KC_V,    KC_B,    KC_K,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
-    KC_ESC, KC_TAB, KC_LGUI, KC_LSFT, KC_BSPC, KC_LCTL, KC_ENT,  KC_SPC,  KC_ALGR, KC_LALT, KC_DOWN, KC_UP
+    KC_ESC,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_G,    KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN, KC_BSPC,
+    KC_TAB,  KC_A,    KC_R,    KC_S,    KC_T,    KC_D,    KC_H,    KC_N,    KC_E,    KC_I,    KC_O,    KC_QUOT,
+    KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_K,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
+    KC_DEL, KC_LCTL, KC_LGUI, KC_LALT, LOWER,   RAISE,   KC_ENT,  KC_SPC,  KC_ALGR, KC_DOWN,  KC_UP,   KC_ENT
 ),
 
 /* Dvorak

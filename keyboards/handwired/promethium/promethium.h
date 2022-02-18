@@ -1,6 +1,6 @@
 #pragma once
 
-#include "quantum.h"
+#include <stdint.h>
 
 void battery_poll(uint8_t level);
 void led_set_kb(uint8_t usb_led);

@@ -1,1 +1,1 @@
-# The VIA keymap for krush60 solder
+# The keymap VIA for krush60

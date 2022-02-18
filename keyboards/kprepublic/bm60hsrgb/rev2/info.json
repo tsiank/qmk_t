@@ -1,9 +1,9 @@
 {
     "keyboard_name": "bm60v2",
     "url": "",
-    "maintainer": "bdtc123",
+    "maintainer": "kp republic",
     "layouts": {
-        "LAYOUT_60_ansi_arrow": {
+        "LAYOUT": {
             "layout": [
                 {"x":0, "y":0},
                 {"x":1, "y":0},

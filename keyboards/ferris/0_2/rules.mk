@@ -23,5 +23,3 @@ LTO_ENABLE = no
 
 SRC += matrix.c
 QUANTUM_LIB_SRC += i2c_master.c
-
-LAYOUTS = split_3x5_2

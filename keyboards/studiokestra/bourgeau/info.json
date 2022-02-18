@@ -1,12 +1,9 @@
 {
     "keyboard_name": "Bourgeau",
     "url": "https://studiokestra.ca/bourgeau/",
-    "maintainer": "studiokestra",
-    "layout_aliases": {
-        "LAYOUT_all": "LAYOUT_75_ansi_rwkl"
-    },
+    "maintainer": "Studio Kestra",
     "layouts": {
-        "LAYOUT_75_ansi_rwkl": {
+        "LAYOUT_all": {
             "layout": [
                 {"label":"Esc", "x":0, "y":0}, 
                 {"label":"F1", "x":1, "y":0}, 
