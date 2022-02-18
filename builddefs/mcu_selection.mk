@@ -1,5 +1,10 @@
 MCU_ORIG := $(MCU)
 
+ifneq ($(findstring NRF52840, $(MCU)),)
+  # Cortex version
+  MCU = NRF52840
+endif
+
 ifneq ($(findstring MKL26Z64, $(MCU)),)
   # Cortex version
   MCU = cortex-m0plus

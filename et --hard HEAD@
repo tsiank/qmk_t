@@ -1,0 +1,114 @@
+[33m0629d2cf2e[m[33m ([m[1;36mHEAD -> [m[1;32mqmk_tsiank[m[33m)[m HEAD@{0}: pull origin qmk_tsiank: Merge made by the 'recursive' strategy.
+[33mb13b2ebaad[m HEAD@{1}: commit: Modified kb
+[33m11f62d1639[m HEAD@{2}: commit: Fix nrf surpport according to lastest official qmk firmware
+[33ma111c95ba8[m HEAD@{3}: pull origin qmk_tsiank: Fast-forward
+[33mf721451f5d[m HEAD@{4}: commit: Fix conflicts
+[33mcd6c3c4412[m[33m ([m[1;31mpublic/qmk_tsiank[m[33m)[m HEAD@{5}: reset: moving to cd6c3c4412b0700b4e9dee7e53d9df6a6f2e77b6
+[33meea047fb47[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{6}: checkout: moving from qmk_tsiank to qmk_tsiank
+[33meea047fb47[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{7}: checkout: moving from pr/27 to qmk_tsiank
+[33mf8abaa238d[m[33m ([m[1;31mpublic/master[m[33m, [m[1;32mpr/27[m[33m)[m HEAD@{8}: checkout: moving from qmk-master to pr/27
+[33m3b530dea5f[m[33m ([m[1;32mqmk-master[m[33m)[m HEAD@{9}: checkout: moving from qmk_tsiank to qmk-master
+[33meea047fb47[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{10}: reset: moving to eea047fb476c164a7f8cbcf60ba78934fde0d65c
+[33mcd6c3c4412[m[33m ([m[1;31mpublic/qmk_tsiank[m[33m)[m HEAD@{11}: checkout: moving from pr/27 to qmk_tsiank
+[33mf8abaa238d[m[33m ([m[1;31mpublic/master[m[33m, [m[1;32mpr/27[m[33m)[m HEAD@{12}: pull --progress public: Merge made by the 'recursive' strategy.
+[33mc0be8723e7[m HEAD@{13}: commit: Merge conflicts
+[33mc19dd2f97b[m HEAD@{14}: commit (merge): Merge branch 'qmk_tsiank' into pr/27
+[33maa73411c14[m[33m ([m[1;31mupstream/master[m[33m)[m HEAD@{15}: checkout: moving from qmk_tsiank to pr/27
+[33mcd6c3c4412[m[33m ([m[1;31mpublic/qmk_tsiank[m[33m)[m HEAD@{16}: checkout: moving from pr/27 to qmk_tsiank
+[33maa73411c14[m[33m ([m[1;31mupstream/master[m[33m)[m HEAD@{17}: reset: moving to HEAD
+[33maa73411c14[m[33m ([m[1;31mupstream/master[m[33m)[m HEAD@{18}: reset: moving to aa73411c14487465d7af9d9f1ca7cb5d157e9343
+[33m83e262ded9[m HEAD@{19}: commit: Update from qmk
+[33maa73411c14[m[33m ([m[1;31mupstream/master[m[33m)[m HEAD@{20}: checkout: moving from qmk_tsiank to pr/27
+[33mcd6c3c4412[m[33m ([m[1;31mpublic/qmk_tsiank[m[33m)[m HEAD@{21}: reset: moving to HEAD
+[33mcd6c3c4412[m[33m ([m[1;31mpublic/qmk_tsiank[m[33m)[m HEAD@{22}: pull origin qmk_tsiank: Fast-forward
+[33md146a9e78b[m HEAD@{23}: commit: Modify rgblight
+[33m635db54156[m HEAD@{24}: commit: Test my keyboard
+[33m4efb2b027c[m HEAD@{25}: reset: moving to 4efb2b027c2c55cd820cfdfefad4547446e9175c
+[33m2df5d71748[m HEAD@{26}: reset: moving to 2df5d7174827ea6f7ef0a40d09f5ef0ede4700b1
+[33m4efb2b027c[m HEAD@{27}: pull origin qmk_tsiank: Fast-forward
+[33m8f2f52cae2[m HEAD@{28}: commit: Add new kbd
+[33m9f6e97a50f[m HEAD@{29}: reset: moving to 9f6e97a50fadc74f3a2c636cebb369267319b082
+[33meb9e2207b6[m HEAD@{30}: reset: moving to eb9e2207b63520973fc02607bf5d5e4a270eb81b
+[33m9f6e97a50f[m HEAD@{31}: reset: moving to 9f6e97a50fadc74f3a2c636cebb369267319b082
+[33me420813765[m HEAD@{32}: reset: moving to e4208137656c594c13c6816db0a3f97bf92d5025
+[33m9f6e97a50f[m HEAD@{33}: Branch: renamed refs/heads/qmk_nrf52840_chie4 to refs/heads/qmk_tsiank
+[33m9f6e97a50f[m HEAD@{35}: commit: Adujust for nrf
+[33m5263b8a3be[m HEAD@{36}: pull origin qmk_nrf52840_chie4: Fast-forward
+[33ma17496efb4[m HEAD@{37}: commit: fix conflix to newest qmk
+[33me420813765[m HEAD@{38}: reset: moving to e4208137656c594c13c6816db0a3f97bf92d5025
+[33m4fe2d762a6[m HEAD@{39}: commit: fix conflix to newest qmk
+[33me420813765[m HEAD@{40}: reset: moving to e4208137656c594c13c6816db0a3f97bf92d5025
+[33m4eba94cdab[m HEAD@{41}: merge qmk-master: Merge made by the 'recursive' strategy.
+[33m93490956dc[m HEAD@{42}: checkout: moving from qmk-master to qmk_nrf52840_chie4
+[33m3b530dea5f[m[33m ([m[1;32mqmk-master[m[33m)[m HEAD@{43}: commit (merge): Merge branch 'master' of https://github.com/qmk/qmk_firmware into qmk-master
+[33m93490956dc[m HEAD@{44}: checkout: moving from qmk_nrf52840_chie4 to qmk-master
+[33m93490956dc[m HEAD@{45}: commit: fix conflix to newest qmk
+[33me420813765[m HEAD@{46}: commit (amend): Add support is31fl3741
+[33m4f0bd9ae1f[m HEAD@{47}: commit (amend): Add support is31fl3737
+[33ma5dc4ea342[m HEAD@{48}: commit: Add support is31fl3737
+[33m15fd94187f[m HEAD@{49}: Branch: renamed refs/heads/qmk_t to refs/heads/qmk_nrf52840_chie4
+[33m15fd94187f[m HEAD@{51}: reset: moving to HEAD^
+[33mbf4ea79f9d[m HEAD@{52}: Branch: renamed refs/heads/qmk_nrf52840_chie4 to refs/heads/qmk_t
+[33mbf4ea79f9d[m HEAD@{54}: commit: Add support is31fl3741
+[33m15fd94187f[m HEAD@{55}: reset: moving to 15fd94187f9945acc422eac822d2f6b420beb6f6
+[33m0c2270e92c[m HEAD@{56}: reset: moving to 0c2270e92cfbec9fbb48f5bb26d0e366376e3490
+[33meb9e2207b6[m HEAD@{57}: reset: moving to eb9e2207b63520973fc02607bf5d5e4a270eb81b
+[33m2df5d71748[m HEAD@{58}: reset: moving to 2df5d7174827ea6f7ef0a40d09f5ef0ede4700b1
+[33m9360e640f2[m HEAD@{59}: reset: moving to 9360e640f25cc6e04f11c9655c4dba560ef10e28
+[33m7c98a7ffd2[m HEAD@{60}: reset: moving to 7c98a7ffd2f16abde357829818eb3380294c6ee4
+[33meb9e2207b6[m HEAD@{61}: reset: moving to eb9e2207b63520973fc02607bf5d5e4a270eb81b
+[33m9360e640f2[m HEAD@{62}: reset: moving to 9360e640f25cc6e04f11c9655c4dba560ef10e28
+[33meb9e2207b6[m HEAD@{63}: reset: moving to eb9e2207b63520973fc02607bf5d5e4a270eb81b
+[33m2df5d71748[m HEAD@{64}: reset: moving to 2df5d7174827ea6f7ef0a40d09f5ef0ede4700b1
+[33m15fd94187f[m HEAD@{65}: commit: Add support for is31fl3733
+[33m9477c3b16a[m HEAD@{66}: pull origin qmk_nrf52840_chie4: Fast-forward
+[33m9360e640f2[m HEAD@{67}: reset: moving to 9360e640f25cc6e04f11c9655c4dba560ef10e28
+[33m0c2270e92c[m HEAD@{68}: reset: moving to 0c2270e92cfbec9fbb48f5bb26d0e366376e3490
+[33m9477c3b16a[m HEAD@{69}: commit: delete extra folder
+[33m1c806cab47[m HEAD@{70}: commit: delete extra folder
+[33mb565587586[m HEAD@{71}: commit: Modify my kbd according to newest qmk
+[33m245583745b[m HEAD@{72}: pull origin qmk_nrf52840_chie4: Fast-forward
+[33meb9e2207b6[m HEAD@{73}: commit: Add CAPSLOCK key rgblight indicator with rgblight off
+[33mb4014ea80b[m HEAD@{74}: commit: Adujust for nrf
+[33mf8a690529f[m HEAD@{75}: pull origin qmk_nrf52840_chie4: Fast-forward
+[33m7c98a7ffd2[m HEAD@{76}: commit: fix conflicts
+[33m9360e640f2[m HEAD@{77}: reset: moving to 9360e640f25cc6e04f11c9655c4dba560ef10e28
+[33mc0ac39102d[m HEAD@{78}: commit: fx
+[33m03acc97b08[m HEAD@{79}: commit: fix conflict
+[33m264ee20135[m HEAD@{80}: commit: fix conflicts
+[33m3fb5f63be2[m HEAD@{81}: commit: fix conflicts
+[33m9360e640f2[m HEAD@{82}: checkout: moving from master to qmk_nrf52840_chie4
+[33m7ce5402417[m HEAD@{83}: checkout: moving from qmk_nrf52840_chie4 to master
+[33m9360e640f2[m HEAD@{84}: reset: moving to 9360e640f25cc6e04f11c9655c4dba560ef10e28
+[33m9a636da6b5[m HEAD@{85}: commit: Update from qmk
+[33m9360e640f2[m HEAD@{86}: checkout: moving from qmk-master to qmk_nrf52840_chie4
+[33m9360e640f2[m HEAD@{87}: checkout: moving from qmk_nrf52840_chie4 to qmk-master
+[33m9360e640f2[m HEAD@{88}: commit: modify my kbd
+[33m2df5d71748[m HEAD@{89}: reset: moving to 2df5d7174827ea6f7ef0a40d09f5ef0ede4700b1
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{90}: reset: moving to HEAD
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{91}: checkout: moving from master to qmk_nrf52840_chie4
+[33m53cbb8db23[m HEAD@{92}: checkout: moving from qmk_nrf52840_chie4 to master
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{93}: checkout: moving from qmknrf52840 to qmk_nrf52840_chie4
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{94}: reset: moving to e7e252627d181f4d4e6d06aea3d094fa840ad785
+[33m2df5d71748[m HEAD@{95}: reset: moving to HEAD^
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{96}: checkout: moving from qmk_nrf52840_chie4 to qmknrf52840
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{97}: checkout: moving from qmknrf52840 to qmk_nrf52840_chie4
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{98}: reset: moving to e7e252627d181f4d4e6d06aea3d094fa840ad785
+[33md6c240408c[m HEAD@{99}: merge master: Merge made by the 'recursive' strategy.
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{100}: checkout: moving from tempqmk to qmknrf52840
+[33m3c863f4212[m HEAD@{101}: merge qmknrf52840: Merge made by the 'recursive' strategy.
+[33m53cbb8db23[m HEAD@{102}: checkout: moving from qmknrf52840 to tempqmk
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{103}: checkout: moving from qmk_nrf52840_chie4 to qmknrf52840
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{104}: checkout: moving from master to qmk_nrf52840_chie4
+[33m53cbb8db23[m HEAD@{105}: checkout: moving from qmknrf52840 to master
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{106}: checkout: moving from qmknrf52840 to qmknrf52840
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{107}: checkout: moving from qmk_nrf52840_chie4 to qmknrf52840
+[33me7e252627d[m[33m ([m[1;31morigin2/qmknrf52840[m[33m)[m HEAD@{108}: commit: Support using in MacOs under usb mode
+[33m2df5d71748[m HEAD@{109}: reset: moving to 2df5d7174827ea6f7ef0a40d09f5ef0ede4700b1
+[33md7ce66e72a[m HEAD@{110}: commit: .
+[33m2df5d71748[m HEAD@{111}: reset: moving to 2df5d7174827ea6f7ef0a40d09f5ef0ede4700b1
+[33m5131a011f6[m HEAD@{112}: reset: moving to HEAD
+[33m5131a011f6[m HEAD@{113}: reset: moving to 5131a011f643d5899a5b68b7e61f0bf0fc53fdde
+[33m5131a011f6[m HEAD@{114}: commit: Update manully
+[33m2df5d71748[m HEAD@{115}: commit: Add kbd with encoder
+[33m2af7dc4654[m HEAD@{116}: clone: from https://github.com/tsiank/qmk_nrf52.git

@@ -19,6 +19,8 @@
 
 #ifdef BLUETOOTH_ENABLE
 #    include "outputselect.h"
+#elif defined(PROTOCOL_NRF5)
+#    include "outputselect.h"
 #endif
 
 #ifdef BACKLIGHT_ENABLE

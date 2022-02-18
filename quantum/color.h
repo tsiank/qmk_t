@@ -74,7 +74,7 @@
 // clang-format on
 
 #if defined(__GNUC__)
-#    define PACKED __attribute__((__packed__))
+#    define PACKED __attribute__((packed))
 #else
 #    define PACKED
 #endif
