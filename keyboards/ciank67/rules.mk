@@ -1,5 +1,8 @@
 MCU = NRF52840
 
+# Bootloader selection
+BOOTLOADER = custom
+
 # GCC ARM Toolchain path
 GNU_INSTALL_ROOT =
 GNU_PREFIX = arm-none-eabi

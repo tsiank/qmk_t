@@ -211,6 +211,10 @@ else
       # arm_atsam EEPROM
       OPT_DEFS += -DEEPROM_SAMD
       SRC += $(PLATFORM_COMMON_DIR)/eeprom_samd.c
+    else ifeq ($(PLATFORM),NRF5)
+      # nrf5 EEPROM
+      OPT_DEFS += -DEEPROM_NRF
+      SRC += $(PLATFORM_COMMON_DIR)/eeprom.c
     else ifeq ($(PLATFORM),TEST)
       # Test harness "EEPROM"
       OPT_DEFS += -DEEPROM_TEST_HARNESS
