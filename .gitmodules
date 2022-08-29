@@ -21,3 +21,7 @@
 [submodule "lib/nrf5"]
 	path = lib/nrf5
 	url = https://github.com/tsiank/nRF5_SDK.git
+[submodule "lib/pico-sdk"]
+	path = lib/pico-sdk
+	url = https://github.com/qmk/pico-sdk.git
+
