@@ -25,10 +25,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define STR(s) XSTR(s)
 #define XSTR(s) #s
 
+#if !defined(PROTOCOL_NRF5)
 #if !defined(MIN)
 #    define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #endif
 
 #if !defined(MAX)
 #    define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#endif
 #endif
