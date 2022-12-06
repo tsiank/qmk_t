@@ -170,6 +170,86 @@
             "aliases": [
                 "RGB_M_TW"
             ]
+        },
+
+        "0x7835": {
+            "group": "rgb",
+            "key": "RGBM_TOG"
+        },
+        "0x7836": {
+            "group": "rgb",
+            "key": "RGBM_MODE_FORWARD",
+            "aliases": [
+                "RGBM_MOD"
+            ]
+        },
+        "0x7837": {
+            "group": "rgb",
+            "key": "RGBM_MODE_REVERSE",
+            "aliases": [
+                "RGBM_RMOD"
+            ]
+        },
+        "0x7838": {
+            "group": "rgb",
+            "key": "RGBM_HUI"
+        },
+        "0x7839": {
+            "group": "rgb",
+            "key": "RGBM_HUD"
+        },
+        "0x783A": {
+            "group": "rgb",
+            "key": "RGBM_SAI"
+        },
+        "0x783B": {
+            "group": "rgb",
+            "key": "RGBM_SAD"
+        },
+        "0x783C": {
+            "group": "rgb",
+            "key": "RGBM_VAI"
+        },
+        "0x783D": {
+            "group": "rgb",
+            "key": "RGBM_VAD"
+        },
+        "0x783E": {
+            "group": "rgb",
+            "key": "RGBM_SPI"
+        },
+        "0x783F": {
+            "group": "rgb",
+            "key": "RGBM_SPD"
+        },
+
+        "0x7840": {
+            "group": "rgb",
+            "key": "RGBM_MODE_PLAIN",
+            "aliases": [
+                "RGBM_M_P"
+            ]
+        },
+        "0x7841": {
+            "group": "rgb",
+            "key": "RGBM_MODE_BREATHE",
+            "aliases": [
+                "RGBM_M_B"
+            ]
+        },
+        "0x7842": {
+            "group": "rgb",
+            "key": "RGBM_MODE_RAINBOW",
+            "aliases": [
+                "RGBM_M_R"
+            ]
+        },
+        "0x7843": {
+            "group": "rgb",
+            "key": "RGBM_MODE_SWIRL",
+            "aliases": [
+                "RGBM_M_SW"
+            ]
         }
     }
 }

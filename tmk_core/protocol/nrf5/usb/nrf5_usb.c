@@ -237,10 +237,9 @@ static ret_code_t idle_handle(app_usbd_class_inst_t const *p_inst, uint8_t repor
 static uint8_t keyboard_leds(void);
 static void    send_keyboard(report_keyboard_t *report);
 static void    send_mouse(report_mouse_t *report);
-static void    send_system(uint16_t data);
-static void    send_consumer(uint16_t data);
+static void send_extra(report_extra_t *report);
 
-static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_system, send_consumer};
+static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_extra};
 
 host_driver_t *nrf5_usb_driver(void) { return &driver; }
 
@@ -260,18 +259,10 @@ static void send_mouse(report_mouse_t *report) {
 #endif
 }
 
-static void send_system(uint16_t data) {
+static void send_extra(report_extra_t *report) {
 #ifdef EXTRAKEY_ENABLE
     if (NRF_USBD->ENABLE) {
-        hid_extra_process_state(REPORT_ID_SYSTEM, data);
-    }
-#endif
-}
-
-static void send_consumer(uint16_t data) {
-#ifdef EXTRAKEY_ENABLE
-    if (NRF_USBD->ENABLE) {
-        hid_extra_process_state(REPORT_ID_CONSUMER, data);
+        hid_extra_process_state(report->report_id, report->usage);
     }
 #endif
 }

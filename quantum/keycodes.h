@@ -642,6 +642,23 @@ enum qk_keycode_defines {
     RGB_MODE_GRADIENT = 0x7832,
     RGB_MODE_RGBTEST = 0x7833,
     RGB_MODE_TWINKLE = 0x7834,
+    	
+    RGBM_TOG = 0x7835,
+    RGBM_MODE_FORWARD = 0x7836,
+    RGBM_MODE_REVERSE = 0x7837,
+    RGBM_HUI = 0x7838,
+    RGBM_HUD = 0x7839,
+    RGBM_SAI = 0x783A,
+    RGBM_SAD = 0x783B,
+    RGBM_VAI = 0x783C,
+    RGBM_VAD = 0x783D,
+    RGBM_SPI = 0x783E,
+    RGBM_SPD = 0x783F,
+    RGBM_MODE_PLAIN = 0x7840,
+    RGBM_MODE_BREATHE = 0x7841,
+    RGBM_MODE_RAINBOW = 0x7842,
+    RGBM_MODE_SWIRL = 0x7843,
+    	
     QK_BOOTLOADER = 0x7C00,
     QK_REBOOT = 0x7C01,
     QK_DEBUG_TOGGLE = 0x7C02,
@@ -1202,6 +1219,14 @@ enum qk_keycode_defines {
     RGB_M_G    = RGB_MODE_GRADIENT,
     RGB_M_T    = RGB_MODE_RGBTEST,
     RGB_M_TW   = RGB_MODE_TWINKLE,
+
+    RGBM_MOD    = RGBM_MODE_FORWARD,
+    RGBM_RMOD   = RGBM_MODE_REVERSE,
+    RGBM_M_P    = RGBM_MODE_PLAIN,
+    RGBM_M_B    = RGBM_MODE_BREATHE,
+    RGBM_M_R    = RGBM_MODE_RAINBOW,
+    RGBM_M_SW   = RGBM_MODE_SWIRL,
+
     QK_BOOT    = QK_BOOTLOADER,
     QK_RBT     = QK_REBOOT,
     DB_TOGG    = QK_DEBUG_TOGGLE,
@@ -1319,5 +1344,5 @@ enum qk_keycode_defines {
 #define IS_STENO_KEYCODE(code) ((code) >= QK_STENO_BOLT && (code) <= QK_STENO_COMB_MAX)
 #define IS_MACRO_KEYCODE(code) ((code) >= QK_MACRO_0 && (code) <= QK_MACRO_31)
 #define IS_BACKLIGHT_KEYCODE(code) ((code) >= QK_BACKLIGHT_ON && (code) <= QK_BACKLIGHT_TOGGLE_BREATHING)
-#define IS_RGB_KEYCODE(code) ((code) >= RGB_TOG && (code) <= RGB_MODE_TWINKLE)
+#define IS_RGB_KEYCODE(code) ((code) >= RGB_TOG && (code) <= RGBM_MODE_SWIRL)
 #define IS_QUANTUM_KEYCODE(code) ((code) >= QK_BOOTLOADER && (code) <= QK_AUTOCORRECT_TOGGLE)

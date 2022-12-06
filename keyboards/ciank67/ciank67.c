@@ -1,7 +1,7 @@
 #include "ciank67.h"
 
 #ifdef RGB_MATRIX_ENABLE
-const is31_led g_is31_leds[DRIVER_LED_TOTAL] = {
+const is31_led g_is31_leds[RGB_MATRIX_LED_COUNT] = {
     {0, CS3_SW1, CS2_SW1, CS1_SW1}, /* RGB1 */
     {0, CS6_SW1, CS5_SW1, CS4_SW1}, /* RGB2 */
     {0, CS9_SW1, CS8_SW1, CS7_SW1}, /* RGB3 */

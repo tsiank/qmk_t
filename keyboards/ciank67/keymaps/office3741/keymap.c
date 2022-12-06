@@ -62,36 +62,36 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_J,  KC_L,  KC_M,    KC_F,    KC_P,    KC_SLSH,    KC_LBRC,        KC_RBRC,   KC_BSPC,
         KC_TAB,   KC_5,    KC_6,    KC_Q,    KC_DOT,  KC_O,  KC_R,  KC_S,    KC_U,    KC_Y,    KC_B,          KC_SCLN,        KC_EQL,  KC_BSLS,
         KC_CAPS,   KC_7,    KC_8,    KC_Z,    KC_A,             KC_E,    KC_H,    KC_T,    KC_D,    KC_C,    KC_K,          KC_MINS,           KC_ENT,
-        KC_LSFT,      KC_9,    KC_0,    KC_X,     KC_COMM,     KC_I,    KC_N,    KC_W,    KC_V, KC_G,   KC_QUOT,   KC_GRAVE, KC_UP,   KC_F5,
+        KC_LSFT,      KC_9,    KC_0,    KC_X,     KC_COMM,     KC_I,    KC_N,    KC_W,    KC_V, KC_G,      KC_QUOT,   KC_GRAVE, KC_UP,   KC_F5,
         KC_LCTL,    KC_LWIN, LALT_T(KC_1),  LT(_SIGN, KC_TAB),          RSFT_T(KC_SPC), LT(_NUM, KC_ENT),  MO(_FN), KC_SPC,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
                         ),
         /*
     _______,  _______,  _______,  _______,  ~,  !,    @,    #,   [,   {  ,   },  _______,    _______,   _______,
         _______,  _______,  _______,  ;  ,  >, $, %,   ^,    :  ,  \,    |,    _______,   _______,   _______,
         _______,    _______,  _______,  ]  ,    = ,   &,   *,     (,   -,    +,    _______,   _______,  _______,
-        RESET,       _______,  _______,   _  ,   <,   )  ,    '  ,    "  ,   K_RGHT,    `  ,   _______, _______,_______, TG(_QWERTY),
+        QK_REBOOT,       _______,  _______,   _  ,   <,   )  ,    '  ,    "  ,   K_RGHT,    `  ,   _______, _______,_______, TG(_QWERTY),
         _______,    _______, _______, KC_TRNS,       RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    SEL0, SEL1, SEL2
         */
     [_SIGN]   = LAYOUT(
         _______,  _______,  _______,  _______,  KC_TILDE,  KC_EXCLAIM,    KC_AT,    KC_HASH,   KC_LBRC,   KC_LCBR  , KC_RCBR,  _______,    _______,   _______,
         _______,  _______,  _______,  KC_SCLN,  KC_RABK, KC_DOLLAR, KC_PERCENT,   KC_CIRCUMFLEX,    KC_COLON, KC_BSLS,    KC_PIPE,    _______,   _______,   _______,
         _______,    _______,  _______,  KC_RBRC,   KC_EQL,   KC_AMPERSAND,   KC_ASTERISK,     KC_LEFT_PAREN,   KC_MINS,    KC_PLUS,    _______,   _______,  _______,
-        RESET,       _______,  _______,   KC_UNDERSCORE, KC_LABK,    KC_RIGHT_PAREN,    KC_QUOT,    KC_DOUBLE_QUOTE,   KC_RGHT,    KC_GRAVE,   _______, _______,_______, TG(_QWERTY),
+        QK_REBOOT,       _______,  _______,   KC_UNDERSCORE, KC_LABK,    KC_RIGHT_PAREN,    KC_QUOT,    KC_DOUBLE_QUOTE,   KC_RGHT,    KC_GRAVE,   _______, _______,_______, TG(_QWERTY),
         _______,    _______, _______, KC_TRNS,       RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    SEL0, SEL1, SEL2
                       ),
     [_NUM]   = LAYOUT(
-        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______, _______,ENT_DFU, RESET,
-        RGBG_TOG,  OUT_USB, OUT_BT,  DISC,   _______,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
-        RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDOWN, _______, _______,
+        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
+        RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
+        RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDN, _______, _______,
         _______, _______, _______, _______, _______, KC_7, KC_8, KC_9, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
         RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD,               KC_0,                        KC_TRNS, BATT_LV, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_FN]   = LAYOUT(
-        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    KC_F1, KC_F2,  KC_F3, KC_PSCREEN, KC_SCROLLLOCK, KC_PAUSE, _______, _______,ENT_DFU, RESET,
-        RGBG_TOG,  OUT_USB, OUT_BT,  DISC,   _______,KC_F4,   KC_F5, KC_F6, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
-        RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_F7, KC_F8, KC_F9, KC_DELETE, KC_END,KC_PGDOWN, _______, _______,
+        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    KC_F1, KC_F2,  KC_F3, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
+        RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_F4,   KC_F5, KC_F6, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
+        RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_F7, KC_F8, KC_F9, KC_DELETE, KC_END,KC_PGDN, _______, _______,
         _______, _______, _______, _______, _______, KC_F10, KC_F11, KC_F12, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
-        RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
+        RGB_MOD, RGBRST, RGB_MOD,  RGB_RMOD,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_QWERTY] = LAYOUT(
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,
@@ -101,7 +101,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL,    KC_LWIN, KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN),  KC_RALT, KC_MENU,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
                        ),
     [_RGBST] = LAYOUT(
-        _______, RGBM_HUI, RGBM_HUD, RGBM_SAI, RGBM_SAD, RGBM_VAI, RGBM_VAD, RGBM_SPI, RGBM_SPD, RGBM_M_P,  RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, 
+        _______, RGBM_HUI, RGBM_HUD, RGBM_SAI, RGBM_SAD, RGBM_VAI, RGBM_VAD, RGBM_SPI, RGBM_SPD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, 
         _______, _______,_______,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
         _______, RGB_HUI, RGB_HUD, RGB_SAI, RGB_SAD, RGB_VAI, RGB_VAD, RGB_SPI, RGB_SPD, _______, _______,_______, _______,
         _______,  RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______,_______,TO(_DVORAKR),
@@ -251,7 +251,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 }
 
     	#ifdef IS31FL3741
-void rgb_matrix_indicators_user(void) {
+bool rgb_matrix_indicators_user(void) {
 	    switch (biton32(layer_state)) {
 	      case _SIGN:
 	        rgb_matrix_set_color(66,0xFF, 0x56, 0x20);
@@ -272,6 +272,8 @@ void rgb_matrix_indicators_user(void) {
          //rgb_matrix_set_color(76, 0xFF, 0xFF, 0xFF);
           rgb_matrix_set_color_all(0xFF, 0x60, 0xFF);
     }
+    
+    return true;
 }
 #endif
 

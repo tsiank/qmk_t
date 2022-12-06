@@ -465,7 +465,6 @@ void rgblight_disable(void) {
     rgblight_timer_disable();
     RGBLIGHT_SPLIT_SET_CHANGE_MODE;
     rgblight_set();
-    wait_ms(2);
 #if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
     rgb_pwr_off();
 #endif
@@ -485,7 +484,6 @@ void rgblight_disable_noeeprom(void) {
     rgblight_timer_disable();
     RGBLIGHT_SPLIT_SET_CHANGE_MODE;
     rgblight_set();
-    wait_ms(2);
 #if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
     rgb_pwr_off();
 #endif
