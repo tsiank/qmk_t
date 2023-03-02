@@ -1,8 +1,6 @@
 #pragma once
 #define CONFIG_H
 
-#include "config_common.h"
-
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
 //#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */
