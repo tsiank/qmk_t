@@ -286,12 +286,12 @@ const rgblight_segment_t* const PROGMEM my_rgb_layers[] = RGBLIGHT_LAYERS_LIST(
     my_capslock_layer
     //Overrides other layers
 );
-#endif
 
 bool led_update_user(led_t led_state){
     rgblight_set_layer_state(0, led_state.caps_lock);
     return true;
 }
+#endif
 
 void keyboard_post_init_user() {
     #ifdef IS31FL3741
