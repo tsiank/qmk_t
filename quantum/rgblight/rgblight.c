@@ -21,6 +21,7 @@
 #include "rgblight.h"
 #include "color.h"
 #include "debug.h"
+#include "util.h"
 #include "led_tables.h"
 #include <lib/lib8tion/lib8tion.h>
 #ifdef EEPROM_ENABLE
@@ -32,13 +33,6 @@
 
 #if defined(PROTOCOL_NRF5)
 #include "nrf_gpio.h"
-#endif
-
-#ifndef MIN
-#    define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef MAX
-#    define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
 #ifdef RGBLIGHT_SPLIT
@@ -227,7 +221,7 @@ void eeconfig_debug_rgblight(void) {
     dprintf("rgblight_config.speed = %d\n", rgblight_config.speed);
 }
 
-//¿ªÆôRGBµçÔ´
+//ï¿½ï¿½ï¿½ï¿½RGBï¿½ï¿½Ô´
 void rgb_pwr_on(void)
 {
 #ifdef RGB_PWR_PIN
@@ -238,7 +232,7 @@ void rgb_pwr_on(void)
 #endif
 }
 
-//¹Ø±ÕRGBµçÔ´
+//ï¿½Ø±ï¿½RGBï¿½ï¿½Ô´
 void rgb_pwr_off(void)
 {
 #ifdef RGB_PWR_PIN
@@ -277,7 +271,7 @@ void rgblight_init(void) {
 
     rgblight_timer_init(); // setup the timer
 
-//³õÊ¼»¯RGB power¿ØÖÆ½Å
+//ï¿½ï¿½Ê¼ï¿½ï¿½RGB powerï¿½ï¿½ï¿½Æ½ï¿½
 #ifdef RGB_PWR_PIN
     nrf_gpio_cfg_output(RGB_PWR_PIN);
 #endif
@@ -452,7 +446,7 @@ void rgblight_enable_noeeprom(void) {
 
 void rgblight_disable(void) {
 /*
-#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //Èç¹ûÎÞµçÔ´¿ØÖÆÔò¹Ø»úÇ°Öð²½½µµÍÁÁ¶È
+#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //ï¿½ï¿½ï¿½ï¿½Þµï¿½Ô´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø»ï¿½Ç°ï¿½ð²½½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     rgblight_set_val(120);
     wait_ms(1);
     rgblight_set_val(60);
@@ -472,7 +466,7 @@ void rgblight_disable(void) {
 
 void rgblight_disable_noeeprom(void) {
 /*
-#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //Èç¹ûÎÞµçÔ´¿ØÖÆÔò¹Ø»úÇ°Öð²½½µµÍÁÁ¶È
+#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //ï¿½ï¿½ï¿½ï¿½Þµï¿½Ô´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø»ï¿½Ç°ï¿½ð²½½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     rgblight_set_val(120);
     wait_ms(1);
     rgblight_set_val(60);
@@ -487,6 +481,10 @@ void rgblight_disable_noeeprom(void) {
 #if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
     rgb_pwr_off();
 #endif
+}
+
+void rgblight_enabled_noeeprom(bool state) {
+    state ? rgblight_enable_noeeprom() : rgblight_disable_noeeprom();
 }
 
 bool rgblight_is_enabled(void) {
