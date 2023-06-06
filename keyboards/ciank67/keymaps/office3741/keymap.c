@@ -101,7 +101,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL,    KC_LWIN, KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN),  KC_RALT, KC_MENU,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
                        ),
     [_RGBST] = LAYOUT(
-        _______, RGBM_HUI, RGBM_HUD, RGBM_SAI, RGBM_SAD, RGBM_VAI, RGBM_VAD, RGBM_SPI, RGBM_SPD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______, 
+        _______, RGBM_HUI, RGBM_HUD, RGBM_SAI, RGBM_SAD, RGBM_VAI, RGBM_VAD, RGBM_SPI, RGBM_SPD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,
         _______, _______,_______,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
         _______, RGB_HUI, RGB_HUD, RGB_SAI, RGB_SAD, RGB_VAI, RGB_VAD, RGB_SPI, RGB_SPD, _______, _______,_______, _______,
         _______,  RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______,_______,TO(_DVORAKR),
@@ -109,7 +109,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                      ),
     [_MOUSE] = LAYOUT(
         _______, KC_MS_UP, KC_MS_DOWN, KC_MS_LEFT, KC_MS_RIGHT,_______, _______,_______,  _______, _______,_______, _______,_______, _______,
-        _______, KC_MS_BTN1, KC_MS_BTN2, _______, _______,  _______, _______, _______, _______, _______,_______, _______, _______,_______, 
+        _______, KC_MS_BTN1, KC_MS_BTN2, _______, _______,  _______, _______, _______, _______, _______,_______, _______, _______,_______,
         _______, KC_MS_WH_UP, KC_MS_WH_DOWN, _______, _______, _______, _______,_______,_______, _______,_______, _______,_______,
         KC_PWR, KC_MUTE, KC_VOLU, KC_VOLD, KC_MNXT, KC_MPRV, KC_MSTP, KC_MPLY, _______, _______, _______, _______,_______, TO(_DVORAKR),
         KC_MY_COMPUTER,  _______,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______
@@ -171,12 +171,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 NVIC_SystemReset();
             }
-            
+
         case ENT_DFU:
             if (record->event.pressed) {
       		bootloader_jump_uf2();
             }
-            
+
     case RGBRST:
       #ifdef RGBLIGHT_ENABLE
         if (record->event.pressed) {
@@ -196,7 +196,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
         }
         return true;
-        
+
     case RGBG_TOG:
         if (record->event.pressed) {
             if (rgb_matrix_config.enable) {
@@ -205,14 +205,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 i2c_start();
             }
             	 rgb_matrix_toggle();
-	  	
+
 	      #ifdef RGBLIGHT_ENABLE
 	        	rgblight_toggle();
 		#endif
         }
     	return true;
 #endif
-	  	
+
         case SLEEP:
               #ifdef RGBLIGHT_ENABLE
                 rgblight_disable();
@@ -221,7 +221,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 deep_sleep_mode_enter();
             }
             return false;
-          
+
           case VOLUP:
             if (record->event.pressed) {
       		register_code(KC_A);
@@ -272,11 +272,12 @@ bool rgb_matrix_indicators_user(void) {
          //rgb_matrix_set_color(76, 0xFF, 0xFF, 0xFF);
           rgb_matrix_set_color_all(0xFF, 0x60, 0xFF);
     }
-    
+
     return true;
 }
 #endif
 
+#ifdef RGBLIGHT_ENABLE
 const rgblight_segment_t PROGMEM my_capslock_layer[] = RGBLIGHT_LAYER_SEGMENTS(
     { 9, 8, HSV_WHITE} //从第10个灯开始，点亮8个灯，颜色为白色
 );
@@ -285,6 +286,12 @@ const rgblight_segment_t* const PROGMEM my_rgb_layers[] = RGBLIGHT_LAYERS_LIST(
     my_capslock_layer
     //Overrides other layers
 );
+
+bool led_update_user(led_t led_state){
+    rgblight_set_layer_state(0, led_state.caps_lock);
+    return true;
+}
+#endif
 
 void keyboard_post_init_user() {
     #ifdef IS31FL3741
@@ -303,9 +310,4 @@ void keyboard_post_init_user() {
         //Enable the LED layers
         rgblight_layers = my_rgb_layers;
   #endif
-}
-
-bool led_update_user(led_t led_state){
-    rgblight_set_layer_state(0, led_state.caps_lock);
-    return true;
 }
