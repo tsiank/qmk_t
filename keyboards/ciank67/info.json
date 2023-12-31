@@ -1,13 +1,13 @@
 {
-    "keyboard_name": "Tsiank67_rgb for work",
+    "keyboard_name": "Cank67_rgb",
     "manufacturer": "Tsiank",
     "url": "",
     "maintainer": "qmk",
   "processor": "NRF52840",
   "bootloader": "custom",
     "usb": {
-        "vid": "0xEEEE",
-        "pid": "0xC376",
+        "vid": "0xFEED",
+        "pid": "0xC475",
         "device_version": "0.0.1"
     },
     "layouts": {

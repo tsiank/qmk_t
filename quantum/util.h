@@ -45,6 +45,13 @@
 #if !defined(PACKED)
 #    define PACKED __attribute__((__packed__))
 #endif
+#else
+#if defined(__GNUC__)
+#    define PACKED __attribute__((packed))
+#else
+#    define PACKED
+#endif
+#endif
 
 #if __has_include("_util.h")
 #    include "_util.h" /* Include the platform's _util.h */

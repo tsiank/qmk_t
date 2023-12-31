@@ -44,28 +44,33 @@ static volatile uint8_t widx = 0;
 static void hid_kbd_process_state(report_keyboard_t *report) {
     if (m_report_pending) return;
     ret_code_t ret;
-
-#ifdef NKRO_ENABLE
-    if (keyboard_protocol && keymap_config.nkro) {
-        memcpy(kbd2_report_queue[widx], &report->nkro.mods, NKRO_EPSIZE);
-        ret = app_usbd_hid_generic_in_report_set(&m_app_hid_kbd2, kbd2_report_queue[widx++], NKRO_EPSIZE);
-        widx %= REPORT_QUEUE_LEN;
-    } else
-#endif
-    {
-        memcpy(kbd_report_queue[widx], report, KEYBOARD_REPORT_SIZE);
+    
+    memcpy(kbd_report_queue[widx], report, KEYBOARD_REPORT_SIZE);
 
         // uint8_t asdf[8] = {};
         // memcpy(&asdf[0], &report->mods, 8);
         // NRF_LOG_INFO("%d %d %d %d", asdf[widx], asdf[widx], asdf[2], asdf[3]);
         // NRF_LOG_INFO("%d %d %d %d", asdf[4], asdf[5], asdf[6], asdf[7]);
         // ret = app_usbd_hid_generic_in_report_set(&m_app_hid_kbd, &report->mods, 8);
-        ret = app_usbd_hid_generic_in_report_set(&m_app_hid_kbd, kbd_report_queue[widx++], KEYBOARD_REPORT_SIZE);
-
-        widx %= REPORT_QUEUE_LEN;
-    }
+     ret = app_usbd_hid_generic_in_report_set(&m_app_hid_kbd, kbd_report_queue[widx++], KEYBOARD_REPORT_SIZE);
+     widx %= REPORT_QUEUE_LEN;
+     
     APP_ERROR_CHECK(ret);
 }
+
+#ifdef NKRO_ENABLE
+static void hid_nkro_process_state(report_nkro_t *report) {
+    if (m_report_pending) return;
+    ret_code_t ret;
+    
+    memcpy(kbd2_report_queue[widx], &report->mods, NKRO_EPSIZE);
+    ret = app_usbd_hid_generic_in_report_set(&m_app_hid_kbd2, kbd2_report_queue[widx++], NKRO_EPSIZE);
+    widx %= REPORT_QUEUE_LEN;
+
+    APP_ERROR_CHECK(ret);
+}
+#endif
+
 
 #ifdef MOUSE_ENABLE
 static void hid_mouse_process_state(report_mouse_t *report) {
@@ -236,10 +241,11 @@ static ret_code_t idle_handle(app_usbd_class_inst_t const *p_inst, uint8_t repor
 
 static uint8_t keyboard_leds(void);
 static void    send_keyboard(report_keyboard_t *report);
+static void    send_nkro(report_nkro_t *report);
 static void    send_mouse(report_mouse_t *report);
 static void send_extra(report_extra_t *report);
 
-static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_extra};
+static host_driver_t driver = {keyboard_leds, send_keyboard, send_nkro, send_mouse, send_extra};
 
 host_driver_t *nrf5_usb_driver(void) { return &driver; }
 
@@ -249,6 +255,14 @@ static void send_keyboard(report_keyboard_t *report) {
     if (NRF_USBD->ENABLE) {
         hid_kbd_process_state(report);
     }
+}
+
+static void send_nkro(report_nkro_t *report) {
+#ifdef NKRO_ENABLE
+    if (NRF_USBD->ENABLE) {
+        hid_nkro_process_state(report);
+    }
+#endif
 }
 
 static void send_mouse(report_mouse_t *report) {

@@ -376,10 +376,11 @@ static void on_hids_evt(ble_hids_t *p_hids, ble_hids_evt_t *p_evt) {
 
 static uint8_t keyboard_leds(void);
 static void    send_keyboard(report_keyboard_t *report);
+static void    send_nkro(report_nkro_t *report);
 static void    send_mouse(report_mouse_t *report);
 static void    send_extra(report_extra_t *report);
 
-static host_driver_t driver = {keyboard_leds, send_keyboard, send_mouse, send_extra};
+static host_driver_t driver = {keyboard_leds, send_keyboard, send_nkro, send_mouse, send_extra};
 
 host_driver_t *nrf5_ble_driver(void) { return &driver; }
 
@@ -387,15 +388,14 @@ static uint8_t keyboard_leds(void) { return keyboard_ble_led_stats; }
 
 static void send_keyboard(report_keyboard_t *report) {
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
-        if (!keyboard_protocol || !keymap_config.nkro) {
             keys_send(KBD_BLE_HID_DESC_NUM, KBD_INPUT_REPORT_KEYS_MAX_LEN, &report->mods);
-        }
-#if defined BLE_NKRO && defined NKRO_ENABLE
-        else {
-            keys_send(NKRO_BLE_HID_DESC_NUM, NKRO_INPUT_REPORT_KEYS_MAX_LEN, &report->nkro.mods);
-        }
-#endif
     }
+}
+
+static void send_nkro(report_nkro_t *report) {
+#if defined BLE_NKRO && defined NKRO_ENABLE
+    keys_send(NKRO_BLE_HID_DESC_NUM, NKRO_INPUT_REPORT_KEYS_MAX_LEN, &report->mods);
+#endif
 }
 
 static void send_mouse(report_mouse_t *report) {

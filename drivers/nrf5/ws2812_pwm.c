@@ -34,11 +34,11 @@ void pwm_handler(nrfx_pwm_evt_type_t event_type) {
 
 }
 
-void ws2812_setleds(LED_TYPE *ledarray, uint16_t number_of_leds) {
+void ws2812_setleds(rgb_led_t *ledarray, uint16_t number_of_leds) {
   ws2812_setleds_pin(ledarray, number_of_leds, WS2812_DI_PIN);
 }
 
-void ws2812_setleds_pin (LED_TYPE *ledarray, uint16_t number_of_leds,uint8_t pinmask){
+void ws2812_setleds_pin (rgb_led_t *ledarray, uint16_t number_of_leds,uint8_t pinmask){
   static bool flag_init;
   if(!flag_init) {
   nrfx_pwm_config_t pwm0_config = NRFX_PWM_DEFAULT_CONFIG;
@@ -93,7 +93,7 @@ void ws2812_setleds_pin (LED_TYPE *ledarray, uint16_t number_of_leds,uint8_t pin
 //  wait_us(50);
 }
 
-void ws2812_setleds_rgbw(LED_TYPE *ledarray, uint16_t number_of_leds) {
+void ws2812_setleds_rgbw(rgb_led_t *ledarray, uint16_t number_of_leds) {
   const uint16_t t0H = ((int) (0.35f / 0.0625f)) | (0x8000);
   const uint16_t t1H = ((int) (1.36f / 0.0625f)) | (0x8000);
   nrf_pwm_values_common_t led[RGBLED_NUM * 3 * 8 + 1];

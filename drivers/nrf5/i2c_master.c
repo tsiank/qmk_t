@@ -40,9 +40,9 @@ void i2c_start(void) {
     nrfx_twim_enable(&m_twim_master);
     twim_enable = true;
     
-#if defined(IS31FL3733) || defined(IS31FL3737) || defined(IS31FL3741)
+#if defined(RGB_MATRIX_IS31FL3733) || defined(RGB_MATRIX_IS31FL3737) || defined(RGB_MATRIX_IS31FL3741)
     i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
-#ifdef IS31FL3741
+#ifdef RGB_MATRIX_IS31FL3741
     i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); 
 #else
     i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x03);
@@ -59,9 +59,9 @@ void i2c_start(void) {
 }
 
 void i2c_stop(void) {
-#if defined(IS31FL3733) || defined(IS31FL3737) || defined(IS31FL3741)
+#if defined(RGB_MATRIX_IS31FL3733) || defined(RGB_MATRIX_IS31FL3737) || defined(RGB_MATRIX_IS31FL3741)
     i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
-#ifdef IS31FL3741
+#ifdef RGB_MATRIX_IS31FL3741
     i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); 
 #else
     i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x03);

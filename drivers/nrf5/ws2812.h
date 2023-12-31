@@ -44,9 +44,9 @@
  *         - Wait 50�ｿｽs to reset the LEDs
  */
 
-void ws2812_setleds     (LED_TYPE *ledarray, uint16_t number_of_leds);
-void ws2812_setleds_pin (LED_TYPE *ledarray, uint16_t number_of_leds,uint8_t pinmask);
-void ws2812_setleds_rgbw(LED_TYPE *ledarray, uint16_t number_of_leds);
+void ws2812_setleds     (rgb_led_t *ledarray, uint16_t number_of_leds);
+void ws2812_setleds_pin (rgb_led_t *ledarray, uint16_t number_of_leds,uint8_t pinmask);
+void ws2812_setleds_rgbw(rgb_led_t *ledarray, uint16_t number_of_leds);
 
 /*
  * Old interface / Internal functions

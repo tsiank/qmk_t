@@ -186,7 +186,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       #endif
       break;
 
-#ifdef IS31FL3741
+#ifdef is31fl3741
     case RGBM_TOG:
         if (record->event.pressed) {
             if (rgb_matrix_config.enable) {
@@ -250,7 +250,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
-    	#ifdef IS31FL3741
+    	#ifdef is31fl3741
 bool rgb_matrix_indicators_user(void) {
 	    switch (biton32(layer_state)) {
 	      case _SIGN:
@@ -294,8 +294,8 @@ bool led_update_user(led_t led_state){
 #endif
 
 void keyboard_post_init_user() {
-    #ifdef IS31FL3741
-    // Shutdown IS31FL3741 if rgb disabled
+    #ifdef is31fl3741
+    // Shutdown is31fl3741 if rgb disabled
     if (!rgb_matrix_config.enable) {
         i2c_stop();
     }
