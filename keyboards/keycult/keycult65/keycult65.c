@@ -1,4 +1,4 @@
-/* Copyright 2021 Jay Greco
+/* Copyright 2024 Yiancar-Designs
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,27 +13,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "quantum.h"
 
-#pragma once
-
-/* space savers */
-#define DYNAMIC_KEYMAP_LAYER_COUNT 3
-#define NO_ACTION_TAPPING
-#define NO_ACTION_ONESHOT
-#define TAPPING_FORCE_HOLD
-
-#define OLED_BRIGHTNESS 128
-#define OLED_TIMEOUT 30000
-
-// Selectively undefine to save space
-// VIA support won't fit otherwise
-#ifdef RGBLIGHT_ENABLE
-#undef RGBLIGHT_EFFECT_ALTERNATING
-#undef RGBLIGHT_EFFECT_CHRISTMAS
-#undef RGBLIGHT_EFFECT_RGB_TEST
-#undef RGBLIGHT_EFFECT_SNAKE
-#undef RGBLIGHT_EFFECT_TWINKLE
-#endif //RGB LIGHT_ENABLE
-
-// Split Options
-#define SPLIT_TRANSPORT_MIRROR
+void led_init_ports(void) {
+    // Set our LED pins as open drain outputs
+    gpio_set_pin_output_open_drain(LED_CAPS_LOCK_PIN);
+}
