@@ -25,6 +25,10 @@ void     eeprom_update(void);
 #endif
 #endif
 
+static inline void eeprom_write_qword(uint64_t *__p, uint64_t __value) {
+    eeprom_update_block(&__value, __p, sizeof(uint64_t));
+}
+
 #if defined(EEPROM_CUSTOM)
 #    ifndef EEPROM_SIZE
 #        error EEPROM_SIZE has not been defined for custom driver.

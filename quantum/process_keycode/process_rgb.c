@@ -79,7 +79,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
         uint8_t shifted = get_mods() & MOD_MASK_SHIFT;
 #endif
         switch (keycode) {
-            case RGB_TOG:
+            case QK_UNDERGLOW_TOGGLE:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 rgblight_toggle();
 #endif
@@ -89,7 +89,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 rgb_matrix_toggle();
 #endif
                 return false;
-            case RGB_MODE_FORWARD:
+            case QK_UNDERGLOW_MODE_NEXT:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_step, rgblight_step_reverse);
 #endif
@@ -99,7 +99,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_step, rgb_matrix_step_reverse);
 #endif
                 return false;
-            case RGB_MODE_REVERSE:
+            case QK_UNDERGLOW_MODE_PREVIOUS:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_step_reverse, rgblight_step);
 #endif
@@ -109,7 +109,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_step_reverse, rgb_matrix_step);
 #endif
                 return false;
-            case RGB_HUI:
+            case QK_UNDERGLOW_HUE_UP:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_increase_hue, rgblight_decrease_hue);
 #endif
@@ -119,7 +119,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_increase_hue, rgb_matrix_decrease_hue);
 #endif
                 return false;
-            case RGB_HUD:
+            case QK_UNDERGLOW_HUE_DOWN:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_decrease_hue, rgblight_increase_hue);
 #endif
@@ -129,7 +129,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_decrease_hue, rgb_matrix_increase_hue);
 #endif
                 return false;
-            case RGB_SAI:
+            case QK_UNDERGLOW_SATURATION_UP:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_increase_sat, rgblight_decrease_sat);
 #endif
@@ -139,7 +139,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_increase_sat, rgb_matrix_decrease_sat);
 #endif
                 return false;
-            case RGB_SAD:
+            case QK_UNDERGLOW_SATURATION_DOWN:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_decrease_sat, rgblight_increase_sat);
 #endif
@@ -149,7 +149,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_decrease_sat, rgb_matrix_increase_sat);
 #endif
                 return false;
-            case RGB_VAI:
+            case QK_UNDERGLOW_VALUE_UP:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_increase_val, rgblight_decrease_val);
 #endif
@@ -159,7 +159,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_increase_val, rgb_matrix_decrease_val);
 #endif
                 return false;
-            case RGB_VAD:
+            case QK_UNDERGLOW_VALUE_DOWN:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_decrease_val, rgblight_increase_val);
 #endif
@@ -169,7 +169,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_decrease_val, rgb_matrix_increase_val);
 #endif
                 return false;
-            case RGB_SPI:
+            case QK_UNDERGLOW_SPEED_UP:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_increase_speed, rgblight_decrease_speed);
 #endif
@@ -179,7 +179,7 @@ bool process_rgb(const uint16_t keycode, const keyrecord_t *record) {
                 handleKeycodeRGB(shifted, rgb_matrix_increase_speed, rgb_matrix_decrease_speed);
 #endif
                 return false;
-            case RGB_SPD:
+            case QK_UNDERGLOW_SPEED_DOWN:
 #if defined(RGBLIGHT_ENABLE) && !defined(RGBLIGHT_DISABLE_KEYCODES)
                 handleKeycodeRGB(shifted, rgblight_decrease_speed, rgblight_increase_speed);
 #endif
