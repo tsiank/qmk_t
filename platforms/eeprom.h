@@ -40,6 +40,7 @@ void     eeprom_update(void);
 #    endif
 #    define TOTAL_EEPROM_BYTE_COUNT (EEPROM_SIZE)
 #elif defined(EEPROM_WEAR_LEVELING)
+#    include "wear_leveling_drivers.h"
 #    define TOTAL_EEPROM_BYTE_COUNT (WEAR_LEVELING_LOGICAL_SIZE)
 #elif defined(EEPROM_TRANSIENT)
 #    include "eeprom_transient.h"
