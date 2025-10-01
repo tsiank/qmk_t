@@ -189,6 +189,28 @@
                 "as_caps_lock": {"type": "boolean"}
             }
         },
+        "battery": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "driver": {
+                    "type": "string",
+                    "enum": ["adc", "custom", "vendor"]
+                },
+                "adc": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "pin": {"$ref": "./definitions.jsonschema#/mcu_pin"},
+                        "reference_voltage": {"type": "integer"},
+                        "divider_r1": {"type": "integer"},
+                        "divider_r2": {"type": "integer"},
+                        "resolution": {"type": "integer"}
+                    }
+                },
+                "sample_interval": {"type": "integer"}
+            }
+        },
         "bluetooth": {
             "type": "object",
             "additionalProperties": false,
@@ -474,6 +496,7 @@
                 "ghost": {"type": "boolean"},
                 "input_pressed_state": {"$ref": "./definitions.jsonschema#/unsigned_int"},
                 "io_delay": {"$ref": "./definitions.jsonschema#/unsigned_int"},
+                "masked": {"type": "boolean"},
                 "direct": {
                     "type": "array",
                     "items": {"$ref": "./definitions.jsonschema#/mcu_pin_array"}
@@ -864,8 +887,7 @@
                 },
                 "soft_serial_speed": {
                     "type": "integer",
-                    "minimum": 0,
-                    "maximum": 5
+                    "$comment": "Deprecated: use split.serial.speed instead"
                 },
                 "serial": {
                     "type": "object",
@@ -875,7 +897,12 @@
                             "type": "string",
                             "enum": ["bitbang", "usart", "vendor"]
                         },
-                        "pin": {"$ref": "./definitions.jsonschema#/mcu_pin"}
+                        "pin": {"$ref": "./definitions.jsonschema#/mcu_pin"},
+                        "speed": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 5
+                        }
                     }
                 },
                 "transport": {
