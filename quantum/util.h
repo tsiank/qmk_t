@@ -19,8 +19,14 @@
 #if !defined(MAX)
 #    define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #endif
-#    define CEILING(dividend, divisor) (((dividend) + (divisor)-1) / (divisor))
 
+#if !defined(CEILING)
+/**
+ * @brief Computes the rounded up result of a division of two integers at
+ * compile time.
+ */
+#    define CEILING(dividend, divisor) (((dividend) + (divisor) - 1) / (divisor))
+#endif
 
 #if !defined(IS_ARRAY)
 /**
