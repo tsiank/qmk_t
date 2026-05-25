@@ -27,6 +27,8 @@
 
 #ifdef CONNECTION_ENABLE
 #    include "process_connection.h"
+#elif defined(PROTOCOL_NRF5)
+#    include "outputselect.h"
 #endif
 
 #ifdef GRAVE_ESC_ENABLE

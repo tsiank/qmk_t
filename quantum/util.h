@@ -11,6 +11,7 @@
 #define STR(s) XSTR(s)
 #define XSTR(s) #s
 
+#if !defined(PROTOCOL_NRF5)
 #if !defined(MIN)
 #    define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #endif
@@ -50,6 +51,13 @@
 
 #if !defined(PACKED)
 #    define PACKED __attribute__((__packed__))
+#endif
+#else
+#if defined(__GNUC__)
+#    define PACKED __attribute__((packed))
+#else
+#    define PACKED
+#endif
 #endif
 
 #if __has_include("_util.h")

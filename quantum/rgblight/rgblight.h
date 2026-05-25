@@ -326,6 +326,11 @@ void rgblight_disable(void);
 void rgblight_disable_noeeprom(void);
 void rgblight_enabled_noeeprom(bool state);
 
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)   //tsiank add
+void rgb_pwr_on(void);
+void rgb_pwr_off(void);
+#endif
+
 /*   hue, sat, val change */
 void rgblight_increase_hue(void);
 void rgblight_increase_hue_noeeprom(void);

@@ -145,6 +145,10 @@
             },
             {
                 "type": "string",
+                "pattern": "^[A-K]\\d{1,2}|(\\d)$"
+            },
+            {
+                "type": "string",
                 "pattern": "^LINE_PIN\\d{1,2}$"
             },
             {

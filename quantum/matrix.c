@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#if defined(PROTOCOL_NRF5)
+#include "wait.h"
+#endif
 #include "util.h"
 #include "matrix.h"
 #include "debounce.h"

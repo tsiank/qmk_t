@@ -1,0 +1,2 @@
+SRC += $(PLATFORM_COMMON_DIR)/printf.c
+SRC += $(PLATFORM_COMMON_DIR)/eeprom.c

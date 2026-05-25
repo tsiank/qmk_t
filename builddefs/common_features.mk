@@ -246,6 +246,10 @@ ifneq ($(strip $(EEPROM_DRIVER)),none)
           OPT_DEFS += -DEEPROM_DRIVER -DEEPROM_TRANSIENT
           SRC += eeprom_driver.c eeprom_transient.c
         endif
+	  else ifeq ($(PLATFORM),NRF5)
+		# nrf5 EEPROM
+		OPT_DEFS += -DEEPROM_NRF
+		SRC += $(PLATFORM_COMMON_DIR)/eeprom.c
       else ifeq ($(PLATFORM),TEST)
         # Test harness "EEPROM"
         OPT_DEFS += -DEEPROM_TEST_HARNESS

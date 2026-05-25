@@ -71,7 +71,9 @@ ifeq ("$(shell echo "int main(){}" | $(CC) -fdiagnostics-color -x c - -o /dev/nu
 endif
 endif
 CFLAGS += -Wall
-CFLAGS += -Wstrict-prototypes
+ifneq ($(PLATFORM), NRF5)
+	CFLAGS += -Wstrict-prototypes
+endif
 CFLAGS += $(call cc-option,-Wunused-but-set-variable=1,-Wunused-but-set-variable)
 CFLAGS += $(call cc-option,-Wunused-but-set-parameter=1,-Wunused-but-set-parameter)
 ifneq ($(strip $(ALLOW_WARNINGS)), yes)
