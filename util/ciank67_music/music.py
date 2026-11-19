@@ -7,7 +7,7 @@ import sys
 import threading
 import time
 
-from protocol import BANDS, RX_UUID, TARGETS, USAGE, USAGE_PAGE, packet, usb_report
+from protocol import BANDS, COLOR_MODES, EFFECTS, RX_UUID, TARGETS, USAGE, USAGE_PAGE, color_packet, packet, usb_report
 
 
 class AudioCapture:
@@ -188,8 +188,10 @@ async def run(args):
         if not args.demo:
             from spectrum import Spectrum
             capture = AudioCapture(args.audio_device)
-            analyzer = Spectrum(capture.rate, gain_db=args.gain_db)
+            analyzer = Spectrum(capture.rate, gain_db=args.gain_db, fast_response=True)
         print(f'Music connected via {args.transport}, target={args.target}, {args.fps:g} fps. Ctrl+C to restore normal lighting.')
+        if args.color_mode == 'solid' and args.solid_color is not None:
+            await transport.send(color_packet(args.solid_color))
         started = deadline = time.monotonic()
         while args.seconds is None or time.monotonic() - started < args.seconds:
             if args.demo:
@@ -197,7 +199,7 @@ async def run(args):
                 bands = [round(255 * (0.5 + 0.5 * math.sin(t * 3 - i * 0.45))) for i in range(BANDS)]
             else:
                 bands = analyzer.analyze(capture.samples())
-            await transport.send(packet(sequence, bands, args.target))
+            await transport.send(packet(sequence, bands, args.target, effect=args.effect, color_mode=args.color_mode))
             sequence = (sequence + 1) & 255
             # Do not queue delayed frames after a slow Bluetooth write.
             deadline = max(deadline + 1 / args.fps, time.monotonic())
@@ -213,10 +215,26 @@ async def run(args):
             await transport.close()
 
 
+def hex_color(value):
+    try:
+        text = value.removeprefix('#')
+        if len(text) != 6:
+            raise ValueError()
+        color = bytes.fromhex(text)
+        if len(color) != 3:
+            raise ValueError()
+        return tuple(color)
+    except ValueError:
+        raise argparse.ArgumentTypeError('Use a six-digit RGB color such as #FF8000')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--transport', choices=['usb', 'ble'], default='usb')
     parser.add_argument('--target', choices=TARGETS, default='both')
+    parser.add_argument('--effect', choices=EFFECTS, default='spectrum')
+    parser.add_argument('--color-mode', choices=COLOR_MODES, default='colorful')
+    parser.add_argument('--solid-color', type=hex_color, help='Choose a solid RGB color, e.g. #FF8000')
     parser.add_argument('--fps', type=float, default=25)
     parser.add_argument('--gain-db', type=float, default=0)
     parser.add_argument('--vid', type=lambda value: int(value, 0), default=0xFEED)
@@ -232,6 +250,8 @@ def main():
     parser.add_argument('--list-paired-ble', action='store_true')
     parser.add_argument('--list-audio', action='store_true')
     args = parser.parse_args()
+    if args.solid_color is not None:
+        args.color_mode = 'solid'
     if not math.isfinite(args.fps) or not 1 <= args.fps <= 30:
         parser.error('--fps must be between 1 and 30')
     if not math.isfinite(args.gain_db):

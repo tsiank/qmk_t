@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Media;
+using Ciank67.Music.Core;
 
 namespace Ciank67.Music.App;
 
@@ -11,6 +12,7 @@ internal sealed class SpectrumView
     public Grid View { get; } = new();
     private readonly Border[] bars = new Border[16];
     private byte[] levels = new byte[16];
+    private MusicRgb? selectedColor;
 
     public SpectrumView()
     {
@@ -40,6 +42,15 @@ internal sealed class SpectrumView
         levels = values;
         double height = View.ActualHeight > 0 ? View.ActualHeight : View.Height;
         for (int i = 0; i < bars.Length; ++i) bars[i].Height = height * values[i] / 255;
+    }
+
+    public void SetColor(MusicRgb? color)
+    {
+        if (selectedColor == color) return;
+        selectedColor = color;
+        for (int i = 0; i < bars.Length; ++i)
+            bars[i].Background = new SolidColorBrush(color is { } rgb
+                ? Windows.UI.Color.FromArgb(255, rgb.R, rgb.G, rgb.B) : ColorForBand(i));
     }
 
     private static Windows.UI.Color ColorForBand(int band)

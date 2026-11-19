@@ -27,7 +27,7 @@ public sealed class SpectrumAnalyzer
         }
     }
 
-    public byte[] Analyze(ReadOnlySpan<float> interleaved, int channels, double gainDb)
+    public byte[] Analyze(ReadOnlySpan<float> interleaved, int channels, double gainDb, bool fastResponse = false)
     {
         if (channels <= 0 || interleaved.Length % channels != 0) throw new ArgumentException("音频声道或采样长度不正确。");
         if (!double.IsFinite(gainDb)) throw new ArgumentOutOfRangeException(nameof(gainDb));
@@ -62,7 +62,8 @@ public sealed class SpectrumAnalyzer
             double energy = Math.Sqrt(bins[band].Sum(i => power[i])) * normalization;
             double db = 20 * Math.Log10(Math.Max(energy, 1e-9)) + gainDb;
             double level = Math.Clamp((db + 60) / 54, 0, 1);
-            levels[band] += (level > levels[band] ? 0.65 : 0.18) * (level - levels[band]);
+            double smoothing = fastResponse ? (level > levels[band] ? 0.9 : 0.65) : (level > levels[band] ? 0.65 : 0.18);
+            levels[band] += smoothing * (level - levels[band]);
             result[band] = (byte)Math.Clamp(Math.Round(levels[band] * 255), 0, 255);
         }
         return result;

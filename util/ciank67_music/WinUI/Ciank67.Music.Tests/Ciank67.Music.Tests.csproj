@@ -7,4 +7,5 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../Ciank67.Music.Core/Ciank67.Music.Core.csproj" /></ItemGroup>
+  <ItemGroup><Compile Include="../Ciank67.Music.App/WindowsHidOutput.cs" Link="WindowsHidOutput.cs" /></ItemGroup>
 </Project>

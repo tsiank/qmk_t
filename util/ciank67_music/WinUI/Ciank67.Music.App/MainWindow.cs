@@ -16,6 +16,12 @@ public sealed partial class MainWindow : Window
     private readonly ComboBox connection = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ComboBox keyboard = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择键盘" };
     private readonly ComboBox playback = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择播放设备" };
+    private readonly ComboBox effect = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox colorMode = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ColorPicker solidColor = new() { Color = Colors.White, IsAlphaEnabled = false, IsMoreButtonVisible = false };
+    private readonly Button chooseColor = new() { HorizontalAlignment = HorizontalAlignment.Stretch, IsEnabled = false };
+    private readonly Border colorSwatch = new() { Width = 20, Height = 20, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Colors.White) };
+    private readonly TextBlock colorHex = new() { Text = "#FFFFFF", VerticalAlignment = VerticalAlignment.Center };
     private readonly Button refresh = new() { Content = "刷新设备", HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly Button start = new() { Content = "开始律动", MinWidth = 140 };
     private readonly Button stop = new() { Content = "停止", IsEnabled = false, MinWidth = 90 };
@@ -58,11 +64,15 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = new MicaBackdrop();
         connection.Items.Add("USB"); connection.Items.Add("蓝牙（已配对）"); connection.Items.Add("仅预览");
         connection.SelectedIndex = 0;
+        effect.Items.Add("频谱柱"); effect.Items.Add("双心共舞"); effect.SelectedIndex = 0;
+        colorMode.Items.Add("彩光"); colorMode.Items.Add("纯光"); colorMode.SelectedIndex = 0;
         foreach (var (element, id) in new (DependencyObject, string)[] {
             (connection, "ConnectionType"), (keyboard, "KeyboardDevice"), (playback, "PlaybackDevice"),
             (refresh, "RefreshDevices"), (start, "StartMusic"), (stop, "StopMusic"),
-            (demo, "DemoMode"), (status, "StatusText"), (spectrum.View, "FrequencySpectrum") })
+            (demo, "DemoMode"), (effect, "MusicEffect"), (colorMode, "MusicColorMode"), (chooseColor, "ChooseSolidColor"),
+            (solidColor, "SolidColorPicker"), (status, "StatusText"), (spectrum.View, "FrequencySpectrum") })
             AutomationProperties.SetAutomationId(element, id);
+        AutomationProperties.SetAutomationId(colorHex, "SolidColorHex");
 
         var controls = new StackPanel { Spacing = 16 };
         controls.Children.Add(Heading("连接", 22));
@@ -80,6 +90,14 @@ public sealed partial class MainWindow : Window
         controls.Children.Add(Heading("声音与灯光", 22));
         controls.Children.Add(Field("播放设备", playback));
         controls.Children.Add(demo);
+        controls.Children.Add(Field("矩阵律动效果", effect));
+        controls.Children.Add(Field("律动配色", colorMode));
+        var colorButtonContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        colorButtonContent.Children.Add(colorSwatch); colorButtonContent.Children.Add(colorHex);
+        colorButtonContent.Children.Add(new TextBlock { Text = "选择颜色", VerticalAlignment = VerticalAlignment.Center });
+        chooseColor.Content = colorButtonContent;
+        chooseColor.Flyout = new Flyout { Content = solidColor };
+        controls.Children.Add(chooseColor);
         var targets = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
         targets.Children.Add(matrix); targets.Children.Add(underglow); controls.Children.Add(targets);
         controls.Children.Add(Field("发送帧率（1～30 FPS）", rate));
@@ -122,6 +140,14 @@ public sealed partial class MainWindow : Window
         stop.Click += (_, _) => { sessionCancellation?.Cancel(); status.Text = "正在停止并恢复灯效…"; stop.IsEnabled = false; };
         gain.ValueChanged += (_, _) => { gainLabel.Text = $"灵敏度  {gain.Value:+0;-0;0} dB"; UpdateSettings(); };
         rate.ValueChanged += (_, _) => UpdateSettings();
+        effect.SelectionChanged += (_, _) => UpdateSettings();
+        colorMode.SelectionChanged += (_, _) => UpdateSettings();
+        solidColor.ColorChanged += (_, args) =>
+        {
+            colorSwatch.Background = new SolidColorBrush(args.NewColor);
+            colorHex.Text = $"#{args.NewColor.R:X2}{args.NewColor.G:X2}{args.NewColor.B:X2}";
+            UpdateSettings();
+        };
         matrix.Checked += (_, _) => UpdateSettings(); matrix.Unchecked += (_, _) => UpdateSettings();
         underglow.Checked += (_, _) => UpdateSettings(); underglow.Unchecked += (_, _) => UpdateSettings();
         demo.Toggled += (_, _) => { UpdateSettings(); UpdateControls(); };
@@ -172,7 +198,12 @@ public sealed partial class MainWindow : Window
     {
         LightTarget target = (matrix.IsChecked == true ? LightTarget.Matrix : 0) | (underglow.IsChecked == true ? LightTarget.Underglow : 0);
         int fps = double.IsFinite(rate.Value) ? Math.Clamp((int)rate.Value, 1, 30) : 25;
-        Volatile.Write(ref settings, new MusicSettings(fps, gain.Value, target, demo.IsOn));
+        MusicEffect selectedEffect = effect.SelectedIndex == 1 ? MusicEffect.DualDance : MusicEffect.Spectrum;
+        MusicColorMode selectedColor = colorMode.SelectedIndex == 1 ? MusicColorMode.Solid : MusicColorMode.Colorful;
+        chooseColor.IsEnabled = selectedColor == MusicColorMode.Solid;
+        var rgb = new MusicRgb(solidColor.Color.R, solidColor.Color.G, solidColor.Color.B);
+        spectrum.SetColor(selectedColor == MusicColorMode.Solid ? rgb : null);
+        Volatile.Write(ref settings, new MusicSettings(fps, gain.Value, target, demo.IsOn, selectedEffect, selectedColor, rgb));
     }
 
     private void UpdateControls()

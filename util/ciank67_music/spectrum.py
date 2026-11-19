@@ -3,11 +3,12 @@ import numpy as np
 
 
 class Spectrum:
-    def __init__(self, rate, size=2048, gain_db=0.0):
+    def __init__(self, rate, size=2048, gain_db=0.0, fast_response=False):
         if rate < 8000 or size < 256:
             raise ValueError('Unsupported sample rate or FFT size')
         self.size = size
         self.gain_db = gain_db
+        self.fast_response = fast_response
         self.window = np.hanning(size)
         self.normalization = 2.0 / self.window.sum()
         frequencies = np.fft.rfftfreq(size, 1.0 / rate)
@@ -36,6 +37,6 @@ class Spectrum:
         energy = np.array([np.sqrt(power[indexes].sum()) for indexes in self.bins])
         db = 20 * np.log10(np.maximum(energy, 1e-9)) + self.gain_db
         levels = np.clip((db + 60) / 54, 0, 1)
-        smoothing = np.where(levels > self.levels, 0.65, 0.18)
+        smoothing = np.where(levels > self.levels, 0.9, 0.65) if self.fast_response else np.where(levels > self.levels, 0.65, 0.18)
         self.levels += smoothing * (levels - self.levels)
         return np.rint(self.levels * 255).astype(np.uint8).tolist()

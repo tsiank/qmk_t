@@ -4,11 +4,11 @@
 
 将 Windows 正在播放的声音转换为 16 段频谱，通过 USB 或蓝牙发送给键盘。矩阵灯显示频谱柱，底灯显示各频段的彩色强度。无需麦克风，不录音、不保存音频文件。nRF5 SDK 保持 15.3.0。
 
-R8 固件的矩阵频谱为独立灯效 `MUSIC_SPECTRUM`，有白色峰值、250 ms 峰值保持和平滑回落。音乐输入自动临时启用，停止后恢复之前的灯效；不改写保存的模式。灯光层物理 W 键也可手动选择，未播放时回落至全黑。矩阵灯的色相、饱和度、亮度和速度按键分别控制配色、亮度和回落速度。现有 WinUI 客户端可直接使用，USB 产品名为 `ciank67`。
+R13 固件的矩阵频谱为独立灯效 `MUSIC_SPECTRUM`，按实际矩阵显示 7 组宽柱，使用纵向配色、即时上升与短尾回落。音乐输入自动临时启用，停止后恢复之前的灯效；不改写保存的模式。灯光层物理 W 键也可手动选择，未播放时回落至全黑。矩阵灯的色相、饱和度、亮度和速度按键分别控制配色、亮度和回落速度。现有 WinUI 客户端可直接使用，USB 产品名为 `ciank67`。
 
 ## 安装与 USB 使用
 
-1. 将这次生成的 `ciank67-music-r8-spectrum.zip` 通过原有 nrfutil 流程刷入。它是应用升级包，不更新 SoftDevice 或 bootloader。
+1. 将这次生成的 `ciank67-music-r15-color-picker.zip` 通过原有 nrfutil 流程刷入。它是应用升级包，不更新 SoftDevice 或 bootloader。
 2. Windows 安装 **Python 3.12（64 位）**，保留 Python Launcher（`py`）。
 3. 在本目录双击 `install.cmd`，或在 PowerShell 执行：
 
@@ -83,18 +83,18 @@ py -3.12 -m venv .venv
 | 0 | 魔数 `0xC7` |
 | 1 | 协议版本 `1` |
 | 2 | 序号，0～255 循环 |
-| 3 | 目标位：bit 0 矩阵灯，bit 1 底灯；`0` 停止 |
+| 3 | bit 0 矩阵灯，bit 1 底灯；bit 4 效果（0 频谱柱，1 双心共舞）；bit 5 纯光（0 彩光，1 纯光）；其他位必须为 0。目标位均为 0 表示停止，客户端停止包固定为 `0` |
 | 4～19 | 从低频到高频的 16 个强度值，范围 0～255 |
 
 USB：R7 使用 VID `0xFEED`、PID `0xC475`；客户端兼容 R6 的 Nordic 默认身份 `0x1915:0x520B`，名称不参与筛选。Usage Page `0xFF67`、Usage `0x67`，报告 ID `4`；发送 21 字节（ID + 20 字节协议包）。接收独立于键盘的 Caps Lock 报告，使用接口 4、IN1/OUT1 端点。
 
 BLE：服务 `c1a00001-7d9b-4c7d-a568-7294e2166700`，写入特征 `c1a00002-7d9b-4c7d-a568-7294e2166700`；每次 Write Without Response 发送完整 20 字节，适配默认 ATT MTU，不要求提高 MTU。
 
-中断/接收回调仅更新最新频谱快照，不执行渲染和存储；USB 和 BLE 共用解析器，最后收到的有效包生效。序号用于诊断，不因回绕或重启拒收。FFT 使用 2048 点 Hann 窗、40 Hz～16 kHz 对数频段和快速上升/慢速下降平滑；左右声道按能量合成，避免反相抵消。
+中断/接收回调仅更新最新频谱快照，不执行渲染和存储；USB 和 BLE 共用解析器，最后收到的有效包生效。序号用于诊断，不因回绕或重启拒收。FFT 使用 2048 点 Hann 窗、40 Hz～16 kHz 对数频段和快速上升与短尾回落平滑；左右声道按能量合成，避免反相抵消。
 
 ## 验证范围
 
-已在开发机验证固件构建、数据解析、USB/BLE 回调、灯光恢复、DSP 和程序退出逻辑。开发机不是 Windows，也没有连接实物键盘；Windows WASAPI、USB 枚举和 BLE 实机效果仍需按上述步骤验证。
+已在开发机验证固件构建、数据解析、USB/BLE 回调、灯光恢复、DSP 和程序退出逻辑。已通过 WSL 调用 Windows 构建和验证 WinUI 客户端，包括界面、图标、效果选择和 WASAPI 采集。新的双中心环带灯效仍需刷入实物键盘验证。
 
 ```sh
 python3 -m unittest discover -s platforms/nrf5/tests -v
@@ -102,3 +102,23 @@ python -m unittest discover -s util/ciank67_music/tests -v
 ```
 
 参考：[PyAudioWPatch](https://github.com/s0d3s/PyAudioWPatch)、[Bleak](https://bleak.readthedocs.io/en/stable/)、[HIDAPI](https://github.com/libusb/hidapi)。
+
+R10 的 WinUI 客户端可在“矩阵律动效果”下拉框实时切换频谱柱和双心共舞，底灯律动不变。Python 命令行对应 `--effect spectrum` / `--effect dual-dance`，例如：
+
+```powershell
+.\.venv\Scripts\python.exe music.py --transport usb --effect dual-dance --demo --seconds 10
+```
+
+双心共舞需要 R10 固件；默认频谱柱包保持与旧固件兼容。效果选择使用原包的 bit 4，长度仍是 20 字节；USB Report ID、BLE UUID 和 ATT MTU 均无需改变。
+
+R10 使用两组同心彩色环带，音量控制范围，颜色按时间连续流动；平滑上升与回落替换 R9 的短脉冲发射。协议 ID 1 不变；Python 仍兼容旧参数 `--effect dual-rays`。形态参考：[HFD SDK 音乐律动 V2 模式 22](https://docs.driveall.cn/kit/music-v2.html)。
+
+R11 只调整键盘端频谱显示：16 个输入频段合为 7 组，每组覆盖实际矩阵的相邻两列，取消白色峰值并改用纵向绿黄红配色，上升与回落均平滑。客户端、20 字节协议、底灯和双心共舞均不变，无需更新客户端。
+
+R12：两种模式客户端均使用快速攻击 / 回落，固件即时跟随上升、限制短尾下降，避免重复平滑。配套更新 Windows 客户端，或使用本目录最新版 Python 客户端。双心共舞同步缩短固件包络的上升和回落时间，仍保留连续环带和渐隐边缘。
+
+R13 修正矩阵灯幅度映射：降低对数强度转换为柱高/半径时的弱音基线，并让柱体底部和双心中心亮度随音乐变化，不再提前满亮。FFT、20 字节协议和底灯算法不变，R12 客户端无需更新。
+
+R14 新增配色选项，Python 对应 `--color-mode colorful` / `--color-mode solid`，默认彩光。纯光使用矩阵灯、底灯各自当前保存的颜色，保留 R13 的亮度和形状映射，需要 R14 固件；停止包仍固定为目标/效果字节全零。
+
+R15 支持自选纯光颜色。Python 例如 `music.py --transport usb --solid-color "#FF8000"`，指定颜色会自动使用纯光；WinUI 使用原生调色器。颜色命令同样为 20 字节：`C7 02 R G B` 后跟 15 个零，通过原 USB / BLE 通道在首个纯光音乐帧前发送。保留原音乐包和 16 频段，不扩大 BLE MTU。颜色改变不刷新音乐超时，不写 EEPROM，停止/断开后清除本次覆盖。

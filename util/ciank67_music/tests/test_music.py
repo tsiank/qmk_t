@@ -16,12 +16,31 @@ from spectrum import Spectrum
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_selected_rgb_command_and_hex_input(self):
+        self.assertEqual(protocol.color_packet((255, 128, 64)), bytes([0xC7, 2, 255, 128, 64]) + bytes(15))
+        self.assertEqual(len(protocol.usb_report(protocol.color_packet((0, 0, 0)))), 21)
+        self.assertEqual(music.hex_color('#FF8040'), (255, 128, 64))
+        for invalid in ['#123', 'GG0000', 'ff ff ', '1234567']:
+            with self.assertRaises(argparse.ArgumentTypeError):
+                music.hex_color(invalid)
+        for invalid in [(0, 0), (256, 0, 0), (-1, 0, 0)]:
+            with self.assertRaises(ValueError):
+                protocol.color_packet(invalid)
+
     def test_layout_stop_and_sequence_wrap(self):
         levels = list(range(16))
         data = protocol.packet(256, levels, 'underglow')
         self.assertEqual(data, bytes([0xC7, 1, 0, 2, *levels]))
         self.assertEqual(protocol.usb_report(data), bytes([4]) + data)
         self.assertEqual(protocol.packet(3, levels, stop=True)[3], 0)
+        rays = protocol.packet(7, levels, effect='dual-dance')
+        self.assertEqual(rays, bytes([0xC7, 1, 7, 0x13, *levels]))
+        self.assertEqual(len(protocol.usb_report(rays)), 21)
+        self.assertEqual(rays, protocol.packet(7, levels, effect='dual-rays'))
+        self.assertEqual(protocol.packet(7, levels, effect='dual-dance', stop=True)[3], 0)
+        self.assertEqual(protocol.packet(7, levels, color_mode='solid')[3], 0x23)
+        self.assertEqual(protocol.packet(7, levels, effect='dual-dance', color_mode='solid')[3], 0x33)
+        self.assertEqual(protocol.packet(7, levels, color_mode='solid', stop=True)[3], 0)
 
     def test_invalid_lengths_and_ranges(self):
         for levels in [[0] * 15, [0] * 17, [256] * 16, [-1] * 16]:
@@ -77,6 +96,18 @@ class SpectrumTests(unittest.TestCase):
         for samples in [[float('nan')], [float('inf')], np.zeros((5, 0))]:
             with self.assertRaises(ValueError):
                 Spectrum(48000).analyze(samples)
+
+    def test_fast_spectrum_catches_a_short_beat_and_releases_in_three_frames(self):
+        t = np.arange(2048) / 48000
+        tone = .5 * np.sin(2 * np.pi * 440 * t)
+        fast, original = Spectrum(48000, fast_response=True), Spectrum(48000)
+        fast_attack, original_attack = max(fast.analyze(tone)), max(original.analyze(tone))
+        self.assertGreater(fast_attack, 200)
+        self.assertGreater(fast_attack, original_attack)
+        for _ in range(3):
+            fast_tail, original_tail = max(fast.analyze(np.zeros(2048))), max(original.analyze(np.zeros(2048)))
+        self.assertLess(fast_tail, 15)
+        self.assertGreater(original_tail, 60)
 
 
 class LifecycleTests(unittest.TestCase):
@@ -171,7 +202,7 @@ class LifecycleTests(unittest.TestCase):
 
     def args(self):
         return argparse.Namespace(scan_ble=False, list_paired_ble=False, list_usb=False, list_audio=False,
-                                  transport='usb', demo=True, seconds=0.01, fps=25, target='both')
+                                  transport='usb', demo=True, seconds=0.01, fps=25, target='both', effect='dual-dance', color_mode='solid', solid_color=None)
 
     def test_demo_and_stop_restore_on_exit_and_write_failure(self):
         for fail in [False, True]:
@@ -193,7 +224,7 @@ class LifecycleTests(unittest.TestCase):
                 else:
                     asyncio.run(music.run(self.args()))
             self.assertTrue(device.closed)
-            self.assertEqual(device.frames[0][3], 3)
+            self.assertEqual(device.frames[0][3], 0x33)
             self.assertEqual(device.frames[-1][3], 0)
             self.assertTrue(all(len(frame) == 20 for frame in device.frames))
 

@@ -17,7 +17,7 @@ static void music_ble_event(ble_evt_t const *event, void *context) {
         const ble_gatts_evt_write_t *write = &event->evt.gatts_evt.params.write;
         if (write->handle == rx.value_handle && write->offset == 0 &&
             (write->op == BLE_GATTS_OP_WRITE_REQ || write->op == BLE_GATTS_OP_WRITE_CMD)) {
-            if (music_stream_receive(write->data, write->len, MUSIC_SOURCE_BLE) && write->data[3])
+            if (music_stream_receive(write->data, write->len, MUSIC_SOURCE_BLE) && write->data[1] == 1 && (write->data[3] & MUSIC_TARGET_MASK))
                 reset_power_save_counter();
         }
     } else if (event->header.evt_id == BLE_GAP_EVT_DISCONNECTED) {

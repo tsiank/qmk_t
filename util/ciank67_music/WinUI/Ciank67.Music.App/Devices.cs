@@ -90,28 +90,53 @@ internal sealed class UsbTransport : IMusicTransport
 {
     private readonly HidStream stream;
     private readonly int reportLength;
+    private readonly string path;
+    private readonly UsbOutputFallback output;
+    private readonly SemaphoreSlim writeGate = new(1, 1);
+    private WindowsHidOutput? control;
 
     public UsbTransport(string path)
     {
+        this.path = path;
         var device = DeviceList.Local.GetHidDevices()
             .FirstOrDefault(item => MusicProtocol.IsSupportedUsbIdentity(item.VendorID, item.ProductID) && item.DevicePath == path)
             ?? throw new IOException("USB 键盘已断开，请刷新设备。");
         reportLength = device.GetMaxOutputReportLength();
-        if (reportLength is < 21 or > 64) throw new IOException("HID 音乐报告长度不正确，请检查固件版本。");
+        if (reportLength != 21)
+            throw new IOException($"USB 音乐报告应为 21 字节，当前设备为 {reportLength} 字节。请重新拔插 USB 并刷新设备，确认使用音乐固件。");
         stream = device.Open();
         stream.WriteTimeout = 500;
+        output = new UsbOutputFallback(
+            (report, token) => new ValueTask(Task.Run(() => { token.ThrowIfCancellationRequested(); stream.Write(report); })),
+            (report, token) => new ValueTask(Task.Run(() => { control ??= new WindowsHidOutput(this.path); control.Write(report, token); })));
     }
 
     public async ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         byte[] report = MusicProtocol.UsbReport(packet.Span, reportLength);
-        // Do not overlap a cancelled HID write with the subsequent stop report.
-        // Synchronous writes have a bounded timeout and run off the UI thread.
-        await Task.Run(() => stream.Write(report)).ConfigureAwait(false);
+        await writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            bool usedControl = output.UsesControl;
+            await output.SendAsync(report, cancellationToken).ConfigureAwait(false);
+            if (!usedControl && output.UsesControl) Program.Trace("USB output switched to SET_REPORT(Output)");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception error)
+        {
+            string operation = packet.Span[1] == 2 ? "设置纯光颜色" : (packet.Span[3] & 3) == 0 ? "停止律动" : "发送音乐频谱";
+            Program.Trace($"USB {operation}: {error}");
+            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "usb-error.log"),
+                $"{DateTimeOffset.Now:O} USB {operation}, report={reportLength}, control={output.UsesControl}{Environment.NewLine}{error}"); }
+            catch (Exception) { }
+            throw new IOException($"USB {operation}失败：{error.Message}", error);
+        }
+        finally { writeGate.Release(); }
     }
 
-    public ValueTask DisposeAsync() { stream.Dispose(); return ValueTask.CompletedTask; }
+    public ValueTask DisposeAsync()
+    { control?.Dispose(); stream.Dispose(); writeGate.Dispose(); return ValueTask.CompletedTask; }
 }
 
 internal sealed class BluetoothTransport : IMusicTransport
