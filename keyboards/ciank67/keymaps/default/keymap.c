@@ -55,7 +55,7 @@ enum ciank67_layers {
 };
 
 
-enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, LIGHT_STATUS, UNDERGLOW_TEST};
+enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -103,7 +103,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                        ),
     [_RGBST] = LAYOUT(
         _______, RM_HUEU, RM_HUED, RM_SATU, RM_SATD, RM_VALU, RM_VALD, RM_SPDU, RM_SPDD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,
-        LIGHT_STATUS, UNDERGLOW_TEST,_______,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
+        LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
         _______, UG_HUEU, UG_HUED, UG_SATU, UG_SATD, UG_VALU, UG_VALD, UG_SPDU, UG_SPDD, _______, _______,_______, _______,
         _______,  RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______,_______,TO(_DVORAKR),
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______, _______
@@ -131,6 +131,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case UNDERGLOW_TEST:
             if (!record->event.pressed) ciank67_underglow_test();
+            return false;
+        case RGBM_M_SPECTRUM:
+#if defined(MUSIC_STREAM_ENABLE) && defined(RGB_MATRIX_ENABLE)
+            if (!record->event.pressed) rgb_matrix_mode(RGB_MATRIX_CUSTOM_MUSIC_SPECTRUM);
+#endif
             return false;
         case LIGHT_STATUS:
             if (!record->event.pressed) {
@@ -296,6 +301,9 @@ bool led_update_user(led_t led_state){
 #endif
 
 void housekeeping_task_user(void) {
+#ifdef MUSIC_STREAM_ENABLE
+    ciank67_music_task();
+#endif
     ciank67_underglow_test_task();
     ciank67_lighting_task();
 }

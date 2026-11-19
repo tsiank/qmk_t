@@ -302,6 +302,10 @@ static void rgb_task_sync(void) {
     if (sync_timer_elapsed32(g_rgb_timer) >= RGB_MATRIX_LED_FLUSH_LIMIT) rgb_task_state = STARTING;
 }
 
+__attribute__((weak)) uint8_t rgb_matrix_override_effect(uint8_t effect) {
+    return effect;
+}
+
 static void rgb_task_start(void) {
     // reset iter
     rgb_effect_params.iter = 0;
@@ -322,6 +326,8 @@ static void rgb_task_start(void) {
 
     // Set effect to be renedered
     rgb_current_effect = suspend_backlight || !rgb_matrix_config.enable ? 0 : rgb_matrix_config.mode;
+    // Preserve off/suspend and EEPROM state while allowing a transient renderer.
+    if (rgb_current_effect) rgb_current_effect = rgb_matrix_override_effect(rgb_current_effect);
 
     // next task
     rgb_task_state = RENDERING;

@@ -2,6 +2,13 @@ MCU = NRF52840
 SRC += keyboards/ciank67/lighting.c
 SRC += keyboards/ciank67/underglow_test.c
 
+MUSIC_STREAM_ENABLE ?= yes
+ifeq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
+    OPT_DEFS += -DMUSIC_STREAM_ENABLE
+    RGB_MATRIX_CUSTOM_KB = yes
+    SRC += keyboards/ciank67/music.c
+endif
+
 # Bootloader selection
 BOOTLOADER = custom
 

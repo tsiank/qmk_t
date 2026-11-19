@@ -4,6 +4,10 @@ PROTOCOL_DIR = $(TMK_PATH)/protocol
 APP_MAIN_DIR = $(PROTOCOL_DIR)/nrf5
 PROJ_DIR := $(APP_MAIN_DIR)
 
+ifeq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
+  NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/music_stream.c $(APP_MAIN_DIR)/ble/music_gatt.c
+endif
+
 ifneq ($(findstring NRF52840, $(MCU)),)
   LINKER_SCRIPT  := $(PROJ_DIR)/pca10056/blank/armgcc/ble_app_hids_keyboard_gcc_nrf52.ld
 endif

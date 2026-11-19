@@ -718,12 +718,18 @@ static void bas_init(void) {
 
 /**@brief Function for initializing services that will be used by the application.
  */
+#ifdef MUSIC_STREAM_ENABLE
+void music_gatt_init(void);
+#endif
 static void services_init(void) {
     qwr_init();
     dis_init();
     dfu_init();
     bas_init();
     hids_kbd_init();
+#ifdef MUSIC_STREAM_ENABLE
+    music_gatt_init();
+#endif
 
     // midi_init();
 }

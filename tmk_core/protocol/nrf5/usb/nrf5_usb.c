@@ -4,6 +4,9 @@
 #include "outputselect.h"
 #include "nrf_delay.h"
 #include "usb_device_state.h"
+#ifdef MUSIC_STREAM_ENABLE
+#    include "music_stream.h"
+#endif
 
 #ifdef NKRO_ENABLE
 #    include "keycode_config.h"
@@ -32,6 +35,31 @@ APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_mouse, HID_MOUSE_INTERFACE, hid_user_e
 #ifdef EXTRAKEY_ENABLE
 static const app_usbd_hid_subclass_desc_t *extra_hid_report_desc[] = {&extrakey_desc};
 APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_extra, HID_EXTRA_INTERFACE, hid_user_ev_handler, (NRF_DRV_USBD_EPIN4), extra_hid_report_desc, 1, 0, APP_USBD_HID_SUBCLASS_NONE, APP_USBD_HID_PROTO_GENERIC);
+#endif
+
+#ifdef MUSIC_STREAM_ENABLE
+// Vendor collection; 20-byte payload plus explicit report ID on either EP0
+// SET_REPORT or the interrupt OUT endpoint. Keyboard LED reports stay separate.
+APP_USBD_HID_GENERIC_SUBCLASS_REPORT_DESC(music_desc,
+    {0x06, 0x67, 0xFF, 0x09, 0x67, 0xA1, 0x01,
+     0x85, MUSIC_USB_REPORT_ID, 0x15, 0x00, 0x26, 0xFF, 0x00,
+     0x75, 0x08, 0x95, MUSIC_PACKET_SIZE, 0x09, 0x62, 0x81, 0x02,
+     0x95, MUSIC_PACKET_SIZE, 0x09, 0x63, 0x91, 0x02, 0xC0});
+static const app_usbd_hid_subclass_desc_t *music_reports[] = {&music_desc};
+static void music_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event);
+APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_music, 4, music_usb_event,
+    (NRF_DRV_USBD_EPIN1, NRF_DRV_USBD_EPOUT1), music_reports, 1,
+    MUSIC_PACKET_SIZE, APP_USBD_HID_SUBCLASS_NONE, APP_USBD_HID_PROTO_GENERIC);
+
+static void music_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event) {
+    if (event == APP_USBD_HID_USER_EVT_OUT_REPORT_READY) {
+        size_t size;
+        const uint8_t *report = app_usbd_hid_generic_out_report_get(
+            app_usbd_hid_generic_class_get(instance), &size);
+        if (report && size == MUSIC_PACKET_SIZE + 1 && report[0] == MUSIC_USB_REPORT_ID)
+            music_stream_receive(report + 1, MUSIC_PACKET_SIZE, MUSIC_SOURCE_USB);
+    }
+}
 #endif
 
 #define REPORT_QUEUE_LEN 32
@@ -193,12 +221,18 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
         case APP_USBD_EVT_DRV_SOF:
             break;
         case APP_USBD_EVT_DRV_RESET:
+#ifdef MUSIC_STREAM_ENABLE
+            music_stream_disconnect(MUSIC_SOURCE_USB);
+#endif
             m_report_pending = false;
             keyboard_protocol = 1;
             usb_device_state_set_protocol(USB_PROTOCOL_REPORT);
             usb_device_state_set_reset();
             break;
         case APP_USBD_EVT_DRV_SUSPEND:  // 3
+#ifdef MUSIC_STREAM_ENABLE
+            music_stream_disconnect(MUSIC_SOURCE_USB);
+#endif
             m_report_pending = false;
             usb_device_state_set_suspend(false, 0);
             app_usbd_suspend_req();  // Allow the library to put the peripheral into sleep mode
@@ -227,6 +261,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             set_output(OUTPUT_USB);
             break;
         case APP_USBD_EVT_POWER_REMOVED:
+#ifdef MUSIC_STREAM_ENABLE
+            music_stream_disconnect(MUSIC_SOURCE_USB);
+#endif
             NRF_LOG_INFO("USB power removed");
             usb_device_state_set_reset();
             app_usbd_stop();
@@ -355,6 +392,11 @@ void usb_keyboard_init(void) {
     app_usbd_class_inst_t const *class_inst_extra;
     class_inst_extra = app_usbd_hid_generic_class_inst_get(&m_app_hid_extra);
     ret              = app_usbd_class_append(class_inst_extra);
+    APP_ERROR_CHECK(ret);
+#endif
+
+#ifdef MUSIC_STREAM_ENABLE
+    ret = app_usbd_class_append(app_usbd_hid_generic_class_inst_get(&m_app_hid_music));
     APP_ERROR_CHECK(ret);
 #endif
 

@@ -1,0 +1,268 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using Ciank67.Music.Core;
+using Microsoft.UI;
+using Microsoft.UI.Text;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+
+namespace Ciank67.Music.App;
+
+public sealed partial class MainWindow : Window
+{
+    private readonly ComboBox connection = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox keyboard = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择键盘" };
+    private readonly ComboBox playback = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择播放设备" };
+    private readonly Button refresh = new() { Content = "刷新设备", HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly Button start = new() { Content = "开始律动", MinWidth = 140 };
+    private readonly Button stop = new() { Content = "停止", IsEnabled = false, MinWidth = 90 };
+    private readonly CheckBox matrix = new() { Content = "按键矩阵灯", IsChecked = true };
+    private readonly CheckBox underglow = new() { Content = "底灯", IsChecked = true };
+    private readonly Slider gain = new() { Minimum = -20, Maximum = 30, StepFrequency = 1, Value = 0 };
+    private readonly TextBlock gainLabel = new() { Text = "灵敏度  0 dB" };
+    private readonly NumberBox rate = new() { Minimum = 1, Maximum = 30, Value = 25, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+    private readonly ToggleSwitch demo = new() { Header = "演示模式", OffContent = "跟随系统声音", OnContent = "生成演示频谱" };
+    private readonly TextBlock status = new() { Text = "准备就绪", TextWrapping = TextWrapping.Wrap };
+    private readonly InfoBar notice = new() { IsOpen = true, IsClosable = true, Severity = InfoBarSeverity.Informational,
+        Title = "连接键盘，或先试试离线预览", Message = "USB 连接可直接刷新设备。蓝牙请先在 Windows 设置中配对，并拔掉键盘 USB。" };
+    private readonly SpectrumView spectrum = new();
+    private readonly Grid body = new() { ColumnSpacing = 24, RowSpacing = 24 };
+    private readonly Border controlCard;
+    private readonly StackPanel visualization;
+    private readonly Microsoft.UI.Xaml.DispatcherTimer previewTimer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+    private MusicSettings settings = new(25, 0, LightTarget.Both, false);
+    private byte[] latestBands = new byte[16];
+    private Task? sessionTask;
+    private CancellationTokenSource? sessionCancellation;
+    private CancellationTokenSource? refreshCancellation;
+    private bool closing;
+    private bool closeReady;
+    private bool refreshing;
+    private bool running;
+    private bool? narrowLayout;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+        Title = "ciank67 · 音乐律动";
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Ciank67Music.ico"));
+        var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        double scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
+        int width = Math.Min((int)(1120 * scale), workArea.Width - 48);
+        int height = Math.Min((int)(900 * scale), workArea.Height - 48);
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
+            workArea.X + (workArea.Width - width) / 2, workArea.Y + (workArea.Height - height) / 2, width, height));
+        SystemBackdrop = new MicaBackdrop();
+        connection.Items.Add("USB"); connection.Items.Add("蓝牙（已配对）"); connection.Items.Add("仅预览");
+        connection.SelectedIndex = 0;
+        foreach (var (element, id) in new (DependencyObject, string)[] {
+            (connection, "ConnectionType"), (keyboard, "KeyboardDevice"), (playback, "PlaybackDevice"),
+            (refresh, "RefreshDevices"), (start, "StartMusic"), (stop, "StopMusic"),
+            (demo, "DemoMode"), (status, "StatusText"), (spectrum.View, "FrequencySpectrum") })
+            AutomationProperties.SetAutomationId(element, id);
+
+        var controls = new StackPanel { Spacing = 16 };
+        controls.Children.Add(Heading("连接", 22));
+        controls.Children.Add(Field("连接方式", connection));
+        controls.Children.Add(Field("键盘", keyboard));
+        controls.Children.Add(refresh);
+        var bluetoothSettings = new Button { Content = "打开 Windows 蓝牙设置" };
+        bluetoothSettings.Click += (_, _) =>
+        {
+            try { Process.Start(new ProcessStartInfo("ms-settings:bluetooth") { UseShellExecute = true }); }
+            catch (Exception error) { ShowError(error.Message); }
+        };
+        controls.Children.Add(bluetoothSettings);
+        controls.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Colors.Gray) { Opacity = 0.2 } });
+        controls.Children.Add(Heading("声音与灯光", 22));
+        controls.Children.Add(Field("播放设备", playback));
+        controls.Children.Add(demo);
+        var targets = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
+        targets.Children.Add(matrix); targets.Children.Add(underglow); controls.Children.Add(targets);
+        controls.Children.Add(Field("发送帧率（1～30 FPS）", rate));
+        controls.Children.Add(gainLabel); controls.Children.Add(gain);
+        controlCard = Card(controls);
+
+        visualization = new StackPanel { Spacing = 24 };
+        var top = new StackPanel { Spacing = 8 };
+        top.Children.Add(Heading("实时频谱", 24));
+        top.Children.Add(new TextBlock { Text = "16 段频谱 · 从低频到高频", Opacity = 0.65 });
+        top.Children.Add(spectrum.View);
+        var frequencies = new Grid();
+        frequencies.Children.Add(new TextBlock { Text = "40 Hz", Opacity = 0.6 });
+        frequencies.Children.Add(new TextBlock { Text = "16 kHz", Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Right });
+        top.Children.Add(frequencies);
+        visualization.Children.Add(Card(top));
+        var actions = new StackPanel { Spacing = 16 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        if (Application.Current.Resources.TryGetValue("AccentButtonStyle", out object value) && value is Style style) start.Style = style;
+        buttons.Children.Add(start); buttons.Children.Add(stop); actions.Children.Add(buttons); actions.Children.Add(status);
+        visualization.Children.Add(Card(actions));
+        visualization.Children.Add(new TextBlock
+        {
+            Text = "灯光仍由键盘各自的开关控制，Caps Lock 指示优先显示。停止后恢复原灯效；连接中断时，键盘也会自动恢复。",
+            TextWrapping = TextWrapping.Wrap, Opacity = 0.7
+        });
+        body.Children.Add(controlCard); body.Children.Add(visualization);
+        Arrange(1100);
+        var page = new StackPanel { Spacing = 24, Padding = new Thickness(32), MaxWidth = 1360, HorizontalAlignment = HorizontalAlignment.Stretch };
+        page.Children.Add(Heading("音乐，让键盘动起来", 34));
+        page.Children.Add(new TextBlock { Text = "ciank67  /  USB 与蓝牙音乐律动", Opacity = 0.65 });
+        page.Children.Add(notice); page.Children.Add(body);
+        var scroll = new ScrollViewer { Content = page, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        Content = scroll;
+        scroll.SizeChanged += (_, args) => { Program.Trace($"Viewport size {args.NewSize}"); Arrange(args.NewSize.Width); };
+        page.Loaded += async (_, _) => { Program.Trace("Page loaded"); await RefreshAsync(); Program.Trace("Initial refresh complete"); };
+        refresh.Click += async (_, _) => await RefreshAsync();
+        connection.SelectionChanged += async (_, _) => { if (!running) await RefreshAsync(); };
+        start.Click += async (_, _) => await StartAsync();
+        stop.Click += (_, _) => { sessionCancellation?.Cancel(); status.Text = "正在停止并恢复灯效…"; stop.IsEnabled = false; };
+        gain.ValueChanged += (_, _) => { gainLabel.Text = $"灵敏度  {gain.Value:+0;-0;0} dB"; UpdateSettings(); };
+        rate.ValueChanged += (_, _) => UpdateSettings();
+        matrix.Checked += (_, _) => UpdateSettings(); matrix.Unchecked += (_, _) => UpdateSettings();
+        underglow.Checked += (_, _) => UpdateSettings(); underglow.Unchecked += (_, _) => UpdateSettings();
+        demo.Toggled += (_, _) => { UpdateSettings(); UpdateControls(); };
+        previewTimer.Tick += (_, _) => spectrum.SetLevels(Volatile.Read(ref latestBands));
+        previewTimer.Start();
+        AppWindow.Closing += async (_, args) =>
+        {
+            if (closeReady) return;
+            args.Cancel = true;
+            if (closing) return;
+            closing = true;
+            refreshCancellation?.Cancel(); sessionCancellation?.Cancel();
+            if (sessionTask is { } task) { try { await task; } catch (Exception) { } }
+            closeReady = true; previewTimer.Stop(); Close();
+        };
+    }
+
+    private static TextBlock Heading(string text, double size) => new() { Text = text, FontSize = size, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+    private static StackPanel Field(string label, UIElement input)
+    {
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(new TextBlock { Text = label }); panel.Children.Add(input);
+        AutomationProperties.SetName(input, label);
+        return panel;
+    }
+    private static Border Card(UIElement content) => new()
+    {
+        Child = content, Padding = new Thickness(24), CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1),
+        BorderBrush = new SolidColorBrush(Colors.Gray) { Opacity = 0.15 },
+        Background = Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out object brush) ? (Brush)brush : new SolidColorBrush(Colors.Transparent)
+    };
+
+    private void Arrange(double width)
+    {
+        bool narrow = width < 840;
+        if (narrowLayout == narrow) return;
+        narrowLayout = narrow;
+        body.ColumnDefinitions.Clear(); body.RowDefinitions.Clear();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(300) });
+        body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        if (narrow) body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        else body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetRow(visualization, 0); Grid.SetColumn(visualization, narrow ? 0 : 1);
+        Grid.SetRow(controlCard, narrow ? 1 : 0);
+    }
+
+    private void UpdateSettings()
+    {
+        LightTarget target = (matrix.IsChecked == true ? LightTarget.Matrix : 0) | (underglow.IsChecked == true ? LightTarget.Underglow : 0);
+        int fps = double.IsFinite(rate.Value) ? Math.Clamp((int)rate.Value, 1, 30) : 25;
+        Volatile.Write(ref settings, new MusicSettings(fps, gain.Value, target, demo.IsOn));
+    }
+
+    private void UpdateControls()
+    {
+        connection.IsEnabled = !running;
+        keyboard.IsEnabled = !running && !refreshing && connection.SelectedIndex != 2;
+        playback.IsEnabled = !running && !refreshing && !demo.IsOn;
+        demo.IsEnabled = !running;
+        refresh.IsEnabled = !running && !refreshing;
+        start.IsEnabled = !running && !refreshing;
+        stop.IsEnabled = running;
+    }
+
+    private async Task RefreshAsync()
+    {
+        refreshCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        refreshCancellation = cancellation;
+        refreshing = true; UpdateControls();
+        keyboard.ItemsSource = null;
+        keyboard.SelectedIndex = -1;
+        status.Text = "正在查找设备…";
+        int index = connection.SelectedIndex;
+        try
+        {
+            var kind = index == 0 ? ConnectionKind.Usb : index == 1 ? ConnectionKind.Bluetooth : ConnectionKind.Preview;
+            var devices = await DeviceCatalog.GetKeyboardsAsync(kind, cancellation.Token);
+            var audio = await Task.Run(DeviceCatalog.GetPlaybackDevices, cancellation.Token);
+            if (cancellation.IsCancellationRequested || closing) return;
+            keyboard.ItemsSource = devices; keyboard.SelectedIndex = devices.Count > 0 ? 0 : -1;
+            string? previousAudio = (playback.SelectedItem as PlaybackChoice)?.Id;
+            playback.ItemsSource = audio;
+            playback.SelectedItem = audio.FirstOrDefault(item => item.Id == previousAudio) ?? audio[0];
+            status.Text = index == 2 ? "离线预览已就绪" : devices.Count > 0 ? $"找到 {devices.Count} 个设备，请选择键盘后开始" :
+                index == 0 ? "未找到 USB 音乐接口，请检查 R6 固件与连接" : "未找到已配对蓝牙设备，请先在 Windows 设置中配对";
+        }
+        catch (OperationCanceledException) { if (!closing && ReferenceEquals(refreshCancellation, cancellation)) status.Text = "查找已取消或超时，请重试"; }
+        catch (Exception error) { if (!closing && ReferenceEquals(refreshCancellation, cancellation)) ShowError(error.Message); }
+        finally
+        {
+            if (ReferenceEquals(refreshCancellation, cancellation)) { refreshCancellation = null; refreshing = false; if (!closing) UpdateControls(); }
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task StartAsync()
+    {
+        if (running || closing) return;
+        if (keyboard.SelectedItem is not DeviceChoice choice) { ShowError("请先选择键盘，或切换到仅预览。"); return; }
+        UpdateSettings();
+        MusicSettings current = Volatile.Read(ref settings);
+        string audioId = (playback.SelectedItem as PlaybackChoice)?.Id ?? "";
+        var cancellation = new CancellationTokenSource();
+        sessionCancellation = cancellation;
+        running = true; notice.IsOpen = false; status.Text = "正在连接…"; UpdateControls();
+        sessionTask = RunSessionAsync(choice, audioId, current.Demo, cancellation.Token);
+        try { await sessionTask; }
+        catch (OperationCanceledException) { if (!closing) status.Text = "已停止 · 原灯效已恢复"; }
+        catch (Exception error) { if (!closing) ShowError(error.Message); }
+        finally
+        {
+            sessionTask = null; sessionCancellation = null; cancellation.Dispose(); running = false;
+            Volatile.Write(ref latestBands, new byte[16]);
+            if (!closing) UpdateControls();
+        }
+    }
+
+    private async Task RunSessionAsync(DeviceChoice choice, string audioId, bool useDemo, CancellationToken token)
+    {
+        using var connectTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        connectTimeout.CancelAfter(TimeSpan.FromSeconds(25));
+        IMusicTransport connected;
+        try { connected = await DeviceCatalog.ConnectAsync(choice, connectTimeout.Token); }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        { throw new TimeoutException("连接键盘超时，请检查连接方式后重试。"); }
+        await using var transport = connected;
+        token.ThrowIfCancellationRequested();
+        using IAudioSource? audio = useDemo ? null : await Task.Run(() => new LoopbackAudio(audioId));
+        token.ThrowIfCancellationRequested();
+        status.Text = choice.Kind == ConnectionKind.Preview ? "离线预览中 · 不向键盘发送数据" : "已连接 · 音乐律动中";
+        await MusicSession.RunAsync(transport, audio, () => Volatile.Read(ref settings),
+            bands => Volatile.Write(ref latestBands, bands), token);
+    }
+
+    private void ShowError(string message)
+    {
+        status.Text = "未能继续，请检查连接或播放设备";
+        notice.Title = "需要处理"; notice.Message = message; notice.Severity = InfoBarSeverity.Error; notice.IsOpen = true;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr window);
+}

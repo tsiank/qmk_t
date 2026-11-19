@@ -171,6 +171,8 @@ void rgb_matrix_task(void);
 // This runs after another backlight effect and replaces
 // colors already set
 void rgb_matrix_indicators(void);
+// Temporarily select a renderer without changing the saved lighting mode.
+uint8_t rgb_matrix_override_effect(uint8_t effect);
 bool rgb_matrix_indicators_kb(void);
 bool rgb_matrix_indicators_user(void);
 

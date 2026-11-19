@@ -10,6 +10,8 @@ static uint16_t last_frame;
 static const rgblight_segment_t *const *saved_layers;
 static rgb_led_t test_pixels[RGBLIGHT_LED_COUNT];
 
+bool ciank67_underglow_test_is_active(void) { return active; }
+
 static void finish_test(void) {
     active = false;
     rgblight_layers = saved_layers;

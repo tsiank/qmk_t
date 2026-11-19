@@ -1,0 +1,4 @@
+numpy>=1.26,<3
+hidapi>=0.14,<1
+bleak>=3.1,<4
+PyAudioWPatch>=0.2.12.6,<0.3; sys_platform == "win32"

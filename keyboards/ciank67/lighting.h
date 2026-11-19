@@ -9,3 +9,7 @@ void ciank67_lighting_report(void);
 void ciank67_lighting_task(void);
 void ciank67_underglow_test(void);
 void ciank67_underglow_test_task(void);
+bool ciank67_underglow_test_is_active(void);
+#ifdef MUSIC_STREAM_ENABLE
+void ciank67_music_task(void);
+#endif
