@@ -15,6 +15,7 @@
  */
 
 #include QMK_KEYBOARD_H
+#include "lighting.h"
 //#include "muse.h"
 #include "ble_service.h"
 
@@ -30,7 +31,7 @@ void bootloader_jump_uf2(void) {
 
 #ifdef RGB_MATRIX_ENABLE
 #include "rgb_matrix.h"
-#include "i2c_master.h"
+#include "nrf5/i2c_master.h"
 
 extern rgb_config_t rgb_matrix_config;
 #endif
@@ -54,7 +55,7 @@ enum ciank67_layers {
 };
 
 
-enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP};
+enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, LIGHT_STATUS, UNDERGLOW_TEST};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -80,18 +81,18 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______,    _______, _______, KC_TRNS,       RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    SEL0, SEL1, SEL2
                       ),
     [_NUM]   = LAYOUT(
-        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    _______, _______,  _______, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
+        _______,  SLEEP,  NK_TOGG, _______,    _______, _______,  _______, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
         RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
-        RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDN, _______, _______,
+        RM_TOGG,  RM_NEXT,RM_PREV,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDN, _______, _______,
         _______, _______, _______, _______, _______, KC_7, KC_8, KC_9, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
-        RGB_TOG, RGBRST, RGB_MOD,  RGB_RMOD,               KC_0,                        KC_TRNS, BATT_LV, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
+        UG_TOGG, RGBRST, UG_NEXT,  UG_PREV,               KC_0,                        KC_TRNS, BATT_LV, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_FN]   = LAYOUT(
-        _______,  SLEEP,  MAGIC_TOGGLE_NKRO, _______,    KC_F1, KC_F2,  KC_F3, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
+        _______,  SLEEP,  NK_TOGG, _______,    KC_F1, KC_F2,  KC_F3, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
         RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_F4,   KC_F5, KC_F6, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
-        RGBM_TOG,  RGBM_MOD,RGBM_RMOD,  _______,  _______, KC_F7, KC_F8, KC_F9, KC_DELETE, KC_END,KC_PGDN, _______, _______,
+        RM_TOGG,  RM_NEXT,RM_PREV,  _______,  _______, KC_F7, KC_F8, KC_F9, KC_DELETE, KC_END,KC_PGDN, _______, _______,
         _______, _______, _______, _______, _______, KC_F10, KC_F11, KC_F12, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
-        RGB_MOD, RGBRST, RGB_MOD,  RGB_RMOD,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
+        UG_NEXT, RGBRST, UG_NEXT,  UG_PREV,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_QWERTY] = LAYOUT(
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS, KC_EQL,  KC_BSPC,
@@ -101,16 +102,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL,    KC_LWIN, KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN),  KC_RALT, KC_MENU,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
                        ),
     [_RGBST] = LAYOUT(
-        _______, RGBM_HUI, RGBM_HUD, RGBM_SAI, RGBM_SAD, RGBM_VAI, RGBM_VAD, RGBM_SPI, RGBM_SPD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,
-        _______, _______,_______,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
-        _______, RGB_HUI, RGB_HUD, RGB_SAI, RGB_SAD, RGB_VAI, RGB_VAD, RGB_SPI, RGB_SPD, _______, _______,_______, _______,
+        _______, RM_HUEU, RM_HUED, RM_SATU, RM_SATD, RM_VALU, RM_VALD, RM_SPDU, RM_SPDD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,
+        LIGHT_STATUS, UNDERGLOW_TEST,_______,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
+        _______, UG_HUEU, UG_HUED, UG_SATU, UG_SATD, UG_VALU, UG_VALD, UG_SPDU, UG_SPDD, _______, _______,_______, _______,
         _______,  RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______,_______,TO(_DVORAKR),
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______, _______
                      ),
     [_MOUSE] = LAYOUT(
-        _______, KC_MS_UP, KC_MS_DOWN, KC_MS_LEFT, KC_MS_RIGHT,_______, _______,_______,  _______, _______,_______, _______,_______, _______,
-        _______, KC_MS_BTN1, KC_MS_BTN2, _______, _______,  _______, _______, _______, _______, _______,_______, _______, _______,_______,
-        _______, KC_MS_WH_UP, KC_MS_WH_DOWN, _______, _______, _______, _______,_______,_______, _______,_______, _______,_______,
+        _______, MS_UP, MS_DOWN, MS_LEFT, MS_RGHT,_______, _______,_______,  _______, _______,_______, _______,_______, _______,
+        _______, MS_BTN1, MS_BTN2, _______, _______,  _______, _______, _______, _______, _______,_______, _______, _______,_______,
+        _______, MS_WHLU, MS_WHLD, _______, _______, _______, _______,_______,_______, _______,_______, _______,_______,
         KC_PWR, KC_MUTE, KC_VOLU, KC_VOLD, KC_MNXT, KC_MPRV, KC_MSTP, KC_MPLY, _______, _______, _______, _______,_______, TO(_DVORAKR),
         KC_MY_COMPUTER,  _______,  _______, _______, _______, _______, _______, _______, _______, _______, _______, _______
                      )
@@ -124,7 +125,18 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 	        }
 	    #endif
 	}
+    if (!ciank67_process_lighting(keycode, record, RGBG_TOG)) {
+        return false;
+    }
     switch (keycode) {
+        case UNDERGLOW_TEST:
+            if (!record->event.pressed) ciank67_underglow_test();
+            return false;
+        case LIGHT_STATUS:
+            if (!record->event.pressed) {
+                ciank67_lighting_report();
+            }
+            return false;
         case DISC:
             if (record->event.pressed) {
                 ble_disconnect();
@@ -167,6 +179,21 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             return false;
 
+#ifdef RGB_MATRIX_ENABLE
+        case RGBM_M_P:
+        case RGBM_M_B:
+        case RGBM_M_R:
+        case RGBM_M_SW:
+            if (!record->event.pressed) {
+                switch (keycode) {
+                    case RGBM_M_P: rgb_matrix_mode(RGB_MATRIX_SOLID_COLOR); break;
+                    case RGBM_M_B: rgb_matrix_mode(RGB_MATRIX_BREATHING); break;
+                    case RGBM_M_R: rgb_matrix_mode(RGB_MATRIX_CYCLE_LEFT_RIGHT); break;
+                    case RGBM_M_SW: rgb_matrix_mode(RGB_MATRIX_CYCLE_PINWHEEL); break;
+                }
+            }
+            return false;
+#endif
         case REBOOT:
             if (record->event.pressed) {
                 NVIC_SystemReset();
@@ -185,33 +212,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         }
       #endif
       break;
-
-#ifdef is31fl3741
-    case RGBM_TOG:
-        if (record->event.pressed) {
-            if (rgb_matrix_config.enable) {
-                i2c_stop();
-            } else {
-                i2c_start();
-            }
-        }
-        return true;
-
-    case RGBG_TOG:
-        if (record->event.pressed) {
-            if (rgb_matrix_config.enable) {
-                i2c_stop();
-            } else {
-                i2c_start();
-            }
-            	 rgb_matrix_toggle();
-
-	      #ifdef RGBLIGHT_ENABLE
-	        	rgblight_toggle();
-		#endif
-        }
-    	return true;
-#endif
 
         case SLEEP:
               #ifdef RGBLIGHT_ENABLE
@@ -250,9 +250,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     return true;
 }
 
-    	#ifdef is31fl3741
+#ifdef RGB_MATRIX_IS31FL3741
 bool rgb_matrix_indicators_user(void) {
-	    switch (biton32(layer_state)) {
+    if (!rgb_matrix_is_enabled()) {
+        return false;
+    }
+	    switch (get_highest_layer(layer_state)) {
 	      case _SIGN:
 	        rgb_matrix_set_color(66,0xFF, 0x56, 0x20);
           break;
@@ -266,8 +269,7 @@ bool rgb_matrix_indicators_user(void) {
 	        rgb_matrix_set_color(63,0xFF, 0x60, 0x40);
           break;
     }
-    uint8_t this_led = host_keyboard_leds();
-    if ( this_led & (1<<USB_LED_CAPS_LOCK)) {
+    if (host_keyboard_led_state().caps_lock) {
           //rgb_matrix_set_color(28, 0xFF, 0xFF, 0xFF);
          //rgb_matrix_set_color(76, 0xFF, 0xFF, 0xFF);
           rgb_matrix_set_color_all(0xFF, 0x60, 0xFF);
@@ -293,14 +295,12 @@ bool led_update_user(led_t led_state){
 }
 #endif
 
-void keyboard_post_init_user() {
-    #ifdef is31fl3741
-    // Shutdown is31fl3741 if rgb disabled
-    if (!rgb_matrix_config.enable) {
-        i2c_stop();
-    }
-    #endif
+void housekeeping_task_user(void) {
+    ciank67_underglow_test_task();
+    ciank67_lighting_task();
+}
 
+void keyboard_post_init_user() {
     #ifdef RGBLIGHT_ENABLE
     if (!rgblight_config.enable){
 	    #if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)     //tsiank add

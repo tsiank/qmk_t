@@ -28,7 +28,12 @@
 
 #include <stdint.h>
 #include "color.h"
-#undef PACKED
+
+#if defined(RGBLED_NUM) && !defined(RGBLIGHT_LED_COUNT)
+#    define RGBLIGHT_LED_COUNT RGBLED_NUM
+#endif
+#include "../led/ws2812.h"
+
 
 
 /* User Interface
@@ -43,6 +48,12 @@
  *         - Send out the LED data
  *         - Wait 50�ｿｽs to reset the LEDs
  */
+
+// Current QMK WS2812 interface backed by the nRF5 PWM transport.
+void ws2812_init(void);
+void ws2812_set_color(int index, uint8_t red, uint8_t green, uint8_t blue);
+void ws2812_set_color_all(uint8_t red, uint8_t green, uint8_t blue);
+void ws2812_flush(void);
 
 void ws2812_setleds     (rgb_led_t *ledarray, uint16_t number_of_leds);
 void ws2812_setleds_pin (rgb_led_t *ledarray, uint16_t number_of_leds,uint8_t pinmask);

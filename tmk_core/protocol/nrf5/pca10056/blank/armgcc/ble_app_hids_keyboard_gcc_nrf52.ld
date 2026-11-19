@@ -1,7 +1,8 @@
 /* Linker script to configure memory regions. */
 
 SEARCH_DIR(.)
-GROUP(-lgcc -lc -lnosys)
+/* Libraries are selected by platform.mk and GCC's specs. Loading libc here
+ * would bypass the platform's syscall selection and pull in semihosting. */
 
 MEMORY
 {

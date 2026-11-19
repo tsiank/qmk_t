@@ -1,4 +1,6 @@
 MCU = NRF52840
+SRC += keyboards/ciank67/lighting.c
+SRC += keyboards/ciank67/underglow_test.c
 
 # Bootloader selection
 BOOTLOADER = custom
@@ -16,6 +18,6 @@ RGB_MATRIX_ENABLE = yes
 RGB_MATRIX_DRIVER = is31fl3741
 RGBLIGHT_ENABLE = yes
 # WS2812_DRIVER_REQUIRED = yes
-# WS2812_DRIVER  = pwm
+WS2812_DRIVER = pwm
 # NRF_DEBUG = yes
 DEBOUNCE_TYPE = sym_eager_pr

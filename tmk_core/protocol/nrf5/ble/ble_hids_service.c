@@ -15,6 +15,9 @@ extern keymap_config_t keymap_config;
 
 BLE_HIDS_DEF(m_hids_kbd, /**< Structure used to identify the HID service. */
              NRF_SDH_BLE_TOTAL_LINK_COUNT, KBD_INPUT_REPORT_KEYS_MAX_LEN,
+#if defined(BLE_NKRO) && defined(NKRO_ENABLE)
+             NKRO_INPUT_REPORT_KEYS_MAX_LEN,
+#endif
 #ifdef EXTRAKEY_ENABLE
              SYSTEM_INPUT_REPORT_KEYS_MAX_LEN, CONSUMER_INPUT_REPORT_KEYS_MAX_LEN,
 #endif
@@ -380,21 +383,44 @@ static void    send_nkro(report_nkro_t *report);
 static void    send_mouse(report_mouse_t *report);
 static void    send_extra(report_extra_t *report);
 
-static host_driver_t driver = {keyboard_leds, send_keyboard, send_nkro, send_mouse, send_extra};
+static host_driver_t driver = {
+    .keyboard_leds = keyboard_leds,
+    .send_keyboard = send_keyboard,
+    .send_nkro = send_nkro,
+    .send_mouse = send_mouse,
+    .send_extra = send_extra,
+};
 
 host_driver_t *nrf5_ble_driver(void) { return &driver; }
+
+bool nrf5_ble_can_send_nkro(void) {
+#if defined(BLE_NKRO) && defined(NKRO_ENABLE)
+    return !m_in_boot_mode;
+#else
+    return false;
+#endif
+}
 
 static uint8_t keyboard_leds(void) { return keyboard_ble_led_stats; }
 
 static void send_keyboard(report_keyboard_t *report) {
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
+        if (m_in_boot_mode) {
+            ret_code_t err_code = ble_hids_boot_kb_inp_rep_send(&m_hids_kbd, KBD_INPUT_REPORT_KEYS_MAX_LEN, &report->mods, m_conn_handle);
+            if (err_code != NRF_SUCCESS && err_code != NRF_ERROR_INVALID_STATE && err_code != NRF_ERROR_RESOURCES && err_code != NRF_ERROR_BUSY && err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING && err_code != NRF_ERROR_FORBIDDEN) {
+                APP_ERROR_HANDLER(err_code);
+            }
+        } else {
             keys_send(KBD_BLE_HID_DESC_NUM, KBD_INPUT_REPORT_KEYS_MAX_LEN, &report->mods);
+        }
     }
 }
 
 static void send_nkro(report_nkro_t *report) {
 #if defined BLE_NKRO && defined NKRO_ENABLE
-    keys_send(NKRO_BLE_HID_DESC_NUM, NKRO_INPUT_REPORT_KEYS_MAX_LEN, &report->mods);
+    if (m_conn_handle != BLE_CONN_HANDLE_INVALID && !m_in_boot_mode) {
+        keys_send(NKRO_BLE_HID_DESC_NUM, NKRO_INPUT_REPORT_KEYS_MAX_LEN, &report->mods);
+    }
 #endif
 }
 

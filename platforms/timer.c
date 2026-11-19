@@ -11,6 +11,8 @@
 extern inline fast_timer_t timer_read_fast(void);
 extern inline fast_timer_t timer_elapsed_fast(fast_timer_t last);
 
+#ifndef PROTOCOL_NRF5
+// nRF5 provides elapsed functions that account for the hardware RTC wrap.
 uint16_t timer_elapsed(uint16_t last) {
     return TIMER_DIFF_16(timer_read(), last);
 }
@@ -18,3 +20,5 @@ uint16_t timer_elapsed(uint16_t last) {
 uint32_t timer_elapsed32(uint32_t last) {
     return TIMER_DIFF_32(timer_read32(), last);
 }
+
+#endif

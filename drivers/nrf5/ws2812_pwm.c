@@ -17,106 +17,155 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "ws2812.h"
 #include "nrfx_pwm.h"
-#include "wait.h"
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrfx_power.h"
 
-#define PWM_PERIOD ((int) (1.25f / 0.0625f))
-#define PWM_0H_DURATION ((int) (0.4f / 0.0625f))
-#define PWM_1H_DURATION ((int) (0.8f / 0.0625f))
+// A common-mode sample is one whole PWM period, not one sample per channel.
+#define NS_TO_TICKS(ns) (((ns) * 16UL + 500) / 1000)
+#define PWM_PERIOD NS_TO_TICKS(WS2812_TIMING)
+#define PWM_ZERO NS_TO_TICKS(WS2812_T0H)
+#define PWM_ONE NS_TO_TICKS(WS2812_T1H)
+#define RESET_SAMPLES ((WS2812_TRST_US * 1000UL + WS2812_TIMING - 1) / WS2812_TIMING)
+#ifndef NRF_WS2812_TRAILING_LEDS
+#    define NRF_WS2812_TRAILING_LEDS 64
+#endif
+#define TRAILING_SAMPLES (NRF_WS2812_TRAILING_LEDS * 24)
+#define MAX_FRAME_SAMPLES (WS2812_LED_COUNT * 32 + TRAILING_SAMPLES + RESET_SAMPLES)
 
-nrfx_pwm_t pwm0 = NRFX_PWM_INSTANCE(0);
+_Static_assert(PWM_ZERO > 0 && PWM_ONE < PWM_PERIOD, "Invalid WS2812 timing");
+_Static_assert(MAX_FRAME_SAMPLES <= 0x7FFF, "WS2812 frame exceeds nRF PWM EasyDMA capacity");
 
-#define DUMMY_SIGNAL_LEN 64 // 64 is pretty reliable
+static const nrfx_pwm_t pwm = NRFX_PWM_INSTANCE(0);
+static bool initialized;
+static ws2812_led_t pixels[WS2812_LED_COUNT];
+// EasyDMA reads RAM. Keep the full frame alive and avoid a large IRQ stack frame.
+static nrf_pwm_values_common_t frame[MAX_FRAME_SAMPLES];
 
-void pwm_handler(nrfx_pwm_evt_type_t event_type) {
-
+static bool init_pwm(uint8_t pin) {
+    if (initialized) {
+        return true;
+    }
+    nrfx_pwm_config_t config = NRFX_PWM_DEFAULT_CONFIG;
+    config.output_pins[0] = pin;
+    config.output_pins[1] = NRFX_PWM_PIN_NOT_USED;
+    config.output_pins[2] = NRFX_PWM_PIN_NOT_USED;
+    config.output_pins[3] = NRFX_PWM_PIN_NOT_USED;
+    config.base_clock = NRF_PWM_CLK_16MHz;
+    config.count_mode = NRF_PWM_MODE_UP;
+    config.top_value = PWM_PERIOD;
+    config.load_mode = NRF_PWM_LOAD_COMMON;
+    config.step_mode = NRF_PWM_STEP_AUTO;
+    // Completion is polled in the main loop; no PWM callback is required.
+    initialized = nrfx_pwm_init(&pwm, &config, NULL) == NRFX_SUCCESS;
+    return initialized;
 }
 
-void ws2812_setleds(rgb_led_t *ledarray, uint16_t number_of_leds) {
-  ws2812_setleds_pin(ledarray, number_of_leds, WS2812_DI_PIN);
+static uint16_t encode_byte(uint16_t offset, uint8_t value) {
+    for (uint8_t mask = 0x80; mask; mask >>= 1) {
+        frame[offset++] = 0x8000 | ((value & mask) ? PWM_ONE : PWM_ZERO);
+    }
+    return offset;
 }
 
-void ws2812_setleds_pin (rgb_led_t *ledarray, uint16_t number_of_leds,uint8_t pinmask){
-  static bool flag_init;
-  if(!flag_init) {
-  nrfx_pwm_config_t pwm0_config = NRFX_PWM_DEFAULT_CONFIG;
-  pwm0_config.output_pins[0] = pinmask;
-  pwm0_config.output_pins[1] = NRFX_PWM_PIN_NOT_USED;
-  pwm0_config.output_pins[2] = NRFX_PWM_PIN_NOT_USED;
-  pwm0_config.output_pins[3] = NRFX_PWM_PIN_NOT_USED;
-  pwm0_config.top_value = PWM_PERIOD;
-  nrfx_pwm_init(&pwm0, &pwm0_config, pwm_handler);
-  flag_init = true;
-  }
-
-  const uint16_t t0H = PWM_0H_DURATION | (0x8000);
-  const uint16_t t1H = PWM_1H_DURATION | (0x8000);
-  nrf_pwm_values_common_t led[RGBLED_NUM * 3 * 8 + DUMMY_SIGNAL_LEN*3*8 + 8];
-  nrf_pwm_values_t p_led = { .p_common = led };
-  nrf_pwm_sequence_t pwm_seq = { .values = p_led,
-      .length = number_of_leds*3*8 + DUMMY_SIGNAL_LEN*3*8 +8,
-      .repeats = 0, .end_delay = 0, };
-  uint16_t* p_dat = &led[0];
-
-  for (int i = 0; i < number_of_leds; i++) {
-    uint8_t mask = 0x80;
-    for (int j = 0; j < 8; j++) {
-      *p_dat++ = (ledarray[i].g & (mask >> j)) ? t1H : t0H;
-    }
-    mask = 0x80;
-    for (int j = 0; j < 8; j++) {
-      *p_dat++ = (ledarray[i].r & (mask >> j)) ? t1H : t0H;
-    }
-    mask = 0x80;
-    for (int j = 0; j < 8; j++) {
-      *p_dat++ = (ledarray[i].b & (mask >> j)) ? t1H : t0H;
-    }
-  }
-
-  for (int i = 0; i < DUMMY_SIGNAL_LEN; i++) {
-    for (int j = 0; j < 24; j++) {
-      *p_dat++ = t0H;
-    }
-  }
-  // reset signal
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  *p_dat++ = 0x8000;
-  nrfx_pwm_simple_playback(&pwm0, &pwm_seq, 1, NRFX_PWM_FLAG_STOP);
-//  wait_us(50);
+static uint16_t encode_pixel(uint16_t offset, uint8_t red, uint8_t green, uint8_t blue) {
+#if WS2812_BYTE_ORDER == WS2812_BYTE_ORDER_RGB
+    offset = encode_byte(offset, red);
+    offset = encode_byte(offset, green);
+    return encode_byte(offset, blue);
+#elif WS2812_BYTE_ORDER == WS2812_BYTE_ORDER_BGR
+    offset = encode_byte(offset, blue);
+    offset = encode_byte(offset, green);
+    return encode_byte(offset, red);
+#else
+    offset = encode_byte(offset, green);
+    offset = encode_byte(offset, red);
+    return encode_byte(offset, blue);
+#endif
 }
 
-void ws2812_setleds_rgbw(rgb_led_t *ledarray, uint16_t number_of_leds) {
-  const uint16_t t0H = ((int) (0.35f / 0.0625f)) | (0x8000);
-  const uint16_t t1H = ((int) (1.36f / 0.0625f)) | (0x8000);
-  nrf_pwm_values_common_t led[RGBLED_NUM * 3 * 8 + 1];
-  nrf_pwm_values_t p_led = { .p_common = led };
-  nrf_pwm_sequence_t pwm_seq = { .values = p_led, .length = sizeof(led)
-      / sizeof(led[0]), .repeats = 0, .end_delay = 0, };
-  uint16_t* p_dat = &led[0];
-
-  for (int i = 0; i < number_of_leds; i++) {
-    uint8_t mask = 1;
-    for (int j = 0; j < 8; j++) {
-      *p_dat++ = (ledarray[i].r & (mask << j)) ? t1H : t0H;
+static void send_frame(uint16_t length) {
+    // Preserve stable's trailing 64 black RGB pixels. Their electrical purpose
+    // is board-specific; they are additional to the actual reset-low interval.
+    for (uint16_t i = 0; i < TRAILING_SAMPLES; ++i) {
+        frame[length++] = 0x8000 | PWM_ZERO;
     }
-    mask = 1;
-    for (int j = 0; j < 8; j++) {
-      *p_dat++ = (ledarray[i].g & (mask << j)) ? t1H : t0H;
+    // Send actual low levels for the entire latch interval. Appending black
+    // pixels still produces high pulses and is not a WS2812 reset signal.
+    for (uint16_t i = 0; i < RESET_SAMPLES; ++i) {
+        frame[length++] = 0x8000;
     }
-    mask = 1;
-    for (int j = 0; j < 8; j++) {
-      *p_dat++ = (ledarray[i].b & (mask << j)) ? t1H : t0H;
-    }
-  }
-  *p_dat++ = 0x8000;
-  nrfx_pwm_simple_playback(&pwm0, &pwm_seq, 1, NRFX_PWM_FLAG_STOP);
+    nrf_pwm_sequence_t sequence = {
+        .values = {.p_common = frame},
+        .length = length,
+        .repeats = 0,
+        .end_delay = 0,
+    };
+    nrfx_pwm_simple_playback(&pwm, &sequence, 1, NRFX_PWM_FLAG_STOP);
+    while (!nrfx_pwm_is_stopped(&pwm)) {}
 }
 
+void ws2812_init(void) {
+    init_pwm(WS2812_DI_PIN);
+}
+
+void ws2812_set_color(int index, uint8_t red, uint8_t green, uint8_t blue) {
+    if (index >= 0 && index < WS2812_LED_COUNT) {
+        pixels[index].r = red;
+        pixels[index].g = green;
+        pixels[index].b = blue;
+#ifdef WS2812_RGBW
+        pixels[index].w = 0;
+#endif
+    }
+}
+
+void ws2812_set_color_all(uint8_t red, uint8_t green, uint8_t blue) {
+    for (int i = 0; i < WS2812_LED_COUNT; ++i) {
+        ws2812_set_color(i, red, green, blue);
+    }
+}
+
+void ws2812_flush(void) {
+    if (!init_pwm(WS2812_DI_PIN)) {
+        return;
+    }
+    uint16_t offset = 0;
+    for (uint16_t i = 0; i < WS2812_LED_COUNT; ++i) {
+        ws2812_led_t pixel = pixels[i];
+#ifdef WS2812_RGBW
+        ws2812_rgb_to_rgbw(&pixel);
+#endif
+        offset = encode_pixel(offset, pixel.r, pixel.g, pixel.b);
+#ifdef WS2812_RGBW
+        offset = encode_byte(offset, pixel.w);
+#endif
+    }
+    send_frame(offset);
+}
+
+// Legacy nRF5 callers use RGB structs rather than QMK's WS2812 pixel type.
+void ws2812_setleds_pin(rgb_led_t *leds, uint16_t count, uint8_t pin) {
+    if (count > WS2812_LED_COUNT || !init_pwm(pin)) {
+        return;
+    }
+    uint16_t offset = 0;
+    for (uint16_t i = 0; i < count; ++i) {
+        offset = encode_pixel(offset, leds[i].r, leds[i].g, leds[i].b);
+    }
+    send_frame(offset);
+}
+
+void ws2812_setleds(rgb_led_t *leds, uint16_t count) {
+    ws2812_setleds_pin(leds, count, WS2812_DI_PIN);
+}
+
+void ws2812_setleds_rgbw(rgb_led_t *leds, uint16_t count) {
+    if (count > WS2812_LED_COUNT || !init_pwm(WS2812_DI_PIN)) {
+        return;
+    }
+    uint16_t offset = 0;
+    for (uint16_t i = 0; i < count; ++i) {
+        uint8_t white = MIN(leds[i].r, MIN(leds[i].g, leds[i].b));
+        offset = encode_pixel(offset, leds[i].r - white, leds[i].g - white, leds[i].b - white);
+        offset = encode_byte(offset, white);
+    }
+    send_frame(offset);
+}

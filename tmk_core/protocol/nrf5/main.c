@@ -60,10 +60,13 @@ APP_TIMER_DEF(m_keyboard_scan_timer); /**< keyboard scan timer. */
 #    define KEYBOARD_SCAN_INTERVAL 4
 #endif
 
+static volatile bool keyboard_scan_pending;
+
 static void keyboard_scan_handler(void* p_context) {
     UNUSED_PARAMETER(p_context);
-    keyboard_task();
-    eeprom_update();
+    // I2C waits call sd_app_evt_wait(), which returns to thread mode. The
+    // current QMK lighting/storage code must not execute inside app_timer IRQs.
+    keyboard_scan_pending = true;
 }
 
 static void log_init(void) {
@@ -98,6 +101,7 @@ int main(void) {
     ret = app_timer_create(&m_keyboard_scan_timer, APP_TIMER_MODE_REPEATED, keyboard_scan_handler);
     APP_ERROR_CHECK(ret);
     ret = app_timer_start(m_keyboard_scan_timer, APP_TIMER_TICKS(KEYBOARD_SCAN_INTERVAL), NULL);
+    APP_ERROR_CHECK(ret);
 
     if (!NRF_USBD->ENABLE) {
         advertising_start(false);
@@ -107,6 +111,13 @@ int main(void) {
         while (app_usbd_event_queue_process()) {
             /* Nothing to do */
         }
-        idle_state_handle();
+        if (keyboard_scan_pending) {
+            keyboard_scan_pending = false;
+            keyboard_task();
+            eeprom_update();
+            housekeeping_task();
+        } else {
+            idle_state_handle();
+        }
     }
 }

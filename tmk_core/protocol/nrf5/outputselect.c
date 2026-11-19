@@ -17,12 +17,48 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "host.h"
 #include "nrf5_usb.h"
 #include "ble_service.h"
+#include "ble_hids_service.h"
+#include "keycodes.h"
 
 #ifdef MODULE_ADAFRUIT_BLE
 #    include "adafruit_ble.h"
 #endif
 
 uint8_t desired_output = OUTPUT_DEFAULT;
+
+bool process_nrf5_output(uint16_t keycode, keyrecord_t *record) {
+    uint8_t output;
+    switch (keycode) {
+        case QK_OUTPUT_USB:
+            output = OUTPUT_USB;
+            break;
+        case QK_OUTPUT_BLUETOOTH:
+            output = OUTPUT_BLUETOOTH;
+            break;
+        case QK_OUTPUT_NONE:
+            output = OUTPUT_NONE;
+            break;
+        default:
+            return true;
+    }
+    if (record->event.pressed) {
+        set_output(output);
+    }
+    return false;
+}
+
+// QMK's USB-only default cannot describe the active nRF5 dual-mode driver.
+bool host_can_send_nkro(void) {
+#ifdef NKRO_ENABLE
+    if (host_get_driver() == nrf5_usb_driver()) {
+        return keyboard_protocol != 0;
+    }
+    if (host_get_driver() == nrf5_ble_driver()) {
+        return nrf5_ble_can_send_nkro();
+    }
+#endif
+    return false;
+}
 
 /** \brief Set Output
  *

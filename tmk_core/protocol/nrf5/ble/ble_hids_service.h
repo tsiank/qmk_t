@@ -45,3 +45,4 @@ extern uint16_t m_conn_handle; /**< Handle of the current connection. */
 extern uint8_t  keyboard_protocol;
 void            hids_kbd_init(void);
 void            keys_send(uint8_t report_index, uint16_t len, uint8_t* p_data);
+bool            nrf5_ble_can_send_nkro(void);

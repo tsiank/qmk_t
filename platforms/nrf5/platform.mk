@@ -9,6 +9,7 @@ ifneq ($(findstring NRF52840, $(MCU)),)
 endif
 
 NRFSRC_FILES += \
+  $(PLATFORM_COMMON_DIR)/startup.c \
   $(SDK_ROOT)/components/ble/ble_advertising/ble_advertising.c \
   $(SDK_ROOT)/components/ble/ble_link_ctx_manager/ble_link_ctx_manager.c \
   $(SDK_ROOT)/components/ble/ble_services/ble_bas/ble_bas.c \
@@ -215,6 +216,10 @@ NRF_LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 NRF_LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 NRF_LDFLAGS += --specs=nano.specs
+NRF_LDFLAGS += --specs=nosys.specs -nostartfiles
+# Resolve all syscall hooks before libc, whose default ARM syscall object may
+# also contain semihosting traps. Unused libnosys sections are garbage collected.
+NRF_LDFLAGS += -Wl,--whole-archive -lnosys -Wl,--no-whole-archive
 
 # # Toolchain commands
 CC      = $(GNU_INSTALL_ROOT)$(GNU_PREFIX)-gcc
@@ -240,16 +245,22 @@ CFLAGS += $(NRF_CFLAGS)
 LDFLAGS += $(NRF_LDFLAGS)
 ASFLAGS += $(ASMFLAGS)
 
+# The legacy SDK uses linker symbols and fixed flash addresses that newer GCC
+# versions diagnose as array accesses outside a declared C object.
+$(INTERMEDIATE_OUTPUT)/$(SDK_ROOT)/components/libraries/fstorage/nrf_fstorage.o \
+$(INTERMEDIATE_OUTPUT)/$(SDK_ROOT)/components/libraries/fds/fds.o: FILE_SPECIFIC_CFLAGS += -Wno-array-bounds
+
 $(BUILD_DIR)/private.key:
 	nrfutil keys generate $(BUILD_DIR)/private.key
 $(BUILD_DIR)/public_key.c:
 	nrfutil keys display --key pk --format code $(BUILD_DIR)/private.key --out_file $(BUILD_DIR)/public_key.c
 generate-keys: $(BUILD_DIR)/private.key $(BUILD_DIR)/public_key.c
 
-bin: $(BUILD_DIR)/$(TARGET).bin cpfirmware sizeafter
+bin: $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(TARGET).hex sizeafter
+	python3 ./util/check_nrf5_firmware.py --prefix "$(GNU_INSTALL_ROOT)$(GNU_PREFIX)-" $(BUILD_DIR)/$(TARGET).elf
 	$(COPY) $(BUILD_DIR)/$(TARGET).bin $(TARGET).bin;
 
-	python ./util/uf2conv.py $(BUILD_DIR)/$(TARGET).hex -c -f 0xADA52840 -o $(BUILD_DIR)/$(TARGET).uf2
+	python3 ./util/uf2conv.py $(BUILD_DIR)/$(TARGET).hex -c -f 0xADA52840 -o $(BUILD_DIR)/$(TARGET).uf2
 
 export GNU_INSTALL_ROOT
 export GNU_PREFIX

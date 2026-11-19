@@ -134,7 +134,7 @@ static host_driver_t *host_get_active_driver(void) {
     return driver;
 }
 
-bool host_can_send_nkro(void) {
+__attribute__((weak)) bool host_can_send_nkro(void) {
 #ifdef CONNECTION_ENABLE
     switch (active_host) {
 #    ifdef BLUETOOTH_ENABLE

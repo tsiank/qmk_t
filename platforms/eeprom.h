@@ -64,7 +64,7 @@ void     eeprom_update(void);
 #    include "eeprom_samd.h"
 #    define TOTAL_EEPROM_BYTE_COUNT (EEPROM_SIZE)
 #elif defined(EEPROM_NRF)
-#    include "eeprom.h"
+#    include "eeprom_nrf.h"
 #    define TOTAL_EEPROM_BYTE_COUNT (EEPROM_SIZE)
 #elif defined(__AVR_ATmega16U2__) || defined(__AVR_ATmega16U4__) || defined(__AVR_AT90USB162__) || defined(__AVR_ATtiny85__)
 #    define TOTAL_EEPROM_BYTE_COUNT 512

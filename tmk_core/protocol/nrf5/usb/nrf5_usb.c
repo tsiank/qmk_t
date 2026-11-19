@@ -3,10 +3,12 @@
 #include "ble_service.h"
 #include "outputselect.h"
 #include "nrf_delay.h"
+#include "usb_device_state.h"
 
 #ifdef NKRO_ENABLE
 #    include "keycode_config.h"
 extern keymap_config_t keymap_config;
+STATIC_ASSERT(NKRO_EPSIZE > 1 && NKRO_EPSIZE <= NKRO_REPORT_BITS + 1, "nRF NKRO report size exceeds the QMK payload");
 #endif
 
 static uint8_t keyboard_led_stats = 0;
@@ -108,7 +110,10 @@ static void kbd_status(void) {
     {
         p_buff = app_usbd_hid_generic_out_report_get(&m_app_hid_kbd, &led_stats_size);
     }
-    keyboard_led_stats = *(p_buff + 1);
+    if (p_buff != NULL && led_stats_size >= 2) {
+        keyboard_led_stats = p_buff[1];
+        usb_device_state_set_leds(keyboard_led_stats);
+    }
 }
 
 /**
@@ -131,11 +136,15 @@ void hid_kbd_user_ev_handler(app_usbd_class_inst_t const *p_inst, app_usbd_hid_u
             break;
         }
         case APP_USBD_HID_USER_EVT_SET_BOOT_PROTO: {
+            keyboard_protocol = 0;
+            usb_device_state_set_protocol(USB_PROTOCOL_BOOT);
             UNUSED_RETURN_VALUE(hid_generic_clear_buffer(p_inst));
             NRF_LOG_INFO("SET_BOOT_PROTO");
             break;
         }
         case APP_USBD_HID_USER_EVT_SET_REPORT_PROTO: {
+            keyboard_protocol = 1;
+            usb_device_state_set_protocol(USB_PROTOCOL_REPORT);
             UNUSED_RETURN_VALUE(hid_generic_clear_buffer(p_inst));
             NRF_LOG_INFO("SET_REPORT_PROTO");
             break;
@@ -185,14 +194,19 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             break;
         case APP_USBD_EVT_DRV_RESET:
             m_report_pending = false;
+            keyboard_protocol = 1;
+            usb_device_state_set_protocol(USB_PROTOCOL_REPORT);
+            usb_device_state_set_reset();
             break;
         case APP_USBD_EVT_DRV_SUSPEND:  // 3
             m_report_pending = false;
+            usb_device_state_set_suspend(false, 0);
             app_usbd_suspend_req();  // Allow the library to put the peripheral into sleep mode
             // bsp_board_leds_off();
             break;
         case APP_USBD_EVT_DRV_RESUME:  // 4
             m_report_pending = false;
+            usb_device_state_set_resume(app_usbd_core_state_get() == APP_USBD_STATE_Configured, 1);
             // bsp_board_led_on(LED_USB_START);
             kbd_status(); /* Restore LED state - during SUSPEND all LEDS are turned off */
             break;
@@ -214,6 +228,7 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             break;
         case APP_USBD_EVT_POWER_REMOVED:
             NRF_LOG_INFO("USB power removed");
+            usb_device_state_set_reset();
             app_usbd_stop();
             advertising_start(false);
             break;
@@ -245,7 +260,13 @@ static void    send_nkro(report_nkro_t *report);
 static void    send_mouse(report_mouse_t *report);
 static void send_extra(report_extra_t *report);
 
-static host_driver_t driver = {keyboard_leds, send_keyboard, send_nkro, send_mouse, send_extra};
+static host_driver_t driver = {
+    .keyboard_leds = keyboard_leds,
+    .send_keyboard = send_keyboard,
+    .send_nkro = send_nkro,
+    .send_mouse = send_mouse,
+    .send_extra = send_extra,
+};
 
 host_driver_t *nrf5_usb_driver(void) { return &driver; }
 
@@ -302,6 +323,7 @@ bool recv_midi_packet(MIDI_EventPacket_t *const event) {
 
 void usb_keyboard_init(void) {
     ret_code_t                     ret;
+    usb_device_state_init();
     static const app_usbd_config_t usbd_config = {.ev_state_proc = usbd_user_ev_handler,
                                                   // chie4 add
                                                   .enable_sof = true};

@@ -15,6 +15,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "action.h"
 
 enum outputs {
     OUTPUT_AUTO,
@@ -40,5 +41,6 @@ enum outputs {
 
 void    set_output(uint8_t output);
 void    set_output_user(uint8_t output);
+bool    process_nrf5_output(uint16_t keycode, keyrecord_t *record);
 uint8_t auto_detect_output(void);
 // uint8_t where_to_send(void);

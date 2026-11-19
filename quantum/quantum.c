@@ -441,6 +441,8 @@ bool process_record_quantum(keyrecord_t *record) {
 #endif
 #ifdef CONNECTION_ENABLE
             process_connection(keycode, record) &&
+#elif defined(PROTOCOL_NRF5)
+            process_nrf5_output(keycode, record) &&
 #endif
 #ifndef NO_ACTION_ONESHOT
             process_oneshot(keycode, record) &&

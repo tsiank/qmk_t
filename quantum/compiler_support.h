@@ -1,6 +1,11 @@
 // Copyright 2025 QMK Contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#ifdef PROTOCOL_NRF5
+// Load the SDK's STATIC_ASSERT before defining QMK's fallback.
+#    include "app_util.h"
+#endif
+
 /**
  * @brief Perfom an assertion at compile time.
  *

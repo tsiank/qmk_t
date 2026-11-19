@@ -19,18 +19,21 @@ static const nrfx_twim_t m_twim_master = NRFX_TWIM_INSTANCE(0);
 static volatile int      twim_complete = 0;
 static volatile bool     twim_enable   = false;
 static uint8_t twi_transfer_buffer[10];
+static uint32_t transfer_errors;
+
+uint32_t nrf5_i2c_error_count(void) { return transfer_errors; }
 
 void twim_evt_handler(nrfx_twim_evt_t const* p_event, void* p_context) { twim_complete = p_event->type + 1; }
 
-int i2c_init(void) {
+void i2c_init(void) {
     const nrfx_twim_config_t config = {.scl = I2C1_SCL, .sda = I2C1_SDA, .frequency = CONFIG_I2C_FREQ, .interrupt_priority = 5, .hold_bus_uninit = true};
     int                      res    = (int)nrfx_twim_init(&m_twim_master, &config, twim_evt_handler, NULL);
     // nrfx_twim_enable(&m_twim_master);
     i2c_start();
-    return res;
+    (void)res;
 }
 
-static void i2c_write_register(uint8_t addr, uint8_t reg, uint8_t data) {
+static void i2c_write_register_byte(uint8_t addr, uint8_t reg, uint8_t data) {
     twi_transfer_buffer[0] = reg;
     twi_transfer_buffer[1] = data;
     i2c_transmit(addr << 1, twi_transfer_buffer, 2, 0);
@@ -39,49 +42,49 @@ static void i2c_write_register(uint8_t addr, uint8_t reg, uint8_t data) {
 void i2c_start(void) {
     nrfx_twim_enable(&m_twim_master);
     twim_enable = true;
-    
+
 #if defined(RGB_MATRIX_IS31FL3733) || defined(RGB_MATRIX_IS31FL3737) || defined(RGB_MATRIX_IS31FL3741)
-    i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
+    i2c_write_register_byte(DRIVER_ADDR_1, 0xFE, 0xC5);
 #ifdef RGB_MATRIX_IS31FL3741
-    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); 
+    i2c_write_register_byte(DRIVER_ADDR_1, 0xFD, 0x04);
 #else
-    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x03);
+    i2c_write_register_byte(DRIVER_ADDR_1, 0xFD, 0x03);
 #endif
-    i2c_write_register(DRIVER_ADDR_1, 0x00, 0x01);
-    
+    i2c_write_register_byte(DRIVER_ADDR_1, 0x00, 0x01);
+
      #ifdef DRIVER_2_LED_TOTAL
-	    i2c_write_register(DRIVER_ADDR_2, 0xFE, 0xC5);
-	    i2c_write_register(DRIVER_ADDR_2, 0xFD, 0x03);
-	    i2c_write_register(DRIVER_ADDR_2, 0x00, 0x01);
+	    i2c_write_register_byte(DRIVER_ADDR_2, 0xFE, 0xC5);
+	    i2c_write_register_byte(DRIVER_ADDR_2, 0xFD, 0x03);
+	    i2c_write_register_byte(DRIVER_ADDR_2, 0x00, 0x01);
     #endif
-    
+
 #endif
 }
 
 void i2c_stop(void) {
 #if defined(RGB_MATRIX_IS31FL3733) || defined(RGB_MATRIX_IS31FL3737) || defined(RGB_MATRIX_IS31FL3741)
-    i2c_write_register(DRIVER_ADDR_1, 0xFE, 0xC5);
+    i2c_write_register_byte(DRIVER_ADDR_1, 0xFE, 0xC5);
 #ifdef RGB_MATRIX_IS31FL3741
-    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x04); 
+    i2c_write_register_byte(DRIVER_ADDR_1, 0xFD, 0x04);
 #else
-    i2c_write_register(DRIVER_ADDR_1, 0xFD, 0x03);
+    i2c_write_register_byte(DRIVER_ADDR_1, 0xFD, 0x03);
 #endif
-    i2c_write_register(DRIVER_ADDR_1, 0x00, 0x00);
+    i2c_write_register_byte(DRIVER_ADDR_1, 0x00, 0x00);
 
      #ifdef DRIVER_2_LED_TOTAL
-	    i2c_write_register(DRIVER_ADDR_2, 0xFE, 0xC5);
-	    i2c_write_register(DRIVER_ADDR_2, 0xFD, 0x03);
-	    i2c_write_register(DRIVER_ADDR_2, 0x00, 0x00);
+	    i2c_write_register_byte(DRIVER_ADDR_2, 0xFE, 0xC5);
+	    i2c_write_register_byte(DRIVER_ADDR_2, 0xFD, 0x03);
+	    i2c_write_register_byte(DRIVER_ADDR_2, 0x00, 0x00);
     #endif
-    
+
 #endif
     twim_enable = false;
     nrfx_twim_disable(&m_twim_master);
 }
 
-uint8_t i2c_transmit(uint8_t address, uint8_t* data, uint16_t length, uint16_t timeout) {
+i2c_status_t i2c_transmit(uint8_t address, const uint8_t* data, uint16_t length, uint16_t timeout) {
     if (!twim_enable) {
-        return 0;
+        return I2C_STATUS_ERROR;
     }
     nrfx_err_t res;
     twim_complete = 0;
@@ -102,14 +105,15 @@ uint8_t i2c_transmit(uint8_t address, uint8_t* data, uint16_t length, uint16_t t
         NRF_LOG_INFO("Twim tx timeout");
     }
     if (twim_complete != 1) {
+        ++transfer_errors;
         NRF_LOG_INFO("twim_uncomplete:%d %d %d", length, data[0], data[1]);
     }
-    return twim_complete == 1 ? 0 : 1;
+    return twim_complete == 1 ? I2C_STATUS_SUCCESS : I2C_STATUS_ERROR;
 }
 
-uint8_t i2c_receive(uint8_t address, uint8_t* data, uint16_t length) {
+i2c_status_t i2c_receive(uint8_t address, uint8_t* data, uint16_t length, uint16_t timeout) {
     if (!twim_enable) {
-        return 0;
+        return I2C_STATUS_ERROR;
     }
     nrfx_err_t res;
     twim_complete = 0;
@@ -122,5 +126,23 @@ uint8_t i2c_receive(uint8_t address, uint8_t* data, uint16_t length) {
         }
     }
     if (cnt >= 100) NRF_LOG_INFO("Twim rx timeout");
-    return twim_complete == 1 ? 0 : 1;
+    if (twim_complete != 1) ++transfer_errors;
+    return twim_complete == 1 ? I2C_STATUS_SUCCESS : I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_write_register(uint8_t address, uint8_t reg, const uint8_t* data, uint16_t length, uint16_t timeout) {
+    // EasyDMA transfers are limited to 255 bytes, including the register address.
+    if (length > 254) {
+        return I2C_STATUS_ERROR;
+    }
+    static uint8_t buffer[255];
+    // Keep the EasyDMA buffer alive after a timeout, and do not overwrite an
+    // outstanding transfer on the next call.
+    if (nrfx_twim_is_busy(&m_twim_master)) {
+        ++transfer_errors;
+        return I2C_STATUS_ERROR;
+    }
+    buffer[0] = reg;
+    memcpy(buffer + 1, data, length);
+    return i2c_transmit(address, buffer, length + 1, timeout) == 0 ? I2C_STATUS_SUCCESS : I2C_STATUS_ERROR;
 }

@@ -29,3 +29,15 @@
     #define writePin(pin, level)    ((level) ? writePinHigh(pin) : writePinLow(pin))
 
     #define readPin(pin)            nrf_gpio_pin_read(pin)
+
+// QMK GPIO API. Keep the legacy names above for the nRF5 protocol code.
+#define gpio_set_pin_input(pin) nrf_gpio_cfg_input(pin, NRF_GPIO_PIN_NOPULL)
+#define gpio_set_pin_input_high(pin) setPinInputHigh(pin)
+#define gpio_set_pin_input_low(pin) setPinInputLow(pin)
+#define gpio_set_pin_output_push_pull(pin) setPinOutput(pin)
+#define gpio_set_pin_output(pin) gpio_set_pin_output_push_pull(pin)
+#define gpio_write_pin_high(pin) writePinHigh(pin)
+#define gpio_write_pin_low(pin) writePinLow(pin)
+#define gpio_write_pin(pin, level) writePin(pin, level)
+#define gpio_read_pin(pin) readPin(pin)
+#define gpio_toggle_pin(pin) nrf_gpio_pin_toggle(pin)
