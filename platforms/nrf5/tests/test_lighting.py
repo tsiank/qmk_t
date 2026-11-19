@@ -222,6 +222,11 @@ int main(void) {
         self.check_pwm(True)
 
     def test_actual_rgblight_caps_layer_restores_all_pixels(self):
+        self.write('nrf_gpio.h', '''#pragma once
+#include <stdint.h>
+void nrf_gpio_pin_write(uint32_t, uint32_t);
+void nrf_gpio_cfg_output(uint32_t);
+''')
         self.write('progmem.h', '''#pragma once
 #include <stdint.h>
 #include <string.h>
@@ -250,6 +255,9 @@ void eeconfig_update_rgblight(const rgblight_config_t *);
 typedef struct { bool caps_lock; } led_t;
 const rgblight_segment_t PROGMEM my_capslock_layer[]''' + caps_code + r'''
 static rgb_t pixels[RGBLIGHT_LED_COUNT];
+static bool power;
+void nrf_gpio_pin_write(uint32_t pin, uint32_t value) { assert(pin == 8); power = !value; }
+void nrf_gpio_cfg_output(uint32_t pin) { assert(pin == 8); }
 static void init(void) {}
 static void flush(void) {}
 static void color(int i, uint8_t r, uint8_t g, uint8_t b) {
@@ -268,9 +276,11 @@ void eeconfig_update_rgblight(const rgblight_config_t *config) {}
 static void check(bool caps, bool enabled) {
     led_update_user((led_t){.caps_lock = caps});
     rgblight_task();
+    assert(power == (enabled || caps));
+    assert(rgblight_is_enabled() == enabled);
     for (unsigned i = 0; i < RGBLIGHT_LED_COUNT; i++) {
-        hsv_t hsv = !enabled ? (hsv_t){0, 0, 0} :
-                    caps && i >= 9 && i < 17 ? (hsv_t){HSV_WHITE} : (hsv_t){0, 255, 64};
+        hsv_t hsv = caps && i >= 9 && i < 17 ? (hsv_t){HSV_WHITE} :
+                    enabled ? (hsv_t){0, 255, 64} : (hsv_t){0, 0, 0};
         rgb_t expected = hsv_to_rgb(hsv);
         assert(pixels[i].r == expected.r);
         assert(pixels[i].g == expected.g);
@@ -281,7 +291,17 @@ int main(void) {
     rgblight_init();
     rgblight_layers = my_rgb_layers;
     check(false, true);
+    rgblight_disable_noeeprom();
+    assert(!power);
+    check(true, false);
+    check(false, false);
+    rgblight_enable_noeeprom();
     check(true, true);
+    rgblight_disable_noeeprom(); // Caps already on when the base is disabled.
+    assert(power);
+    check(true, false);
+    check(false, false);
+    rgblight_enable_noeeprom();
     check(false, true);
     rgblight_disable_noeeprom();
     check(true, false);
@@ -292,7 +312,9 @@ int main(void) {
 ''')
         self.run_native(['quantum/rgblight/rgblight.c', 'quantum/color.c'],
                         ['-I', str(ROOT / 'quantum/rgblight'), '-I', str(ROOT),
-                         '-DRGBLIGHT_ENABLE', '-DRGBLIGHT_LED_COUNT=18', '-DRGBLIGHT_LAYERS'])
+                         '-DRGBLIGHT_ENABLE', '-DRGBLIGHT_LED_COUNT=18', '-DRGBLIGHT_LAYERS',
+                         '-DRGBLIGHT_LAYERS_OVERRIDE_RGB_OFF', '-DRGB_PWR_PIN=8',
+                         '-include', str(self.work / 'nrf_gpio.h')])
 
     def test_underglow_selftest_patterns_and_restore(self):
         self.write('quantum.h', '''#pragma once
@@ -306,6 +328,7 @@ bool rgblight_is_enabled(void);
 uint8_t rgblight_get_mode(void);
 void rgblight_mode_noeeprom(uint8_t);
 void rgblight_timer_disable(void);
+void rgblight_set(void);
 void rgb_pwr_on(void);
 void rgb_pwr_off(void);
 uint32_t timer_read32(void);
@@ -335,6 +358,7 @@ void rgblight_mode_noeeprom(uint8_t mode) {
 void rgblight_timer_disable(void) {}
 void rgb_pwr_on(void) { power = true; }
 void rgb_pwr_off(void) { power = false; }
+void rgblight_set(void) { assert(!enabled); power = false; }
 uint32_t timer_read32(void) { return now; }
 uint32_t timer_elapsed32(uint32_t t) { return now - t; }
 uint16_t timer_read(void) { return now; }
@@ -372,7 +396,7 @@ int main(void) {
     now += 8000;
     phase = 4; // Disabled restoration must transmit black and cut power.
     ciank67_underglow_test_task();
-    assert(!enabled && !power && restores == 2 && frames == 5);
+    assert(!enabled && !power && restores == 2 && frames == 4);
     assert(rgblight_layers == layers);
 }
 ''')

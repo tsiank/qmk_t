@@ -16,9 +16,7 @@ static void finish_test(void) {
     if (rgblight_is_enabled()) {
         rgblight_mode_noeeprom(rgblight_get_mode());
     } else {
-        memset(test_pixels, 0, sizeof(test_pixels));
-        ws2812_setleds(test_pixels, RGBLIGHT_LED_COUNT);
-        rgb_pwr_off();
+        rgblight_set();
     }
 }
 

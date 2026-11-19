@@ -439,9 +439,6 @@ void rgblight_disable(void) {
     rgblight_timer_disable();
     RGBLIGHT_SPLIT_SET_CHANGE_MODE;
     rgblight_set();
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
-    rgb_pwr_off();
-#endif
 }
 
 void rgblight_disable_noeeprom(void) {
@@ -458,9 +455,6 @@ void rgblight_disable_noeeprom(void) {
     rgblight_timer_disable();
     RGBLIGHT_SPLIT_SET_CHANGE_MODE;
     rgblight_set();
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
-    rgb_pwr_off();
-#endif
 }
 
 void rgblight_enabled_noeeprom(bool state) {
@@ -925,6 +919,18 @@ void rgblight_wakeup(void) {
 #endif
 
 void rgblight_set(void) {
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
+    bool power_needed = rgblight_config.enable;
+#    if defined(RGBLIGHT_LAYERS) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
+    bool indicator_active = rgblight_layers != NULL && rgblight_status.enabled_layer_mask != 0;
+#        ifdef RGBLIGHT_SLEEP
+    indicator_active = indicator_active && !is_suspended;
+#        endif
+    power_needed = power_needed || indicator_active;
+#    endif
+    // The indicator can require power while the base lighting stays disabled.
+    if (power_needed) rgb_pwr_on();
+#endif
     if (!rgblight_config.enable) {
         for (uint8_t i = rgblight_ranges.effect_start_pos; i < rgblight_ranges.effect_end_pos; i++) {
             rgblight_driver.set_color(rgblight_led_index(i), 0, 0, 0);
@@ -944,6 +950,9 @@ void rgblight_set(void) {
 #endif
 
     rgblight_driver.flush();
+#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
+    if (!power_needed) rgb_pwr_off();
+#endif
 }
 
 #ifdef RGBLIGHT_SPLIT
@@ -1164,9 +1173,6 @@ void rgblight_timer_task(void) {
 #        ifdef RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF
         // If not enabled, then nothing else will actually set the LEDs...
         if (!rgblight_config.enable) {
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)    //tsiank add
-    	rgb_pwr_on();
-#endif
             rgblight_set();
         }
 #        endif

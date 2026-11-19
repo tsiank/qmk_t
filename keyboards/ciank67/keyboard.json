@@ -7,7 +7,7 @@
     "rgblight": {
         "led_count": 18,
         "layers": {
-            "override_rgb": false
+            "override_rgb": true
         }
     },
     "usb": {
