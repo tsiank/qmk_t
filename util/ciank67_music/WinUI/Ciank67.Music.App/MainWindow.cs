@@ -291,7 +291,8 @@ public sealed partial class MainWindow : Window
         token.ThrowIfCancellationRequested();
         using IAudioSource? audio = useDemo ? null : await Task.Run(() => new LoopbackAudio(audioId));
         token.ThrowIfCancellationRequested();
-        status.Text = choice.Kind == ConnectionKind.Preview ? "离线预览中 · 不向键盘发送数据" : "已连接 · 音乐律动中";
+        using var power = new WindowsPowerRequest();
+        status.Text = choice.Kind == ConnectionKind.Preview ? "离线预览中 · 不向键盘发送数据" : "已连接 · 音乐律动中（允许熄屏）";
         await MusicSession.RunAsync(transport, audio, () => Volatile.Read(ref settings),
             bands => Volatile.Write(ref latestBands, bands), token);
     }

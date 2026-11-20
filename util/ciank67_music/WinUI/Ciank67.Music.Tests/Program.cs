@@ -345,6 +345,16 @@ Test("Concurrent USB clients acquire one connection and factory failures can ret
     Throws<IOException>(()=>retry.Acquire("retry"));using var connection=retry.Acquire("retry");Check(attempts==2,"Factory failure poisoned pool");
 });
 
+if (OperatingSystem.IsWindows())
+{
+    Test("Windows music power request opens, releases and can be disposed twice", () =>
+    {
+        var request = new Ciank67.Music.App.WindowsPowerRequest();
+        request.Dispose(); request.Dispose();
+        using var reopened = new Ciank67.Music.App.WindowsPowerRequest();
+    });
+}
+
 Console.WriteLine($"{passed} tests passed.");
 
 sealed class ColorTransport(CancellationTokenSource cancel, bool failColor = false) : IMusicTransport
