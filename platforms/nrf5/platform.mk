@@ -4,6 +4,13 @@ PROTOCOL_DIR = $(TMK_PATH)/protocol
 APP_MAIN_DIR = $(PROTOCOL_DIR)/nrf5
 PROJ_DIR := $(APP_MAIN_DIR)
 
+ifeq ($(strip $(MIDI_ENABLE)),yes)
+  NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/midi_transport.c \
+                  $(PLATFORM_COMMON_DIR)/midi_codec.c \
+                  $(APP_MAIN_DIR)/usb/midi_usb.c \
+                  $(APP_MAIN_DIR)/ble/midi_gatt.c
+endif
+
 ifeq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
   NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/music_stream.c $(APP_MAIN_DIR)/ble/music_gatt.c
 endif
@@ -236,7 +243,7 @@ HEX     = $(OBJCOPY) -O $(FORMAT)
 EEP     =
 BIN     = $(OBJCOPY) -O binary
 
-COMMON_VPATH += $(DRIVER_PATH)/nrf5
+COMMON_VPATH += $(DRIVER_PATH)/nrf5 $(PLATFORM_COMMON_DIR)/drivers
 
 NRFCFLAGS += $(COMPILEFLAGS)
 MCUFLAGS = -mcpu=cortex-m4

@@ -33,6 +33,16 @@ interrupt_setting_t store_and_clear_interrupt(void) {
 void restore_interrupt_setting(interrupt_setting_t setting) {
     SREG = setting;
 }
+#elif defined(PROTOCOL_NRF5)
+#    include "app_util_platform.h"
+interrupt_setting_t store_and_clear_interrupt(void) {
+    uint8_t nested;
+    app_util_critical_region_enter(&nested);
+    return nested;
+}
+void restore_interrupt_setting(interrupt_setting_t setting) {
+    app_util_critical_region_exit(setting);
+}
 #elif defined(__arm__)
 #    include <ch.h>
 

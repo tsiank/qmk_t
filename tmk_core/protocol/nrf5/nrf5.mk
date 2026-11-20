@@ -18,7 +18,3 @@ VPATH += $(TMK_PATH)/$(NRF_DIR)
 VPATH += $(TMK_PATH)/$(NRF_DIR)/ble
 VPATH += $(TMK_PATH)/$(NRF_DIR)/usb
 VPATH += $(TMK_PATH)/$(NRF_DIR)/lufa_utils
-
-ifeq ($(strip $(MIDI_ENABLE)), yes)
-  include $(TMK_PATH)/protocol/midi.mk
-endif

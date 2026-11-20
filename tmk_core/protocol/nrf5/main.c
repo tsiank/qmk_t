@@ -49,6 +49,11 @@
 #include "eeprom.h"
 #ifdef MIDI_ENABLE
 #include "qmk_midi.h"
+#include "midi_transport.h"
+#endif
+
+#ifdef AUDIO_ENABLE
+#include "audio_pwm.h"
 #endif
 
 uint16_t m_conn_handle     = BLE_CONN_HANDLE_INVALID; /**< Handle of the current connection. */
@@ -111,9 +116,15 @@ int main(void) {
         while (app_usbd_event_queue_process()) {
             /* Nothing to do */
         }
+#ifdef MIDI_ENABLE
+        nrf_midi_task();
+#endif
         if (keyboard_scan_pending) {
             keyboard_scan_pending = false;
             keyboard_task();
+#ifdef AUDIO_ENABLE
+            nrf_audio_task();
+#endif
             eeprom_update();
             housekeeping_task();
         } else {

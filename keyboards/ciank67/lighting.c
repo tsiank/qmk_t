@@ -38,7 +38,7 @@ void ciank67_lighting_report(void) {
     errors = nrf5_i2c_error_count();
 #    endif
     snprintf(report_buffer, sizeof(report_buffer),
-             "ciank67-light-music-color-picker-r15 t=%lu m=%u:%u f=%u u=%u:%u p=%u twi=%lu ee=%lx/%lu irq=%lu reset=%lx\n",
+             "ciank67-light-audio-midi-r16 t=%lu m=%u:%u f=%u u=%u:%u p=%u twi=%lu ee=%lx/%lu irq=%lu reset=%lx\n",
              (unsigned long)timer_read32(), matrix, matrix_mode, flags, under, under_mode, power, errors,
              (unsigned long)nrf5_eeprom_last_error(), (unsigned long)nrf5_eeprom_error_count(),
              (unsigned long)__get_IPSR(), (unsigned long)NRF_POWER->RESETREAS);

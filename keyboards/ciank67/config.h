@@ -200,3 +200,12 @@
 
 /* override number of MIDI tone keycodes (each octave adds 12 keycodes and allocates 12 bytes) */
 //#define MIDI_TONE_KEYCODE_OCTAVES 6
+
+// LS1: buzzer1 = E73 pad 9 / P0.31; buzzer2 = pad 10 / P0.30.
+#define AUDIO_PIN 31
+#define AUDIO_PIN_ALT 30
+#define AUDIO_INIT_DELAY
+#define AUDIO_CLICKY
+#define AUDIO_DEFAULT_CLICKY_ON false
+#define MIDI_BASIC
+#define MIDI_ADVANCED

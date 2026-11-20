@@ -103,7 +103,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                        ),
     [_RGBST] = LAYOUT(
         _______, RM_HUEU, RM_HUED, RM_SATU, RM_SATD, RM_VALU, RM_VALD, RM_SPDU, RM_SPDD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,
-        LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM,_______, _______,_______,  _______, _______,_______,_______, _______,_______,_______, _______,
+        LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM,AU_TOGG, CK_TOGG,MU_TOGG, MU_NEXT, MI_ON, MI_OFF,AU_OFF, _______,_______,_______, _______,
         _______, UG_HUEU, UG_HUED, UG_SATU, UG_SATD, UG_VALU, UG_VALD, UG_SPDU, UG_SPDD, _______, _______,_______, _______,
         _______,  RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______,_______,TO(_DVORAKR),
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______, _______

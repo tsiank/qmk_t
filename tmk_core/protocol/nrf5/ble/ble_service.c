@@ -731,7 +731,10 @@ static void services_init(void) {
     music_gatt_init();
 #endif
 
-    // midi_init();
+#ifdef MIDI_ENABLE
+    extern void nrf_midi_gatt_init(void);
+    nrf_midi_gatt_init();
+#endif
 }
 
 /**@brief Function for handling a Connection Parameters error.
@@ -802,6 +805,10 @@ static void sleep_mode_enter(void) {
         nrf_gpio_cfg_sense_input(col_pins[i], NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
     }
 
+#ifdef AUDIO_ENABLE
+    extern void audio_driver_stop_impl(void);
+    audio_driver_stop_impl();
+#endif
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     err_code = sd_power_system_off();
     while (1) {
@@ -817,6 +824,10 @@ void deep_sleep_mode_enter(void) {
     NRF_LOG_INFO("Deep sleep mode");
     ret_code_t err_code;
 
+#ifdef AUDIO_ENABLE
+    extern void audio_driver_stop_impl(void);
+    audio_driver_stop_impl();
+#endif
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
     err_code = sd_power_system_off();
     while (1) {
@@ -1090,6 +1101,13 @@ static void advertising_init(void) {
     init.advdata.flags                   = adv_flags;
     init.advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
     init.advdata.uuids_complete.p_uuids  = m_adv_uuids;
+#ifdef MIDI_ENABLE
+    // Keep HID + name in the advertising packet; the 128-bit MIDI UUID fits
+    // in the separate scan response without exceeding the 31-byte limit.
+    extern ble_uuid_t nrf_midi_service_uuid;
+    init.srdata.uuids_complete.uuid_cnt = 1;
+    init.srdata.uuids_complete.p_uuids = &nrf_midi_service_uuid;
+#endif
 
     init.config.ble_adv_whitelist_enabled          = true;
     init.config.ble_adv_directed_high_duty_enabled = true;

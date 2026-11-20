@@ -3,6 +3,9 @@
 #include "sysex_tools.h"
 #include "midi.h"
 #include "usb_descriptor.h"
+#ifdef PROTOCOL_NRF5
+#    include "midi_transport.h"
+#endif
 #include "process_midi.h"
 
 #ifdef AUDIO_ENABLE
@@ -60,9 +63,12 @@ static void usb_send_func(MidiDevice* device, uint16_t cnt, uint8_t byte0, uint8
     } else {
         // deal with 'system common' messages
         // TODO are there any more?
-        switch (byte0 & 0xF0) {
+        switch (byte0) {
             case MIDI_SONGPOSITION:
                 event.Event = MIDI_EVENT(cable, SYS_COMMON_3);
+                break;
+            case MIDI_TUNEREQUEST:
+                event.Event = MIDI_EVENT(cable, SYS_COMMON_1);
                 break;
             case MIDI_SONGSELECT:
             case MIDI_TC_QUARTERFRAME:
@@ -104,7 +110,9 @@ static void usb_get_midi(MidiDevice* device) {
 }
 
 static void fallthrough_callback(MidiDevice* device, uint16_t cnt, uint8_t byte0, uint8_t byte1, uint8_t byte2) {
-#ifdef AUDIO_ENABLE
+#ifdef PROTOCOL_NRF5
+    nrf_midi_audio(byte0, byte1, byte2);
+#elif defined(AUDIO_ENABLE)
     if (cnt == 3) {
         switch (byte0 & 0xF0) {
             case MIDI_NOTEON:
@@ -122,6 +130,9 @@ static void fallthrough_callback(MidiDevice* device, uint16_t cnt, uint8_t byte0
 }
 
 static void cc_callback(MidiDevice* device, uint8_t chan, uint8_t num, uint8_t val) {
+#ifdef PROTOCOL_NRF5
+    nrf_midi_audio(0xb0 | chan, num, val);
+#endif
     // sending it back on the next channel
     // midi_send_cc(device, (chan + 1) % 16, num, val);
 }

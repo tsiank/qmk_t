@@ -4,6 +4,9 @@
 #include "outputselect.h"
 #include "nrf_delay.h"
 #include "usb_device_state.h"
+#ifdef MIDI_ENABLE
+#    include "midi_transport.h"
+#endif
 #ifdef MUSIC_STREAM_ENABLE
 #    include "music_stream.h"
 #endif
@@ -339,25 +342,6 @@ static void send_extra(report_extra_t *report) {
 #endif
 }
 
-#ifdef MIDI_ENABLE
-
-void send_midi_packet(MIDI_EventPacket_t *event) {
-    // NRF_LOG_INFO("asdfjkl %d", sizeof(MIDI_EventPacket_t));
-    // NRF_LOG_INFO("asdfjkl %d %d", event->Event, event->Data1);
-    // app_usbd_audio_class_tx_start(&m_app_audio_microphone.base, (uint8_t *)event, sizeof(MIDI_EventPacket_t));
-
-    // NRF_LOG_INFO("EPINEN: %d", NRF_USBD->EPINEN);
-    // chnWrite(&drivers.midi_driver.driver, (uint8_t *)event, sizeof(MIDI_EventPacket_t));
-}
-
-bool recv_midi_packet(MIDI_EventPacket_t *const event) {
-    // size_t size = chnReadTimeout(&drivers.midi_driver.driver, (uint8_t *)event, sizeof(MIDI_EventPacket_t), TIME_IMMEDIATE);
-    // return size == sizeof(MIDI_EventPacket_t);
-    return 0;
-}
-
-#endif
-
 void usb_keyboard_init(void) {
     ret_code_t                     ret;
     usb_device_state_init();
@@ -398,6 +382,10 @@ void usb_keyboard_init(void) {
 #ifdef MUSIC_STREAM_ENABLE
     ret = app_usbd_class_append(app_usbd_hid_generic_class_inst_get(&m_app_hid_music));
     APP_ERROR_CHECK(ret);
+#endif
+
+#ifdef MIDI_ENABLE
+    nrf_midi_usb_init();
 #endif
 
     NRF_LOG_INFO("USBD HID composite example started.");
