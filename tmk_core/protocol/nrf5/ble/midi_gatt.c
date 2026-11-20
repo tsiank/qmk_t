@@ -110,3 +110,7 @@ bool nrf_midi_ble_send(const uint8_t packet[4]) {
     ret_code_t error = sd_ble_gatts_hvx(connection, &params);
     return error != NRF_ERROR_RESOURCES && error != NRF_ERROR_BUSY;
 }
+
+unsigned nrf_midi_ble_state(void) {
+    return (connection != BLE_CONN_HANDLE_INVALID) | (subscribed << 1);
+}

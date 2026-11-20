@@ -12,6 +12,12 @@ static struct { bool valid; music_rgb_t value; } colors[2];
 bool music_stream_receive(const uint8_t *data, size_t length, music_source_t source) {
     if (!data || length != MUSIC_PACKET_SIZE || data[0] != 0xC7 ||
         (source != MUSIC_SOURCE_USB && source != MUSIC_SOURCE_BLE)) return false;
+#ifdef KEYBOARD_CONTROL_ENABLE
+    if (data[1] == 3 || data[1] == 4) {
+        extern bool keyboard_control_receive(const uint8_t *, music_source_t);
+        return keyboard_control_receive(data, source);
+    }
+#endif
     uint8_t index = source - 1;
     if (data[1] == 2) {
         for (uint8_t i = 5; i < MUSIC_PACKET_SIZE; ++i) if (data[i]) return false;

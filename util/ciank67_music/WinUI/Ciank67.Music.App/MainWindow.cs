@@ -35,6 +35,8 @@ public sealed partial class MainWindow : Window
     private readonly InfoBar notice = new() { IsOpen = true, IsClosable = true, Severity = InfoBarSeverity.Informational,
         Title = "连接键盘，或先试试离线预览", Message = "USB 连接可直接刷新设备。蓝牙请先在 Windows 设置中配对，并拔掉键盘 USB。" };
     private readonly SpectrumView spectrum = new();
+    private readonly MidiPanel midiPanel;
+    private readonly KeyboardControlPanel keyboardControls;
     private readonly Grid body = new() { ColumnSpacing = 24, RowSpacing = 24 };
     private readonly Border controlCard;
     private readonly StackPanel visualization;
@@ -53,7 +55,9 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Title = "ciank67 · 音乐律动";
+        Title = "ciank67 · 音乐律动与 MIDI";
+        midiPanel = new MidiPanel(DispatcherQueue);
+        keyboardControls = new KeyboardControlPanel(() => keyboard.SelectedItem as DeviceChoice);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Ciank67Music.ico"));
         var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         double scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
@@ -119,6 +123,8 @@ public sealed partial class MainWindow : Window
         if (Application.Current.Resources.TryGetValue("AccentButtonStyle", out object value) && value is Style style) start.Style = style;
         buttons.Children.Add(start); buttons.Children.Add(stop); actions.Children.Add(buttons); actions.Children.Add(status);
         visualization.Children.Add(Card(actions));
+        visualization.Children.Add(Card(keyboardControls.View));
+        visualization.Children.Add(Card(midiPanel.View));
         visualization.Children.Add(new TextBlock
         {
             Text = "灯光仍由键盘各自的开关控制，Caps Lock 指示优先显示。停止后恢复原灯效；连接中断时，键盘也会自动恢复。",
@@ -133,7 +139,7 @@ public sealed partial class MainWindow : Window
         var scroll = new ScrollViewer { Content = page, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         Content = scroll;
         scroll.SizeChanged += (_, args) => { Program.Trace($"Viewport size {args.NewSize}"); Arrange(args.NewSize.Width); };
-        page.Loaded += async (_, _) => { Program.Trace("Page loaded"); await RefreshAsync(); Program.Trace("Initial refresh complete"); };
+        page.Loaded += async (_, _) => { Program.Trace("Page loaded"); await RefreshAsync(); await midiPanel.RefreshAsync(); Program.Trace("Initial refresh complete"); };
         refresh.Click += async (_, _) => await RefreshAsync();
         connection.SelectionChanged += async (_, _) => { if (!running) await RefreshAsync(); };
         start.Click += async (_, _) => await StartAsync();
@@ -161,6 +167,8 @@ public sealed partial class MainWindow : Window
             closing = true;
             refreshCancellation?.Cancel(); sessionCancellation?.Cancel();
             if (sessionTask is { } task) { try { await task; } catch (Exception) { } }
+            await keyboardControls.CloseAsync();
+            await midiPanel.CloseAsync();
             closeReady = true; previewTimer.Stop(); Close();
         };
     }

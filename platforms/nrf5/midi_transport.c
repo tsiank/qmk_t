@@ -10,11 +10,13 @@
 #    include <math.h>
 #endif
 #include <string.h>
+#include <stdio.h>
 
 #define QUEUE_SIZE 128
 static uint8_t rx[QUEUE_SIZE][4], tx[QUEUE_SIZE][4];
 static uint8_t rx_read, rx_write, tx_read, tx_write, rx_budget;
 static bool reset_pending;
+static uint32_t queued_count, consumed_count, reset_count;
 static host_driver_t *last_driver;
 static const uint8_t lengths[16] = {0,0,2,3,3,1,2,3,3,3,3,3,2,2,3,1};
 
@@ -80,6 +82,7 @@ bool recv_midi_packet(MIDI_EventPacket_t *event) {
 }
 
 void send_midi_packet(MIDI_EventPacket_t *event) {
+    queued_count++;
     uint8_t next = (tx_write + 1) % QUEUE_SIZE;
     if (next == tx_read) {
         // Replace the backlog with all-sound-off on every channel. A lost note
@@ -157,6 +160,8 @@ void nrf_midi_audio(uint8_t status, uint8_t a, uint8_t b) {
 #endif
 }
 
+__attribute__((weak)) void nrf_midi_reset_user(void) {}
+
 void nrf_midi_task(void) {
     host_driver_t *driver = host_get_driver();
     if (last_driver != driver) {
@@ -171,8 +176,10 @@ void nrf_midi_task(void) {
     if (reset) nrf_midi_codec_reset();
     CRITICAL_REGION_EXIT();
     if (reset) {
+        reset_count++;
         tx_read = tx_write = 0;
         nrf_midi_audio(0xff, 0, 0);
+        nrf_midi_reset_user();
         midi_device.input_state = IDLE;
         midi_device.input_count = 0;
         bytequeue_init(&midi_device.input_queue, midi_device.input_queue_data, MIDI_INPUT_QUEUE_LENGTH);
@@ -186,6 +193,16 @@ void nrf_midi_task(void) {
         else if (driver == nrf5_ble_driver()) sent = nrf_midi_ble_send(tx[tx_read]);
         else { tx_read = tx_write; break; }
         if (!sent) break;
+        consumed_count++;
         tx_read = (tx_read + 1) % QUEUE_SIZE;
     }
+}
+
+void nrf_midi_diagnostics(char *buffer, size_t size) {
+    host_driver_t *driver = host_get_driver();
+    unsigned output = driver == nrf5_usb_driver() ? 1 : driver == nrf5_ble_driver() ? 2 : 0;
+    snprintf(buffer, size, "out=%u q=%lu done=%lu pending=%u resets=%lu usb=%x ble=%x",
+        output, (unsigned long)queued_count, (unsigned long)consumed_count,
+        (tx_write - tx_read) & (QUEUE_SIZE - 1), (unsigned long)reset_count,
+        nrf_midi_usb_state(), nrf_midi_ble_state());
 }

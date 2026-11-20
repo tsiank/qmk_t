@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Music.Core", "Ciank
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Music.Tests", "Ciank67.Music.Tests\Ciank67.Music.Tests.csproj", "{B9B84CF1-9FA4-41E1-AB63-134BD06A8215}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Midi.Tests", "Ciank67.Midi.Tests\Ciank67.Midi.Tests.csproj", "{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{B9B84CF1-9FA4-41E1-AB63-134BD06A8215}.Release|x64.Build.0 = Release|Any CPU
 		{B9B84CF1-9FA4-41E1-AB63-134BD06A8215}.Release|x86.ActiveCfg = Release|Any CPU
 		{B9B84CF1-9FA4-41E1-AB63-134BD06A8215}.Release|x86.Build.0 = Release|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Debug|x64.Build.0 = Debug|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Debug|x86.Build.0 = Debug|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Release|x64.ActiveCfg = Release|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Release|x64.Build.0 = Release|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Release|x86.ActiveCfg = Release|Any CPU
+		{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

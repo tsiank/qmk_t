@@ -10,6 +10,9 @@
 // c1a00001-7d9b-4c7d-a568-7294e2166700 (service), ...0002 (RX).
 static uint16_t service_handle;
 static ble_gatts_char_handles_t rx;
+#ifdef KEYBOARD_CONTROL_ENABLE
+static ble_gatts_char_handles_t control_state;
+#endif
 
 static void music_ble_event(ble_evt_t const *event, void *context) {
     (void)context;
@@ -17,8 +20,10 @@ static void music_ble_event(ble_evt_t const *event, void *context) {
         const ble_gatts_evt_write_t *write = &event->evt.gatts_evt.params.write;
         if (write->handle == rx.value_handle && write->offset == 0 &&
             (write->op == BLE_GATTS_OP_WRITE_REQ || write->op == BLE_GATTS_OP_WRITE_CMD)) {
-            if (music_stream_receive(write->data, write->len, MUSIC_SOURCE_BLE) && write->data[1] == 1 && (write->data[3] & MUSIC_TARGET_MASK))
-                reset_power_save_counter();
+            if (music_stream_receive(write->data, write->len, MUSIC_SOURCE_BLE)) {
+                if ((write->data[1] == 1 && (write->data[3] & MUSIC_TARGET_MASK)) || write->data[1] == 3)
+                    reset_power_save_counter();
+            }
         }
     } else if (event->header.evt_id == BLE_GAP_EVT_DISCONNECTED) {
         music_stream_disconnect(MUSIC_SOURCE_BLE);
@@ -44,4 +49,19 @@ void music_gatt_init(void) {
     characteristic.char_props.write_wo_resp = 1;
     characteristic.write_access = SEC_JUST_WORKS;
     APP_ERROR_CHECK(characteristic_add(service_handle, &characteristic, &rx));
+#ifdef KEYBOARD_CONTROL_ENABLE
+    ble_add_char_params_t state = {0};
+    state.uuid = 3; state.uuid_type = type;
+    state.max_len = state.init_len = 20; state.p_init_value = initial;
+    state.char_props.read = 1; state.read_access = SEC_JUST_WORKS;
+    APP_ERROR_CHECK(characteristic_add(service_handle, &state, &control_state));
+#endif
 }
+
+#ifdef KEYBOARD_CONTROL_ENABLE
+bool keyboard_control_ble_reply(const uint8_t *data) {
+    ble_gatts_value_t value = {.len = 20, .offset = 0, .p_value = (uint8_t *)data};
+    ret_code_t result = sd_ble_gatts_value_set(BLE_CONN_HANDLE_INVALID, control_state.value_handle, &value);
+    return result == NRF_SUCCESS;
+}
+#endif

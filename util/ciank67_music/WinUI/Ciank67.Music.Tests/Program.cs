@@ -293,6 +293,58 @@ if (OperatingSystem.IsWindows())
     finally { File.Delete(path); }
     Console.WriteLine("PASS Windows control-output native binding reports an invalid path cleanly"); passed++;
 }
+Test("Keyboard controls encode masked absolute settings independently of music", () =>
+{
+    byte[] query = KeyboardControlProtocol.Command(255);
+    Check(query.SequenceEqual(new byte[] { 0xc7,4,255 }.Concat(new byte[17])), "Query format");
+    byte[] mode = KeyboardControlProtocol.Command(0,16,0,KeyboardMusicMode.MidiTyping);
+    Check(mode[1]==3 && mode[3]==16 && mode[4]==0 && mode[5]==3 && mode.Skip(6).All(v=>v==0),"Mode layout");
+    byte[] light = KeyboardControlProtocol.Command(1,1,0);
+    Check(light[3]==1 && light[4]==0,"Single masked switch");
+    Throws<ArgumentOutOfRangeException>(()=>KeyboardControlProtocol.Command(0,32));
+    Throws<ArgumentException>(()=>KeyboardControlProtocol.Command(0,0,1));
+});
+Test("Keyboard state rejects stale replies and validates every reserved byte", () =>
+{
+    byte[] packet = new byte[20];packet[0]=0xc7;packet[1]=0x83;packet[2]=7;packet[3]=15;packet[4]=3;packet[5]=1;
+    var state=KeyboardControlProtocol.Parse(packet,7);
+    Check(state is { Matrix:true, Underglow:true, Audio:true, Clicky:true, Mode:KeyboardMusicMode.MidiTyping },"State flags");
+    Check(KeyboardControlProtocol.Parse(packet,8) is null,"Stale sequence accepted");
+    Check(KeyboardControlProtocol.Parse(packet.AsSpan(1),7) is null,"Wrong length accepted");
+    for(int i=6;i<20;i++){packet[i]=1;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Reserved accepted");packet[i]=0;}
+    packet[3]=16;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Invalid flags");packet[3]=0;
+    packet[4]=4;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Invalid mode");packet[4]=0;
+    packet[5]=2;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Unknown protocol version");
+});
+
+Test("USB clients share one physical connection and release only their own lease", () =>
+{
+    int opened=0,closed=0;
+    var pool=new SharedDevicePool<object>(_=>{opened++;return new object();},_=>closed++);
+    var music=pool.Acquire("USB-path");var controls=pool.Acquire("usb-PATH");
+    Check(opened==1 && ReferenceEquals(music.Value,controls.Value),"Two handles opened for one interface");
+    controls.Dispose();controls.Dispose();
+    Check(closed==0 && music.Value is not null,"Closing controls closed the streaming connection");
+    var controlsAgain=pool.Acquire("USB-path");
+    Check(opened==1 && ReferenceEquals(music.Value,controlsAgain.Value),"Control reconnect opened a second handle");
+    music.Dispose();Check(closed==0,"Stopping music closed the control connection");
+    controlsAgain.Dispose();Check(closed==1,"Last client did not close connection");
+    Throws<ObjectDisposedException>(()=>{_=music.Value;});
+    using var fresh=pool.Acquire("USB-path");Check(opened==2,"Disposed handle was reused");
+});
+Test("Concurrent USB clients acquire one connection and factory failures can retry", () =>
+{
+    int opened=0,closed=0;
+    var pool=new SharedDevicePool<object>(_=>{Interlocked.Increment(ref opened);return new object();},_=>Interlocked.Increment(ref closed));
+    var leases=new SharedDevicePool<object>.Lease[32];
+    Parallel.For(0,32,i=>leases[i]=pool.Acquire("same-device"));
+    Check(opened==1 && leases.All(l=>ReferenceEquals(l.Value,leases[0].Value)),"Concurrent duplicate handle");
+    Parallel.ForEach(leases,l=>l.Dispose());Check(closed==1,"Concurrent disposal mismatch");
+    int attempts=0;
+    var retry=new SharedDevicePool<object>(_=>{if(++attempts==1)throw new IOException("Unplugged");return new object();},_=>{});
+    Throws<IOException>(()=>retry.Acquire("retry"));using var connection=retry.Acquire("retry");Check(attempts==2,"Factory failure poisoned pool");
+});
+
 Console.WriteLine($"{passed} tests passed.");
 
 sealed class ColorTransport(CancellationTokenSource cancel, bool failColor = false) : IMusicTransport

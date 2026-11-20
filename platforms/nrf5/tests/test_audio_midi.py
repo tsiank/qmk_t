@@ -54,7 +54,7 @@ bool audio_update_state(void); float audio_get_processed_frequency(uint8_t);
         cc = shutil.which('cc')
         self.assertIsNotNone(cc)
         command = [cc, '-std=gnu11', '-g', '-fsanitize=address,undefined', '-fno-pie', '-no-pie',
-                   '-DAUDIO_ENABLE', '-I', str(self.path), '-I', str(ROOT / 'platforms/nrf5'),
+                   '-DAUDIO_ENABLE', '-DMIDI_ENABLE', '-DMIDI_BASIC', '-I', str(self.path), '-I', str(ROOT / 'platforms/nrf5'),
                    str(self.path / 'test.c'), *[str(ROOT / s) for s in sources], '-lm', '-o', str(self.path / 'test')]
         for cmd in (command, [str(self.path / 'test')]):
             result = subprocess.run(cmd, capture_output=True, text=True,
@@ -137,6 +137,8 @@ void stop_all_notes(void){panics++;}
 void nrf_midi_codec_reset(void){}
 void nrf_midi_usb_task(void){}
 void nrf_midi_ble_tick(void){}
+unsigned nrf_midi_usb_state(void){return 1;}
+unsigned nrf_midi_ble_state(void){return 0;}
 bool nrf_midi_usb_send(const uint8_t*p){if(blocked)return false; sends++; return true;}
 bool nrf_midi_ble_send(const uint8_t*p){if(blocked)return false; sends++; return true;}
 int main(void){
@@ -477,6 +479,238 @@ int main(void){
  usb_send_func(0,2,0xc2,5,0);assert(sent.Event==12);
  usb_send_func(0,3,0xf0,1,2);assert(sent.Event==4);
  usb_send_func(0,2,1,0xf7,0);assert(sent.Event==6);
+}
+""", [])
+
+    def test_typing_accompaniment_passes_keys_and_releases_notes(self):
+        self.write('quantum.h', r"""#pragma once
+#include <stdint.h>
+#include <stdbool.h>
+#define MATRIX_ROWS 5
+#define MATRIX_COLS 14
+#define KC_A 4
+#define KC_SLSH 56
+#define IS_QK_MOD_TAP(k) ((k)>=0x2000&&(k)<0x4000)
+#define IS_QK_LAYER_TAP(k) ((k)>=0x4000&&(k)<0x5000)
+#define IS_QK_MODS(k) ((k)>=0x100&&(k)<0x2000)
+enum { QK_MIDI_ON=0x7100,QK_MIDI_TOGGLE,QK_MIDI_OFF,QK_MUSIC_ON,QK_MUSIC_TOGGLE };
+typedef struct { struct { struct { uint8_t row,col; } key; bool pressed; } event; struct { unsigned count; } tap; } keyrecord_t;
+""")
+        self.write('process_midi.h', 'void process_midi_basic_noteon(uint8_t);void process_midi_basic_noteoff(uint8_t);void process_midi_all_notes_off(void);\n')
+        self.write('process_music.h', 'bool is_midi_on(void);bool is_music_on(void);void midi_off(void);void music_off(void);\n')
+        # Add board directory so its real public header is used.
+        self.write('midi_typing.h', (ROOT/'keyboards/ciank67/midi_typing.h').read_text())
+        self.run_c(r"""
+#include <assert.h>
+#include "quantum.h"
+#include "midi_typing.h"
+static unsigned on,off,panic;static uint8_t note;static bool pure;
+bool is_midi_on(void){return pure;}bool is_music_on(void){return false;}
+void midi_off(void){pure=false;}void music_off(void){}
+void process_midi_basic_noteon(uint8_t n){on++;note=n;}
+void process_midi_basic_noteoff(uint8_t n){off++;note=n;}
+void process_midi_all_notes_off(void){panic++;}
+void nrf_midi_reset_user(void);
+static bool key(uint16_t k,bool down,unsigned row,unsigned col,unsigned tap){
+ keyrecord_t r={.event={.key={row,col},.pressed=down},.tap.count=tap};
+ return ciank67_process_midi_typing(k,&r,0x6000);
+}
+int main(void){
+ assert(key(4,true,0,0,0)&&on==0);
+ pure=true;assert(!key(0x6000,true,0,10,0)&&!pure);
+ assert(!key(0x6000,false,0,10,0));
+ assert(key(4,true,0,0,0)&&on==1&&note==84);
+ assert(key(4,true,0,0,0)&&on==1); // repeated event
+ assert(key(0x5200,false,0,0,0)&&off==1&&note==84); // changed layer
+ assert(key(0xe0,true,4,0,0)&&on==1); // Ctrl passes unchanged
+ assert(key(0x202c,true,4,4,0)&&on==1); // held shift/space
+ assert(key(0x202c,true,4,4,1)&&on==2&&note==40);
+ assert(key(0x202c,false,4,4,1)&&off==2);
+ // Adjacent matrix rows share pitches at the 12-column boundary.
+ key(4,true,0,0,0);key(5,true,1,12,0);assert(on==3);
+ key(4,false,0,0,0);assert(off==2);key(5,false,1,12,0);assert(off==3);
+ key(4,true,0,1,0);unsigned before=off;
+ assert(!key(0x6000,true,0,10,0)&&off==before+1); // toggle stops held notes
+ key(4,false,0,1,0);assert(off==before+1);
+ key(0x6000,true,0,10,0);key(4,true,0,1,0);
+ nrf_midi_reset_user();before=on;key(4,true,0,1,0);assert(on==before+1);
+ assert(key(QK_MIDI_ON,true,0,7,0));before=on;
+ key(4,true,0,2,0);assert(on==before); // old pure mode owns this event
+ assert(key(4,true,255,255,0));
+}
+""", ['keyboards/ciank67/midi_typing.c'])
+
+    def test_keyboard_control_validation_main_loop_ack_and_modes(self):
+        self.write('quantum.h', r"""#pragma once
+#include <stdbool.h>
+#include <stdint.h>
+typedef int keyrecord_t;
+bool rgb_matrix_is_enabled(void);void rgb_matrix_enable(void);void rgb_matrix_disable(void);
+bool rgblight_is_enabled(void);void rgblight_enable(void);void rgblight_disable(void);
+bool is_audio_on(void);void audio_on(void);void audio_off(void);void stop_all_notes(void);
+""")
+        self.write('midi_typing.h', '#include "quantum.h"\nbool ciank67_midi_typing_enabled(void);void ciank67_midi_typing_set(bool);\n')
+        self.write('process_music.h', '#include "quantum.h"\nbool is_midi_on(void);bool is_music_on(void);void midi_on(void);void midi_off(void);void music_on(void);void music_off(void);\n')
+        self.write('process_clicky.h', '#include "quantum.h"\nbool is_clicky_on(void);void clicky_on(void);void clicky_off(void);\n')
+        self.write('timer.h', '#include <stdint.h>\nuint32_t timer_read32(void);uint32_t timer_elapsed32(uint32_t);\n')
+        source=ROOT/'keyboards/ciank67/keyboard_control.c'
+        stream=ROOT/'platforms/nrf5/music_stream.c'
+        self.run_c(r"""
+#define KEYBOARD_CONTROL_ENABLE
+#include <assert.h>
+#include <string.h>
+#include "quantum.h"
+#include "music_stream.h"
+int critical_depth;static bool matrix=true,under=true,audio=true,clicky,typing,local,midi,busy;
+static unsigned changes,replies,ble_replies,stops;static uint8_t ack[20];
+#define FLAG(name,var) bool name(void){return var;}
+FLAG(rgb_matrix_is_enabled,matrix) FLAG(rgblight_is_enabled,under) FLAG(is_audio_on,audio)
+FLAG(is_clicky_on,clicky) FLAG(is_midi_on,midi) FLAG(is_music_on,local) FLAG(ciank67_midi_typing_enabled,typing)
+#define SET(name,var,value) void name(void){assert(critical_depth==0);var=value;changes++;}
+SET(rgb_matrix_enable,matrix,true) SET(rgb_matrix_disable,matrix,false)
+SET(rgblight_enable,under,true) SET(rgblight_disable,under,false)
+SET(audio_on,audio,true) SET(audio_off,audio,false)
+SET(clicky_on,clicky,true) SET(clicky_off,clicky,false)
+SET(midi_on,midi,true) SET(midi_off,midi,false) SET(music_on,local,true) SET(music_off,local,false)
+void ciank67_midi_typing_set(bool on){assert(!critical_depth);typing=on;}
+void stop_all_notes(void){assert(!critical_depth);stops++;}
+uint32_t timer_read32(void){return 0;}uint32_t timer_elapsed32(uint32_t t){return 0;}
+bool keyboard_control_usb_reply(const uint8_t*p){if(busy)return false;memcpy(ack,p,20);replies++;return true;}
+bool keyboard_control_ble_reply(const uint8_t*p){memcpy(ack,p,20);ble_replies++;return true;}
+""" + '#include "'+str(stream)+'"\n#include "'+str(source)+'"\n' + r"""
+int main(void){
+ uint8_t p[20]={0xc7,4,1};music_frame_t frame;
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(!changes&&!replies);
+ ciank67_keyboard_control_task();assert(ack[0]==0xc7&&ack[1]==0x83&&ack[2]==1&&ack[3]==7&&ack[4]==0&&ack[5]==1);
+ assert(!changes&&!music_stream_read(&frame)); // polling is read-only, not music keepalive
+ p[1]=3;p[2]=2;p[3]=1;p[4]=0;
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(matrix); // no QMK in receive IRQ
+ ciank67_keyboard_control_task();assert(!matrix&&under&&audio&&changes==1&&ack[3]==6);
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(changes==1); // idempotent
+ p[3]=8;p[4]=8;assert(music_stream_receive(p,20,MUSIC_SOURCE_BLE));ciank67_keyboard_control_task();assert(clicky&&ble_replies==1);
+ p[3]=16;p[4]=0;p[5]=3;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(typing&&ack[4]==3&&stops==1);
+ p[5]=2;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(midi&&!typing&&!local&&ack[4]==2);
+ p[5]=1;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(!midi&&!typing&&local);
+ p[5]=0;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(!midi&&!typing&&!local);
+ p[3]=4;p[4]=0;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(!audio);
+ // Physical MU_ON + MI_ON can coexist; selecting the summarized MIDI mode
+ // must still disable the extra local mode instead of incorrectly no-oping.
+ midi=true;local=true;p[3]=16;p[4]=0;p[5]=2;
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();
+ assert(midi&&!local&&!typing&&ack[4]==2);
+ unsigned same=changes;
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(changes==same);
+ unsigned before=changes;p[1]=4;p[3]=p[4]=p[5]=0;p[2]=255;
+ busy=true;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();
+ busy=false;ciank67_keyboard_control_task();assert(ack[2]==255&&changes==before);
+ p[3]=1;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB)); // query cannot modify state
+ p[1]=3;p[3]=32;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));
+ p[3]=16;p[5]=4;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));
+ p[5]=0;p[19]=1;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));
+ assert(!music_stream_receive(p,19,MUSIC_SOURCE_USB));assert(critical_depth==0);
+}
+""", [])
+
+    def test_usb_control_reply_preserves_dma_buffer_until_completion(self):
+        code=(ROOT/'tmk_core/protocol/nrf5/usb/nrf5_usb.c').read_text()
+        start=code.index('static bool control_busy;')
+        stop=code.index('\n#endif',start)
+        self.run_c(r"""
+#include <assert.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#define MUSIC_USB_REPORT_ID 4
+#define NRF_SUCCESS 0
+typedef unsigned ret_code_t;
+static struct { unsigned ENABLE; } hw={1};
+#define NRF_USBD (&hw)
+static int m_app_hid_music;
+static uint8_t *dma;static unsigned calls,fail;
+unsigned app_usbd_hid_generic_in_report_set(int *device,uint8_t *buffer,unsigned len){
+ assert(device==&m_app_hid_music&&len==21&&buffer[0]==4);dma=buffer;calls++;return fail;
+}
+""" + code[start:stop] + r"""
+int main(void){
+ uint8_t a[20]={0xc7,0x83,1,7,3,1},b[20]={0xc7,0x83,2,0,0,1};
+ assert(keyboard_control_usb_reply(a)&&control_busy&&calls==1&&!memcmp(dma+1,a,20));
+ assert(!keyboard_control_usb_reply(b)&&calls==1&&!memcmp(dma+1,a,20));
+ control_busy=false;assert(keyboard_control_usb_reply(b)&&calls==2&&!memcmp(dma+1,b,20));
+ control_busy=false;fail=1;assert(!keyboard_control_usb_reply(a)&&!control_busy);
+ hw.ENABLE=0;assert(keyboard_control_usb_reply(b));
+}
+""", [])
+
+    def test_hid_out_duplicate_waiting_event_does_not_stall_endpoint(self):
+        code=(ROOT/'tmk_core/protocol/nrf5/usb/fixed/app_usbd_hid_generic.c').read_text()
+        start=code.index('static ret_code_t hid_generic_ep_transfer_out(')
+        end=code.index('\n}',start)+2
+        self.run_c(r"""
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+#define NRF_SUCCESS 0
+#define NRF_ERROR_BUSY 17
+#define NRFX_ERROR_BUSY NRF_ERROR_BUSY
+typedef unsigned ret_code_t;
+typedef int nrf_drv_usbd_ep_t;
+typedef struct {int x;} app_usbd_class_inst_t;
+typedef struct {struct {struct {int hid_inst;} inst;} specific;} app_usbd_hid_generic_t;
+typedef struct {void *p_buff;size_t size;} app_usbd_hid_report_buffer_t;
+static app_usbd_hid_generic_t generic;
+static uint8_t packet[21];static app_usbd_hid_report_buffer_t output={packet,21};
+static bool pending;static unsigned submissions,unexpected;
+static const app_usbd_hid_generic_t *hid_generic_get(const app_usbd_class_inst_t *p){return &generic;}
+static int app_usbd_hid_epout_addr_get(const app_usbd_class_inst_t *p){return 1;}
+static const app_usbd_hid_report_buffer_t *app_usbd_hid_rep_buff_out_get(const int*p){return &output;}
+static bool nrf_drv_usbd_ep_is_busy(int ep){assert(ep==1);return pending;}
+#define NRF_DRV_USBD_TRANSFER_OUT(name,p,n) struct {void *data;size_t size;} name={p,n}
+static unsigned app_usbd_ep_transfer(int ep,const void *transfer){
+ submissions++;if(pending)return NRF_ERROR_BUSY;if(unexpected)return unexpected;pending=true;return 0;
+}
+"""+code[start:end]+r"""
+int main(void){
+ app_usbd_class_inst_t instance={0};
+ // A completes; host B arrives before queued A/OK and B/WAITING are drained.
+ // A/OK rearms B. B/WAITING must leave B's DMA alone and return success.
+ assert(hid_generic_ep_transfer_out(&instance)==0&&pending);
+ packet[0]=4;packet[1]=0xc7;
+ assert(hid_generic_ep_transfer_out(&instance)==0);
+ assert(submissions==1&&packet[0]==4&&packet[1]==0xc7);
+ // B/OK rearms the next receive normally.
+ pending=false;assert(hid_generic_ep_transfer_out(&instance)==0&&submissions==2);
+ // Genuine errors must still propagate.
+ pending=false;unexpected=99;assert(hid_generic_ep_transfer_out(&instance)==99);
+ unexpected=NRF_ERROR_BUSY;assert(hid_generic_ep_transfer_out(&instance)==0);
+}
+""", [])
+
+    def test_qmk_recording_stops_at_capacity_and_rejects_empty_sequence(self):
+        code=(ROOT/'quantum/process_keycode/process_music.c').read_text()
+        start=code.index('            if (music_sequence_recording',code.index('            music_noteon(note);'))
+        end=code.index('\n            }',start)+len('\n            }')
+        stop_start=code.index('                if (music_sequence_recording)',code.index('if (keycode == KC_LEFT_ALT)'))
+        stop_end=code.index('\n                }',stop_start)+len('\n                }')
+        self.run_c(r"""
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+static bool music_sequence_recording, music_sequence_recorded;
+static uint8_t music_sequence[16], music_sequence_count;
+static void record(uint8_t note) {
+"""+code[start:end]+r"""
+}
+static void stop_recording(void) {
+"""+code[stop_start:stop_end]+r"""
+}
+int main(void) {
+ music_sequence_recording=true;
+ stop_recording();assert(!music_sequence_recorded);
+ for(unsigned i=0;i<1000;i++)record((uint8_t)i);
+ assert(music_sequence_count==16);
+ for(unsigned i=0;i<16;i++)assert(music_sequence[i]==i);
+ stop_recording();assert(music_sequence_recorded);
 }
 """, [])
 

@@ -16,6 +16,7 @@
 
 #include QMK_KEYBOARD_H
 #include "lighting.h"
+#include "midi_typing.h"
 //#include "muse.h"
 #include "ble_service.h"
 
@@ -55,7 +56,7 @@ enum ciank67_layers {
 };
 
 
-enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM};
+enum planck_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST,RGBG_TOG, BATT_LV, BATT_LV2,VOLUP, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM, MIDI_TYPING_TOGGLE};
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -80,7 +81,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         QK_REBOOT,       _______,  _______,   KC_UNDERSCORE, KC_LABK,    KC_RIGHT_PAREN,    KC_QUOT,    KC_DOUBLE_QUOTE,   KC_RGHT,    KC_GRAVE,   _______, _______,_______, TG(_QWERTY),
         _______,    _______, _______, KC_TRNS,       RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    SEL0, SEL1, SEL2
                       ),
-    [_NUM]   = LAYOUT(
+    [_NUM]      = LAYOUT(
         _______,  SLEEP,  NK_TOGG, _______,    _______, _______,  _______, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
         RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RM_TOGG,  RM_NEXT,RM_PREV,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDN, _______, _______,
@@ -103,7 +104,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                        ),
     [_RGBST] = LAYOUT(
         _______, RM_HUEU, RM_HUED, RM_SATU, RM_SATD, RM_VALU, RM_VALD, RM_SPDU, RM_SPDD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,
-        LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM,AU_TOGG, CK_TOGG,MU_TOGG, MU_NEXT, MI_ON, MI_OFF,AU_OFF, _______,_______,_______, _______,
+        LIGHT_STATUS, UNDERGLOW_TEST, RGBM_M_SPECTRUM,AU_TOGG, CK_TOGG,MU_TOGG, MU_NEXT, MI_ON, MI_OFF,AU_OFF, MIDI_TYPING_TOGGLE,_______,_______, _______,
         _______, UG_HUEU, UG_HUED, UG_SATU, UG_SATD, UG_VALU, UG_VALD, UG_SPDU, UG_SPDD, _______, _______,_______, _______,
         _______,  RGB_M_P, RGB_M_B, RGB_M_R, RGB_M_SW, RGB_M_SN, RGB_M_K, RGB_M_X, RGB_M_G, RGB_M_T, _______,_______,_______,TO(_DVORAKR),
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,  _______, _______
@@ -118,6 +119,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (!ciank67_process_midi_typing(keycode, record, MIDI_TYPING_TOGGLE)) return false;
 	if (!NRF_USBD->ENABLE){
 	    #ifdef POWER_SAVE_TIMEOUT
 	        if (record->event.pressed) {
@@ -303,6 +305,10 @@ bool led_update_user(led_t led_state){
 void housekeeping_task_user(void) {
 #ifdef MUSIC_STREAM_ENABLE
     ciank67_music_task();
+#ifdef KEYBOARD_CONTROL_ENABLE
+    extern void ciank67_keyboard_control_task(void);
+    ciank67_keyboard_control_task();
+#endif
 #endif
     ciank67_underglow_test_task();
     ciank67_lighting_task();

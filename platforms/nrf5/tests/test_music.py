@@ -565,7 +565,7 @@ int main(void) {
 
     def test_actual_usb_output_callback(self):
         code = (ROOT / 'tmk_core/protocol/nrf5/usb/nrf5_usb.c').read_text()
-        callback = code.split('static void music_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event) {', 1)[1].split('\n#endif', 1)[0]
+        callback = code.split('static void music_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event) {', 1)[1].split('\n}\n#endif', 1)[0] + '\n}\n'
         self.write('test.c', r'''
 #include <assert.h>
 #include <string.h>

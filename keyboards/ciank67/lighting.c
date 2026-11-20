@@ -11,7 +11,12 @@
 #    ifdef RGB_MATRIX_IS31FL3741
 #        include "nrf5/i2c_master.h"
 #    endif
-static char report_buffer[160];
+#    ifdef MIDI_ENABLE
+#        include "midi_transport.h"
+#        include "midi_typing.h"
+#        include "process_music.h"
+#    endif
+static char report_buffer[256];
 static uint8_t report_position;
 static bool report_pending;
 static uint16_t last_report_character;
@@ -38,10 +43,18 @@ void ciank67_lighting_report(void) {
     errors = nrf5_i2c_error_count();
 #    endif
     snprintf(report_buffer, sizeof(report_buffer),
-             "ciank67-light-audio-midi-r16 t=%lu m=%u:%u f=%u u=%u:%u p=%u twi=%lu ee=%lx/%lu irq=%lu reset=%lx\n",
+             "ciank67-usb-concurrent-r20 t=%lu m=%u:%u f=%u u=%u:%u p=%u twi=%lu ee=%lx/%lu irq=%lu reset=%lx\n",
              (unsigned long)timer_read32(), matrix, matrix_mode, flags, under, under_mode, power, errors,
              (unsigned long)nrf5_eeprom_last_error(), (unsigned long)nrf5_eeprom_error_count(),
              (unsigned long)__get_IPSR(), (unsigned long)NRF_POWER->RESETREAS);
+#    ifdef MIDI_ENABLE
+    // Snapshot before typing the report, which itself sends ordinary HID keys.
+    size_t used = strlen(report_buffer);
+    char midi[112];
+    nrf_midi_diagnostics(midi, sizeof(midi));
+    snprintf(report_buffer + used, sizeof(report_buffer) - used,
+             "midi typing=%u pure=%u %s\n", ciank67_midi_typing_enabled(), is_midi_on(), midi);
+#    endif
     report_position = 0;
     report_pending = true;
 #endif

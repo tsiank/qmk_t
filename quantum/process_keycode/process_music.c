@@ -160,7 +160,7 @@ bool process_music(uint16_t keycode, keyrecord_t *record) {
             if (keycode == KC_LEFT_ALT) { // Stop recording/playing
                 music_all_notes_off();
                 if (music_sequence_recording) { // was recording
-                    music_sequence_recorded = true;
+                    music_sequence_recorded = music_sequence_count != 0;
                 }
                 music_sequence_recording = false;
                 music_sequence_playing   = false;
@@ -210,7 +210,7 @@ bool process_music(uint16_t keycode, keyrecord_t *record) {
 
         if (record->event.pressed) {
             music_noteon(note);
-            if (music_sequence_recording) {
+            if (music_sequence_recording && music_sequence_count < sizeof(music_sequence) / sizeof(music_sequence[0])) {
                 music_sequence[music_sequence_count] = note;
                 music_sequence_count++;
             }

@@ -150,3 +150,7 @@ bool nrf_midi_usb_send(const uint8_t packet[4]) {
     if (panic_remaining) return false;
     return write_packet(packet);
 }
+
+unsigned nrf_midi_usb_state(void) {
+    return configured | (suspended << 1) | (tx_busy << 2) | ((panic_remaining != 0) << 3);
+}

@@ -86,7 +86,24 @@ internal sealed class PreviewTransport : IMusicTransport
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
 
-internal sealed class UsbTransport : IMusicTransport
+internal interface IKeyboardControlTransport : IMusicTransport
+{
+    Task<KeyboardControlState> ControlAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token);
+}
+
+internal sealed class UsbTransport : IKeyboardControlTransport
+{
+    private static readonly SharedDevicePool<UsbConnection> connections = new(
+        path => new UsbConnection(path), value => value.DisposeAsync().GetAwaiter().GetResult());
+    private readonly SharedDevicePool<UsbConnection>.Lease lease;
+    public UsbTransport(string path) { lease = connections.Acquire(path); }
+    public ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken token) => lease.Value.SendAsync(packet,token);
+    public Task<KeyboardControlState> ControlAsync(byte mask,byte values,KeyboardMusicMode mode,CancellationToken token) =>
+        lease.Value.ControlAsync(mask,values,mode,token);
+    public ValueTask DisposeAsync() { lease.Dispose();return ValueTask.CompletedTask; }
+}
+
+internal sealed class UsbConnection : IKeyboardControlTransport
 {
     private readonly HidStream stream;
     private readonly int reportLength;
@@ -95,7 +112,7 @@ internal sealed class UsbTransport : IMusicTransport
     private readonly SemaphoreSlim writeGate = new(1, 1);
     private WindowsHidOutput? control;
 
-    public UsbTransport(string path)
+    public UsbConnection(string path)
     {
         this.path = path;
         var device = DeviceList.Local.GetHidDevices()
@@ -113,9 +130,15 @@ internal sealed class UsbTransport : IMusicTransport
 
     public async ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken)
     {
+        await writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try { await SendUnlockedAsync(packet,cancellationToken).ConfigureAwait(false); }
+        finally { writeGate.Release(); }
+    }
+
+    private async ValueTask SendUnlockedAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         byte[] report = MusicProtocol.UsbReport(packet.Span, reportLength);
-        await writeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             bool usedControl = output.UsesControl;
@@ -125,21 +148,53 @@ internal sealed class UsbTransport : IMusicTransport
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception error)
         {
-            string operation = packet.Span[1] == 2 ? "设置纯光颜色" : (packet.Span[3] & 3) == 0 ? "停止律动" : "发送音乐频谱";
+            string operation = packet.Span[1] is 3 or 4 ? "控制或查询键盘开关" : packet.Span[1] == 2 ? "设置纯光颜色" : (packet.Span[3] & 3) == 0 ? "停止律动" : "发送音乐频谱";
             Program.Trace($"USB {operation}: {error}");
             try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "usb-error.log"),
                 $"{DateTimeOffset.Now:O} USB {operation}, report={reportLength}, control={output.UsesControl}{Environment.NewLine}{error}"); }
             catch (Exception) { }
             throw new IOException($"USB {operation}失败：{error.Message}", error);
         }
+    }
+
+    private byte controlSequence;
+    // The reply completes the transaction. Do not interleave spectrum writes
+    // between a settings request and its matching device acknowledgement.
+    public async Task<KeyboardControlState> ControlAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token)
+    {
+        await writeGate.WaitAsync(token).ConfigureAwait(false);
+        try { return await ControlCoreAsync(mask,values,mode,token).ConfigureAwait(false); }
         finally { writeGate.Release(); }
+    }
+    private async Task<KeyboardControlState> ControlCoreAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token)
+    {
+        byte sequence = ++controlSequence;
+        await SendUnlockedAsync(KeyboardControlProtocol.Command(sequence, mask, values, mode), token);
+        return await Task.Run(() =>
+        {
+            stream.ReadTimeout = 100;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            byte[] report = new byte[21];
+            while (watch.Elapsed < TimeSpan.FromSeconds(3))
+            {
+                token.ThrowIfCancellationRequested();
+                try
+                {
+                    int size = stream.Read(report, 0, report.Length);
+                    if (size == 21 && report[0] == MusicProtocol.ReportId &&
+                        KeyboardControlProtocol.Parse(report.AsSpan(1), sequence) is { } state) return state;
+                }
+                catch (TimeoutException) { }
+            }
+            throw new IOException("键盘未返回控制状态，请刷入 R19 或更新固件，再重新连接。");
+        }, token);
     }
 
     public ValueTask DisposeAsync()
     { control?.Dispose(); stream.Dispose(); writeGate.Dispose(); return ValueTask.CompletedTask; }
 }
 
-internal sealed class BluetoothTransport : IMusicTransport
+internal sealed class BluetoothTransport : IKeyboardControlTransport
 {
     private readonly BluetoothLEDevice device;
     private readonly GattDeviceService service;
@@ -185,6 +240,31 @@ internal sealed class BluetoothTransport : IMusicTransport
         var result = await characteristic.WriteValueWithResultAsync(buffer, GattWriteOption.WriteWithoutResponse).AsTask(cancellationToken).ConfigureAwait(false);
         if (result.Status != GattCommunicationStatus.Success)
             throw new IOException($"蓝牙发送失败：{result.Status}。请检查键盘连接。");
+    }
+
+    private byte controlSequence;
+    private GattCharacteristic? stateCharacteristic;
+    public async Task<KeyboardControlState> ControlAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token)
+    {
+        if (stateCharacteristic is null)
+        {
+            var result = await service.GetCharacteristicsForUuidAsync(KeyboardControlProtocol.StateUuid, BluetoothCacheMode.Uncached).AsTask(token);
+            if (result.Status != GattCommunicationStatus.Success || result.Characteristics.Count == 0)
+                throw new IOException("未找到键盘控制服务，请刷入 R19 固件；必要时删除旧蓝牙配对后重新配对。");
+            stateCharacteristic = result.Characteristics[0];
+        }
+        byte sequence = ++controlSequence;
+        await SendAsync(KeyboardControlProtocol.Command(sequence, mask, values, mode), token);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (watch.Elapsed < TimeSpan.FromSeconds(3))
+        {
+            var result = await stateCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached).AsTask(token);
+            if (result.Status != GattCommunicationStatus.Success) throw new IOException($"读取键盘状态失败：{result.Status}");
+            CryptographicBuffer.CopyToByteArray(result.Value, out byte[] packet);
+            if (KeyboardControlProtocol.Parse(packet, sequence) is { } state) return state;
+            await Task.Delay(40, token);
+        }
+        throw new IOException("键盘控制响应超时，请重新连接。");
     }
 
     public ValueTask DisposeAsync()

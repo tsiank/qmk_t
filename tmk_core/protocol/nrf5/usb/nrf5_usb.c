@@ -54,7 +54,23 @@ APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_music, 4, music_usb_event,
     (NRF_DRV_USBD_EPIN1, NRF_DRV_USBD_EPOUT1), music_reports, 1,
     MUSIC_PACKET_SIZE, APP_USBD_HID_SUBCLASS_NONE, APP_USBD_HID_PROTO_GENERIC);
 
+#ifdef KEYBOARD_CONTROL_ENABLE
+static bool control_busy;
+static uint8_t control_report[21];
+bool keyboard_control_usb_reply(const uint8_t *data) {
+    if (!NRF_USBD->ENABLE) return true;
+    if (control_busy) return false;
+    control_report[0] = MUSIC_USB_REPORT_ID;
+    memcpy(control_report + 1, data, 20);
+    ret_code_t result = app_usbd_hid_generic_in_report_set(&m_app_hid_music, control_report, 21);
+    if (result == NRF_SUCCESS) control_busy = true;
+    return result == NRF_SUCCESS;
+}
+#endif
 static void music_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event) {
+#ifdef KEYBOARD_CONTROL_ENABLE
+    if (event == APP_USBD_HID_USER_EVT_IN_REPORT_DONE) control_busy = false;
+#endif
     if (event == APP_USBD_HID_USER_EVT_OUT_REPORT_READY) {
         size_t size;
         const uint8_t *report = app_usbd_hid_generic_out_report_get(
@@ -230,6 +246,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             m_report_pending = false;
             keyboard_protocol = 1;
             usb_device_state_set_protocol(USB_PROTOCOL_REPORT);
+#ifdef KEYBOARD_CONTROL_ENABLE
+            control_busy = false;
+#endif
             usb_device_state_set_reset();
             break;
         case APP_USBD_EVT_DRV_SUSPEND:  // 3
@@ -268,6 +287,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             music_stream_disconnect(MUSIC_SOURCE_USB);
 #endif
             NRF_LOG_INFO("USB power removed");
+#ifdef KEYBOARD_CONTROL_ENABLE
+            control_busy = false;
+#endif
             usb_device_state_set_reset();
             app_usbd_stop();
             advertising_start(false);

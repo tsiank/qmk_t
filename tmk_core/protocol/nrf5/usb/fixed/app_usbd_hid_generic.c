@@ -320,13 +320,20 @@ static ret_code_t hid_generic_ep_transfer_out(app_usbd_class_inst_t const *p_ins
     app_usbd_hid_generic_t const *p_generic = hid_generic_get(p_inst);
     nrf_drv_usbd_ep_t             ep_addr   = app_usbd_hid_epout_addr_get(p_inst);
 
+    // With queued USB events, an OUT/OK handler can rearm the DMA for packet B
+    // before B's already queued OUT/WAITING event is dispatched. Rearming it a
+    // second time returns BUSY; app_usbd treats any such error as endpoint STALL.
+    // Keep the active receive and buffer intact instead.
+    if (nrf_drv_usbd_ep_is_busy(ep_addr)) return NRF_SUCCESS;
+
     /*Request setup data*/
     app_usbd_hid_report_buffer_t const *p_rep_buff;
 
     p_rep_buff = app_usbd_hid_rep_buff_out_get(&p_generic->specific.inst.hid_inst);
     NRF_DRV_USBD_TRANSFER_OUT(transfer, p_rep_buff->p_buff, p_rep_buff->size);
 
-    return app_usbd_ep_transfer(ep_addr, &transfer);
+    ret_code_t result = app_usbd_ep_transfer(ep_addr, &transfer);
+    return result == NRF_ERROR_BUSY ? NRF_SUCCESS : result;
 }
 
 /**

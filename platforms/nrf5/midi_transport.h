@@ -17,3 +17,6 @@ bool nrf_midi_usb_send(const uint8_t packet[4]);
 void nrf_midi_gatt_init(void);
 void nrf_midi_ble_tick(void);
 bool nrf_midi_ble_send(const uint8_t packet[4]);
+void nrf_midi_diagnostics(char *buffer, size_t size);
+unsigned nrf_midi_usb_state(void);
+unsigned nrf_midi_ble_state(void);
