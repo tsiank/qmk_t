@@ -43,4 +43,4 @@ void    set_output(uint8_t output);
 void    set_output_user(uint8_t output);
 bool    process_nrf5_output(uint16_t keycode, keyrecord_t *record);
 uint8_t auto_detect_output(void);
-// uint8_t where_to_send(void);
+uint8_t where_to_send(void);

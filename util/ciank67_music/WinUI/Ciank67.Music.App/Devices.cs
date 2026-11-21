@@ -29,7 +29,7 @@ internal static class DeviceCatalog
                 var candidates = DeviceList.Local.GetHidDevices().ToArray();
                 var music = candidates.Where(IsMusicInterface).ToArray();
                 if (candidates.Any(d => MusicProtocol.IsSupportedUsbIdentity(d.VendorID,d.ProductID)) && music.Length == 0)
-                    throw new IOException("已找到键盘的 USB 设备，但未检测到音乐接口。请刷入 R7 音乐固件并重新拔插 USB，再刷新设备。");
+                    throw new IOException("已找到键盘的 USB 设备，但未检测到音乐接口。请刷入配套的 Qmknrf5 固件并重新拔插 USB，再刷新设备。");
                 return music.Select(device =>
                 {
                     string name;
@@ -52,7 +52,7 @@ internal static class DeviceCatalog
         return devices.OrderBy(item => item.Name).ToList();
     }
 
-    private static bool IsMusicInterface(HidDevice device)
+    internal static bool IsMusicInterface(HidDevice device)
     {
         try { return MusicProtocol.IsMusicUsbInterface(device.VendorID, device.ProductID,
             device.GetReportDescriptor().DeviceItems.SelectMany(item => item.Usages.GetAllValues())); }
@@ -94,6 +94,8 @@ internal sealed class UsbTransport : IKeyboardControlTransport
     public ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken token) => lease.Value.SendAsync(packet,token);
     public Task<KeyboardControlState> ControlAsync(byte mask,byte values,KeyboardMusicMode mode,CancellationToken token) =>
         lease.Value.ControlAsync(mask,values,mode,token);
+    public Task SyncClockAsync(DateTime localTime,CancellationToken token) => lease.Value.SyncClockAsync(localTime,token);
+    public Task<KeyboardControlState> SetScreenModeAsync(ScreenPowerMode mode,CancellationToken token) => lease.Value.SetScreenModeAsync(mode,token);
     public ValueTask DisposeAsync() { lease.Dispose();return ValueTask.CompletedTask; }
 }
 
@@ -110,7 +112,7 @@ internal sealed class UsbConnection : IKeyboardControlTransport
     {
         this.path = path;
         var device = DeviceList.Local.GetHidDevices()
-            .FirstOrDefault(item => MusicProtocol.IsSupportedUsbIdentity(item.VendorID, item.ProductID) && item.DevicePath == path)
+            .FirstOrDefault(item => string.Equals(item.DevicePath,path,StringComparison.OrdinalIgnoreCase) && DeviceCatalog.IsMusicInterface(item))
             ?? throw new IOException("USB 键盘已断开，请刷新设备。");
         reportLength = device.GetMaxOutputReportLength();
         if (reportLength != 21)
@@ -142,7 +144,7 @@ internal sealed class UsbConnection : IKeyboardControlTransport
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception error)
         {
-            string operation = packet.Span[1] is 3 or 4 ? "控制或查询键盘开关" : packet.Span[1] == 2 ? "设置纯光颜色" : (packet.Span[3] & 3) == 0 ? "停止律动" : "发送音乐频谱";
+            string operation = packet.Span[1] is 3 or 4 or 5 or 6 ? "控制或查询键盘开关" : packet.Span[1] == 2 ? "设置纯光颜色" : (packet.Span[3] & 3) == 0 ? "停止律动" : "发送音乐频谱";
             Program.Trace($"USB {operation}: {error}");
             try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "usb-error.log"),
                 $"{DateTimeOffset.Now:O} USB {operation}, report={reportLength}, control={output.UsesControl}{Environment.NewLine}{error}"); }
@@ -157,13 +159,33 @@ internal sealed class UsbConnection : IKeyboardControlTransport
     public async Task<KeyboardControlState> ControlAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token)
     {
         await writeGate.WaitAsync(token).ConfigureAwait(false);
-        try { return await ControlCoreAsync(mask,values,mode,token).ConfigureAwait(false); }
+        try { return await ControlCoreAsync(++controlSequence,mask,values,mode,null,token).ConfigureAwait(false); }
         finally { writeGate.Release(); }
     }
-    private async Task<KeyboardControlState> ControlCoreAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token)
+    public async Task SyncClockAsync(DateTime localTime,CancellationToken token)
     {
-        byte sequence = ++controlSequence;
-        await SendUnlockedAsync(KeyboardControlProtocol.Command(sequence, mask, values, mode), token);
+        await writeGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            var state=await ControlCoreAsync(++controlSequence,0,0,KeyboardMusicMode.Off,localTime,token).ConfigureAwait(false);
+            if(!state.ClockSynchronized)throw new IOException("键盘未确认校时。");
+        }
+        finally { writeGate.Release(); }
+    }
+    public async Task<KeyboardControlState> SetScreenModeAsync(ScreenPowerMode mode,CancellationToken token)
+    {
+        await writeGate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            var state=await ControlCoreAsync(++controlSequence,0,0,KeyboardMusicMode.Off,null,token,mode).ConfigureAwait(false);
+            if(!state.SupportsScreen||state.ScreenMode!=mode)throw new IOException("键盘未确认屏幕设置。");
+            return state;
+        }
+        finally { writeGate.Release(); }
+    }
+    private async Task<KeyboardControlState> ControlCoreAsync(byte sequence,byte mask, byte values, KeyboardMusicMode mode,DateTime? localTime,CancellationToken token,ScreenPowerMode? screenMode=null)
+    {
+        await SendUnlockedAsync(screenMode is { } display?KeyboardControlProtocol.ScreenCommand(sequence,display):localTime is { } now?KeyboardControlProtocol.ClockCommand(sequence,now):KeyboardControlProtocol.Command(sequence, mask, values, mode), token);
         return await Task.Run(() =>
         {
             stream.ReadTimeout = 100;
@@ -247,18 +269,31 @@ internal sealed class BluetoothTransport : IKeyboardControlTransport
 
     private byte controlSequence;
     private GattCharacteristic? stateCharacteristic;
-    public async Task<KeyboardControlState> ControlAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token)
+    public Task<KeyboardControlState> ControlAsync(byte mask,byte values,KeyboardMusicMode mode,CancellationToken token) =>
+        ControlCoreAsync(mask,values,mode,null,token);
+    public async Task SyncClockAsync(DateTime localTime,CancellationToken token)
+    {
+        var state=await ControlCoreAsync(0,0,KeyboardMusicMode.Off,localTime,token);
+        if(!state.ClockSynchronized)throw new IOException("键盘未确认校时。");
+    }
+    public async Task<KeyboardControlState> SetScreenModeAsync(ScreenPowerMode mode,CancellationToken token)
+    {
+        var state=await ControlCoreAsync(0,0,KeyboardMusicMode.Off,null,token,mode);
+        if(!state.SupportsScreen||state.ScreenMode!=mode)throw new IOException("键盘未确认屏幕设置。");
+        return state;
+    }
+    private async Task<KeyboardControlState> ControlCoreAsync(byte mask,byte values,KeyboardMusicMode mode,DateTime? localTime,CancellationToken token,ScreenPowerMode? screenMode=null)
     {
         if (stateCharacteristic is null)
         {
             var result = await service.GetCharacteristicsForUuidAsync(KeyboardControlProtocol.StateUuid, BluetoothCacheMode.Uncached).AsTask().WaitAsync(token);
             if (result.Status != GattCommunicationStatus.Success || result.Characteristics.Count == 0)
-                throw new IOException($"未找到键盘控制状态特征（{result.Status}，ATT={result.ProtocolError}）。请确认 R19/R20 或更新固件，并删除旧蓝牙配对后重新配对。");
+                throw new IOException($"未找到键盘控制状态特征（{result.Status}，ATT={result.ProtocolError}）。请确认固件支持键盘控制，并删除旧蓝牙配对后重新配对。");
             stateCharacteristic = result.Characteristics[0];
             stateCharacteristic.ProtectionLevel = GattProtectionLevel.EncryptionRequired;
         }
         byte sequence = ++controlSequence;
-        var command = CryptographicBuffer.CreateFromByteArray(KeyboardControlProtocol.Command(sequence, mask, values, mode));
+        var command = CryptographicBuffer.CreateFromByteArray(screenMode is { } display?KeyboardControlProtocol.ScreenCommand(sequence,display):localTime is { } now?KeyboardControlProtocol.ClockCommand(sequence,now):KeyboardControlProtocol.Command(sequence, mask, values, mode));
         // Settings use an acknowledged write, unlike the high-rate music frames.
         // This exposes encryption/permission failures instead of silently losing
         // a command and waiting forever for its state acknowledgement.

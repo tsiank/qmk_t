@@ -497,7 +497,8 @@ void keyboard_init(void) {
 #if defined(CRC_ENABLE)
     crc_init();
 #endif
-#ifdef OLED_ENABLE
+#if defined(OLED_ENABLE) && !defined(PROTOCOL_NRF5)
+    // nRF5 initializes the display after its SDK clocks, timers and power layer.
     oled_init(OLED_ROTATION_0);
 #endif
 #ifdef ST7565_ENABLE

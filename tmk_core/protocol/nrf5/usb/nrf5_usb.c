@@ -178,17 +178,48 @@ static void hid_mouse_process_state(report_mouse_t *report) {
 #endif
 
 #ifdef EXTRAKEY_ENABLE
+#define EXTRA_QUEUE_LENGTH 32
+static uint8_t extra_reports[EXTRA_QUEUE_LENGTH][3];
+static uint8_t extra_head, extra_count;
+static bool extra_active;
+
+static void extra_reset(void) {
+    extra_head = extra_count = 0;
+    extra_active = false;
+}
+
+static void extra_append(uint8_t id, uint16_t value) {
+    uint8_t *report = extra_reports[(extra_head + extra_count) % EXTRA_QUEUE_LENGTH];
+    report[0] = id; report[1] = value; report[2] = value >> 8;
+    extra_count++;
+}
+
+void nrf5_usb_extra_task(void) {
+    if (m_report_pending || !NRF_USBD->ENABLE || extra_active || !extra_count) return;
+    // The SDK queues the pointer, not a copy. Keep the head untouched until
+    // IN_REPORT_DONE, and retry BUSY instead of resetting or losing release.
+    if (app_usbd_hid_generic_in_report_set(&m_app_hid_extra, extra_reports[extra_head], 3) == NRF_SUCCESS)
+        extra_active = true;
+}
+
+static void extra_done(void) {
+    if (!extra_active) return;
+    extra_active = false;
+    extra_head = (extra_head + 1) % EXTRA_QUEUE_LENGTH;
+    extra_count--;
+}
+
 static void hid_extra_process_state(uint8_t report_id, uint16_t data) {
-    if (m_report_pending) return;
-    ret_code_t ret;
-
-    uint8_t report[3];
-    report[0] = report_id;
-    report[1] = data & 0xFF;
-    report[2] = (data >> 8) & 0xFF;
-
-    ret = app_usbd_hid_generic_in_report_set(&m_app_hid_extra, &report, 3);
-    APP_ERROR_CHECK(ret);
+    if (m_report_pending || !NRF_USBD->ENABLE) return;
+    if (extra_count == EXTRA_QUEUE_LENGTH) {
+        // Preserve DMA's head. Resynchronize both usages before the newest
+        // state, so overflowing a fast encoder cannot leave either held down.
+        extra_count = extra_active ? 1 : 0;
+        extra_append(REPORT_ID_SYSTEM, 0);
+        extra_append(REPORT_ID_CONSUMER, 0);
+    }
+    extra_append(report_id, data);
+    nrf5_usb_extra_task();
 }
 #endif
 
@@ -257,6 +288,9 @@ void hid_user_ev_handler(app_usbd_class_inst_t const *p_inst, app_usbd_hid_user_
         }
         case APP_USBD_HID_USER_EVT_IN_REPORT_DONE: {
             m_report_pending = false;
+#ifdef EXTRAKEY_ENABLE
+            if (p_inst == app_usbd_hid_generic_class_inst_get(&m_app_hid_extra)) extra_done();
+#endif
             // hid_generic_mouse_process_state();
             // bsp_board_led_invert(LED_HID_REP_IN);
             break;
@@ -286,6 +320,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
         case APP_USBD_EVT_DRV_SOF:
             break;
         case APP_USBD_EVT_DRV_RESET:
+#ifdef EXTRAKEY_ENABLE
+            extra_reset();
+#endif
 #ifdef RAW_ENABLE
             via_tx_busy = false;
             nrf_via_disconnect(NRF_VIA_USB);
@@ -322,6 +359,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             break;
         case APP_USBD_EVT_STOPPED:
             app_usbd_disable();
+#ifdef EXTRAKEY_ENABLE
+            extra_reset();
+#endif
             // bsp_board_leds_off();
             break;
         case APP_USBD_EVT_POWER_DETECTED:  // 0

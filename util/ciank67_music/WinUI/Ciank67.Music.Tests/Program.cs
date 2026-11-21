@@ -52,8 +52,9 @@ Test("Wire packet matches firmware and Python layout", () =>
     Throws<ArgumentOutOfRangeException>(() => MusicProtocol.Packet(0, bands, (LightTarget)4));
     Throws<ArgumentException>(() => MusicProtocol.UsbReport(packet, 20));
 });
-Test("USB discovery accepts current and legacy identities only on music collections", () =>
+Test("USB music collections accept ciank67, ciank_pad and other keyboard identities", () =>
 {
+    Check(MusicProtocol.IsMusicUsbInterface(0x3D92, 0x8A42, [0xFF670067]), "ciank_pad identity rejected");
     Check(MusicProtocol.IsMusicUsbInterface(0xFEED, 0xC475, [0xFF670067]), "Current identity rejected");
     Check(MusicProtocol.IsMusicUsbInterface(0x1915, 0x520B, [0xFF670067]), "Legacy identity rejected");
     Check(!MusicProtocol.IsMusicUsbInterface(0x1915, 0x520B, [0x00010006]), "Ordinary keyboard selected");
@@ -331,7 +332,18 @@ Test("Keyboard state rejects stale replies and validates every reserved byte", (
     for(int i=6;i<20;i++){packet[i]=1;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Reserved accepted");packet[i]=0;}
     packet[3]=16;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Invalid flags");packet[3]=0;
     packet[4]=4;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Invalid mode");packet[4]=0;
-    packet[5]=2;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Unknown protocol version");
+    packet[5]=3;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Unknown protocol version");
+});
+
+Test("Pad capability state disables nonexistent matrix and audio while supporting MIDI",()=>
+{
+    byte[] packet=new byte[20];packet[0]=0xc7;packet[1]=0x83;packet[2]=7;packet[3]=2;packet[5]=2;packet[6]=18;packet[7]=6;
+    var state=KeyboardControlProtocol.Parse(packet,7);
+    Check(state is { Underglow:true,Matrix:false,Audio:false,Capabilities:18,SupportedModes:6 },"Pad capabilities missing");
+    packet[3]=3;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Unsupported matrix state accepted");packet[3]=2;
+    packet[4]=1;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Unsupported local audio mode accepted");packet[4]=3;
+    Check(KeyboardControlProtocol.Parse(packet,7) is not null,"Supported MIDI typing mode rejected");
+    packet[8]=1;Check(KeyboardControlProtocol.Parse(packet,7) is null,"Reserved v2 byte accepted");
 });
 
 Test("USB clients share one physical connection and release only their own lease", () =>

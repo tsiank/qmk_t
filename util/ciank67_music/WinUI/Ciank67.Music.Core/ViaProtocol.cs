@@ -25,7 +25,7 @@ public sealed class ViaClient(IViaTransport transport,int rows=5,int columns=14)
         if (data.Length > 31) throw new ArgumentException("VIA payload exceeds 31 bytes.");
         byte[] request = new byte[32]; request[0] = command; data.CopyTo(request, 1);
         byte[] response = await transport.ExchangeAsync(request, token);
-        if (response.Length != 32 || response[0] != command) throw new IOException($"VIA 命令 0x{command:X2} 未获正确响应，请确认使用 R21 或更新固件。");
+        if (response.Length != 32 || response[0] != command) throw new IOException($"VIA 命令 0x{command:X2} 未获正确响应，请确认使用支持 VIA 的配套固件。");
         return response;
     }
     public async Task<ViaSnapshot> ReadAsync(CancellationToken token)

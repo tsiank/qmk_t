@@ -26,7 +26,7 @@ internal static class ViaDevices
             string serial;
             try { serial = source.GetSerialNumber(); } catch { serial = ""; }
             if (!string.IsNullOrEmpty(serial)) raw = raw.Where(d => { try { return d.GetSerialNumber() == serial; } catch { return false; } }).ToArray();
-            if (raw.Length != 1) throw new IOException(raw.Length == 0 ? "未找到 VIA 接口，请刷入 R21 或更新固件并重新插拔 USB。" : "发现多个同名键盘，无法确定改键目标，请暂时只连接一个键盘。");
+            if (raw.Length != 1) throw new IOException(raw.Length == 0 ? "未找到 VIA 接口，请刷入支持 VIA 的配套固件并重新插拔 USB。" : "发现多个同名键盘，无法确定改键目标，请暂时只连接一个键盘。");
             token.ThrowIfCancellationRequested();
             return new ViaUsb(raw[0]);
         }, token);

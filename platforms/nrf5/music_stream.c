@@ -13,7 +13,7 @@ bool music_stream_receive(const uint8_t *data, size_t length, music_source_t sou
     if (!data || length != MUSIC_PACKET_SIZE || data[0] != 0xC7 ||
         (source != MUSIC_SOURCE_USB && source != MUSIC_SOURCE_BLE)) return false;
 #ifdef KEYBOARD_CONTROL_ENABLE
-    if (data[1] == 3 || data[1] == 4) {
+    if (data[1] == 3 || data[1] == 4 || data[1] == 5 || data[1] == 6) {
         extern bool keyboard_control_receive(const uint8_t *, music_source_t);
         return keyboard_control_receive(data, source);
     }

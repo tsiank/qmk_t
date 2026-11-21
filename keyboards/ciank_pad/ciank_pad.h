@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
-
 #include "quantum.h"
 
-#define LAYOUT( \
-	                    K04, \
-	K10, K11, K12, K13, K14, \
-	K20, K21, K22, K23, K24, \
-	K30, K31, K32, K33, K34, \
-	K40, K41, K42, K43, K44  \
-) { \
-	{ KC_NO, KC_NO, KC_NO, KC_NO, K04 }, \
-	{ K10,   K11,   K12,   K13,   K14 }, \
-	{ K20,   K21,   K22,   K23,   K24 }, \
-	{ K30,   K31,   K32,   K33,   K34 }, \
-	{ K40,   K41,   K42,   K43,   K44 }  \
-}
+enum ciank_pad_layers { _BASE, _DIR, _RGB_SETTINGS, _SYS, _BLE_SETTINGS };
+// Preserve the original 15 USER codes for existing custom keymaps.
+enum ciank_pad_keycodes { DISC = SAFE_RANGE, ADVW, ADVS, SEL0, SEL1, SEL2, DELB, SLEEP, REBOOT, ENT_DFU, RGBRST, RGBG_TOG, BATT_LV, BATT_LV2, VOLUP, LIGHT_STATUS, UNDERGLOW_TEST, MIDI_TYPING_TOGGLE };

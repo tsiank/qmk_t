@@ -202,7 +202,9 @@ public sealed partial class MainWindow : Window
             initialized = true;
             Program.Trace("Navigation loaded"); await RefreshAsync(); await midiPanel.RefreshAsync(); Program.Trace("Initial refresh complete");
         };
+        keyboardControls.CapabilitiesChanged+=UpdateLightCapabilities;
         keyboard.SelectionChanged += async (_, _) => {
+            UpdateLightCapabilities(31);
             var choice=keyboard.SelectedItem as DeviceChoice;
             selectedDevice.Text=choice?.Name??"尚未选择键盘";
             await keyboardControls.SelectDeviceAsync(choice);
@@ -321,6 +323,16 @@ public sealed partial class MainWindow : Window
         Volatile.Write(ref settings, new MusicSettings(fps, gain.Value, target, demo.IsOn, selectedEffect, selectedColor, rgb));
     }
 
+    private void UpdateLightCapabilities(byte capabilities)
+    {
+        foreach(var(target,flag) in new[]{(matrix,1),(underglow,2)})
+        {
+            bool wasDisabled=!target.IsEnabled;
+            target.IsEnabled=(capabilities&flag)!=0;
+            if(!target.IsEnabled)target.IsChecked=false;else if(wasDisabled)target.IsChecked=true;
+        }
+    }
+
     private void UpdateControls()
     {
         connection.IsEnabled = !running && !firmwareMaintenance;
@@ -355,7 +367,7 @@ public sealed partial class MainWindow : Window
             playback.ItemsSource = audio;
             playback.SelectedItem = audio.FirstOrDefault(item => item.Id == previousAudio) ?? audio[0];
             deviceStatus.Text = index == 2 ? "离线预览已就绪" : devices.Count > 0 ? $"找到 {devices.Count} 个设备，请选择键盘后开始" :
-                index == 0 ? "未找到 USB 音乐接口，请检查 R6 固件与连接" : "未找到已配对蓝牙设备，请先在 Windows 设置中配对";
+                index == 0 ? "未找到 USB 音乐接口，请检查配套固件与连接" : "未找到已配对蓝牙设备，请先在 Windows 设置中配对";
         }
         catch (OperationCanceledException) { if (!closing && ReferenceEquals(refreshCancellation, cancellation)) deviceStatus.Text = "查找已取消或超时，请重试"; }
         catch (Exception error) { if (!closing && ReferenceEquals(refreshCancellation, cancellation)) { deviceStatus.Text = "查找失败，请检查连接后重试。"; ShowError(error.Message); } }

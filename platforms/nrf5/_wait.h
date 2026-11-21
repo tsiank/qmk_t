@@ -20,4 +20,4 @@
 #    if !defined(GPIO_INPUT_PIN_DELAY)
 #        define GPIO_INPUT_PIN_DELAY 2
 #    endif
-#    define waitInputPinDelay()
+#    define waitInputPinDelay() wait_us(GPIO_INPUT_PIN_DELAY)

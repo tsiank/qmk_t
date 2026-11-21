@@ -156,3 +156,4 @@ APP_USBD_HID_GENERIC_SUBCLASS_REPORT_DESC(extrakey_desc, APP_USBD_EXTRA_HID_REPO
 extern uint8_t keyboard_protocol;
 host_driver_t *nrf5_usb_driver(void);
 void           usb_keyboard_init(void);
+void           nrf5_usb_extra_task(void);

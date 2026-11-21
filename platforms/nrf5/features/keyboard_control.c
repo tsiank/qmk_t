@@ -11,6 +11,14 @@
 #endif
 #include "app_util_platform.h"
 #include <string.h>
+#ifdef NRF5_CLOCK_ENABLE
+#    include "nrf5_clock.h"
+#endif
+
+#ifdef NRF5_OLED_STATUS_ENABLE
+#    include "nrf5_ui.h"
+#    include "oled_driver.h"
+#endif
 
 static uint8_t pending[20];
 static music_source_t pending_source;
@@ -22,10 +30,26 @@ extern bool keyboard_control_usb_reply(const uint8_t *data);
 extern bool keyboard_control_ble_reply(const uint8_t *data);
 
 bool keyboard_control_receive(const uint8_t *data, music_source_t source) {
-    if (data[1] != 3 && data[1] != 4) return false;
-    if (data[3] & ~31 || data[4] & ~15 || data[5] > 3) return false;
-    if (data[1] == 4 && (data[3] || data[4] || data[5])) return false;
-    for (unsigned i = 6; i < 20; i++) if (data[i]) return false;
+    if (data[1] == 5) {
+#ifdef NRF5_CLOCK_ENABLE
+        if (data[3] >= 24 || data[4] >= 60 || data[5] >= 60 || ((uint16_t)data[6] | ((uint16_t)data[7] << 8)) >= 1000) return false;
+        for (unsigned i = 8; i < 20; i++) if (data[i]) return false;
+#else
+        return false;
+#endif
+    } else if (data[1] == 6) {
+#ifdef NRF5_OLED_STATUS_ENABLE
+        if (data[3] > 2) return false;
+        for (unsigned i = 4; i < 20; i++) if (data[i]) return false;
+#else
+        return false;
+#endif
+    } else {
+        if (data[1] != 3 && data[1] != 4) return false;
+        if (data[3] & ~31 || data[4] & ~15 || data[5] > 3) return false;
+        if (data[1] == 4 && (data[3] || data[4] || data[5])) return false;
+        for (unsigned i = 6; i < 20; i++) if (data[i]) return false;
+    }
     CRITICAL_REGION_ENTER();
     memcpy(pending, data, 20);
     pending_source = source;
@@ -80,7 +104,13 @@ void nrf5_keyboard_control_task(void) {
     if (apply) { memcpy(command, pending, 20); source = pending_source; ready = false; }
     CRITICAL_REGION_EXIT();
     if (apply) {
-        unsigned mask = command[3], value = command[4];
+#ifdef NRF5_CLOCK_ENABLE
+        if (command[1] == 5) nrf5_clock_set(command[3], command[4], command[5], (uint16_t)command[6] | ((uint16_t)command[7] << 8));
+#endif
+#ifdef NRF5_OLED_STATUS_ENABLE
+        if (command[1] == 6) nrf5_oled_set_power_mode(command[3]);
+#endif
+        unsigned mask = command[1] == 3 ? command[3] : 0, value = command[4];
         (void)value; // Keyboards without RGB/audio still support mode control.
 #ifdef RGB_MATRIX_ENABLE
         if (mask & 1 && rgb_matrix_is_enabled() != !!(value & 1)) {
@@ -118,7 +148,39 @@ void nrf5_keyboard_control_task(void) {
 #if defined(AUDIO_ENABLE) && defined(AUDIO_CLICKY)
         response[3] |= is_clicky_on() << 3;
 #endif
-        response[4] = current_mode(); response[5] = 1; // protocol version
+        response[4] = current_mode(); response[5] = 1; // legacy state
+#if defined(KEYBOARD_CONTROL_CAPABILITIES) || defined(NRF5_CLOCK_ENABLE) || defined(NRF5_OLED_STATUS_ENABLE)
+        response[5] = 2; // state + hardware capabilities
+#    ifdef RGB_MATRIX_ENABLE
+        response[6] |= 1;
+#    endif
+#    ifdef RGBLIGHT_ENABLE
+        response[6] |= 2;
+#    endif
+#    ifdef AUDIO_ENABLE
+        response[6] |= 4 | 16;
+        response[7] |= 1; // local music
+#    endif
+#    if defined(AUDIO_ENABLE) && defined(AUDIO_CLICKY)
+        response[6] |= 8;
+#    endif
+#    if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
+        response[6] |= 16;
+        response[7] |= 2 | 4; // MIDI and typing accompaniment
+#    endif
+#endif
+#ifdef NRF5_CLOCK_ENABLE
+        response[5] = 3; // v2 hardware fields + clock capability/status
+        response[8] = 1;
+        uint8_t hour, minute, second;
+        response[9] = nrf5_clock_read(&hour, &minute, &second);
+#endif
+#ifdef NRF5_OLED_STATUS_ENABLE
+        response[5] = 3;
+        response[8] |= 2; // independently optional screen power control
+        response[10] = nrf5_oled_get_power_mode();
+        response[11] = is_oled_on();
+#endif
         response_source = source; reply_pending = true;
     }
     if (reply_pending) {

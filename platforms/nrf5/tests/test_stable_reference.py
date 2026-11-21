@@ -138,19 +138,24 @@ void idle_state_handle(void);
         for header in ('nrf_log_ctrl.h', 'nrf_log_default_backends.h', 'nrf5_usb.h', 'ble_service.h',
                        'ble.h', 'keyboard.h', 'eeprom.h'):
             self.write(header, '#include "sdk.h"\n')
+        self.write('nrf5_power.h', '#include <stdbool.h>\nstatic inline bool nrf5_usb_powered(void){return true;}\nvoid nrf5_power_task(void);\n')
         harness = self.write('main_test.c', r'''
 #include <assert.h>
 #include "sdk.h"
 usbd_t usbd = {.ENABLE = 1};
 static void (*tick)(void *);
-static unsigned irq, tasks, writes, housekeeping, queue_calls, idle_calls;
+static unsigned irq, tasks, writes, housekeeping, queue_calls, idle_calls, started, ble_ready, display_calls;
 unsigned app_timer_init(void) { return 0; }
 unsigned app_timer_create(int *timer, int mode, void (*handler)(void *)) { *timer = 1; tick = handler; return 0; }
-unsigned app_timer_start(int timer, unsigned interval, void *context) { assert(interval == 4); return 0; }
+unsigned app_timer_start(int timer, unsigned interval, void *context) { assert(interval == 4);started=1;return 0; }
 void keyboard_setup(void) {}
 void keyboard_init(void) {}
 void usb_keyboard_init(void) {}
-void ble_service_init(void) {}
+void ble_service_init(void) {ble_ready=1;}
+uint32_t timer_read32(void) {return tasks*1000;}
+uint32_t timer_elapsed32(uint32_t at){return timer_read32()-at;}
+bool oled_init(int rotation){assert(started&&ble_ready&&irq==0&&queue_calls>0);display_calls++;return display_calls>1;}
+void nrf5_power_task(void){assert(irq==0);}
 void advertising_start(bool erase) {}
 void keyboard_task(void) { assert(irq == 0); tasks++; }
 void eeprom_update(void) { assert(irq == 0); writes++; }
@@ -170,6 +175,9 @@ void idle_state_handle(void) {
         irq = 1; tick(NULL); irq = 0;
     } else {
         assert(tasks == 2);
+#ifdef OLED_ENABLE
+        assert(display_calls==2); // Initial failure is retried after RTC starts.
+#endif
         exit(0);
     }
 }
@@ -181,4 +189,10 @@ int main(void) { nrf5_application_main(); return 1; }
         self.run_command([self.cc, '-std=c11', '-I', str(self.work), '-Dmain=nrf5_application_main',
                           '-c', str(ROOT / 'tmk_core/protocol/nrf5/main.c'), '-o', str(obj)])
         self.run_command([self.cc, '-std=c11', '-I', str(self.work), str(obj), str(harness), '-o', str(binary)])
+        self.run_command([str(binary)])
+        self.write('oled_driver.h', '#include "sdk.h"\n#define OLED_ROTATION_0 0\nbool oled_init(int);\n')
+        self.write('timer.h', '#include <stdint.h>\nuint32_t timer_read32(void);uint32_t timer_elapsed32(uint32_t);\n')
+        self.run_command([self.cc, '-std=c11', '-I', str(self.work), '-DOLED_ENABLE', '-Dmain=nrf5_application_main',
+                          '-c', str(ROOT / 'tmk_core/protocol/nrf5/main.c'), '-o', str(obj)])
+        self.run_command([self.cc, '-std=c11', '-I', str(self.work), '-DOLED_ENABLE', str(obj), str(harness), '-o', str(binary)])
         self.run_command([str(binary)])

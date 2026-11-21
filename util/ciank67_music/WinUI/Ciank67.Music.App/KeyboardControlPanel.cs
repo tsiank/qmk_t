@@ -15,17 +15,21 @@ internal sealed class KeyboardControlPanel
     private readonly ToggleSwitch under = new() { Header = "底灯" };
     private readonly ToggleSwitch audio = new() { Header = "键盘本地声音" };
     private readonly ToggleSwitch clicky = new() { Header = "键盘按键音" };
+    private readonly ComboBox screen = new() { Header="屏幕", HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ComboBox mode = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBlock status = new() { Text = "选择键盘后自动连接控制，控制开关无需开始律动。", TextWrapping = TextWrapping.Wrap };
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly CancellationTokenSource cancellation = new();
     private IKeyboardControlTransport? transport;
+    private KeyboardControlState? lastState;
+    public event Action<byte>? CapabilitiesChanged;
     private Task? operation;
     private CancellationTokenSource deviceCancellation = new();
     private DeviceChoice? device;
     private int generation, pending;
     private bool syncing, polling, closed, suspended, manualDisconnect;
     private DateTime retryAfter;
+    private DateTime nextClockSync;
     private bool busy => pending > 0;
     public UIElement ConnectionView { get; }
     public UIElement LightingView { get; }
@@ -39,6 +43,9 @@ internal sealed class KeyboardControlPanel
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         buttons.Children.Add(connect); buttons.Children.Add(disconnect); connectionPanel.Children.Add(buttons);
         connectionPanel.Children.Add(status);
+        foreach(string name in new[]{"自动 · USB 常亮／蓝牙空闲熄屏","常亮","熄屏"})screen.Items.Add(new ComboBoxItem {Content=name});
+        connectionPanel.Children.Add(screen);
+        connectionPanel.Children.Add(Note("自动模式下蓝牙空闲 60 秒熄屏，按键或旋钮唤醒。熄屏模式会保持关闭；设置保持到键盘重启。"));
         connectionPanel.Children.Add(Note("连接后可在“音乐律动”控制灯光开关，在“MIDI 演奏”控制键盘声音与演奏模式。切换页面保持连接，键盘按键修改后也会自动同步。"));
         ConnectionView = connectionPanel;
 
@@ -52,7 +59,7 @@ internal sealed class KeyboardControlPanel
         var performancePanel = new StackPanel { Spacing = 12 };
         performancePanel.Children.Add(Heading("键盘演奏与声音"));
         performancePanel.Children.Add(new TextBlock { Text = "键盘演奏模式" });
-        foreach (string name in new[] { "关闭演奏 · 正常打字", "本地音乐 · 蜂鸣器演奏", "MIDI 纯演奏", "MIDI 打字伴奏" }) mode.Items.Add(name);
+        foreach (string name in new[] { "关闭演奏 · 正常打字", "本地音乐 · 蜂鸣器演奏", "MIDI 纯演奏", "MIDI 打字伴奏" }) mode.Items.Add(new ComboBoxItem { Content=name });
         performancePanel.Children.Add(mode);
         var sounds = new Grid { ColumnSpacing = 16 };
         sounds.ColumnDefinitions.Add(new ColumnDefinition()); sounds.ColumnDefinitions.Add(new ColumnDefinition());
@@ -72,12 +79,19 @@ internal sealed class KeyboardControlPanel
         AutomationProperties.SetAutomationId(performanceStatus, "PerformanceControlStatus");
         UpdateStatus();
         foreach (var (element,id) in new (DependencyObject,string)[] {
-            (connect,"ConnectKeyboardControl"),(disconnect,"DisconnectKeyboardControl"),
+            (connect,"ConnectKeyboardControl"),(disconnect,"DisconnectKeyboardControl"),(screen,"ScreenPowerMode"),
             (matrix,"KeyboardMatrixPower"),(under,"KeyboardUnderglowPower"),(audio,"KeyboardAudioPower"),
             (clicky,"KeyboardClickyPower"),(mode,"KeyboardPerformanceMode"),(status,"KeyboardControlStatus") })
             AutomationProperties.SetAutomationId(element,id);
         connect.Click += async (_,_) => await SelectDeviceAsync(selected(), force: true);
         disconnect.Click += async (_,_) => await PauseAsync();
+        screen.SelectionChanged += (_,_) => {
+            if(!syncing&&screen.SelectedIndex>=0)Begin(async token=>{
+                if(transport is null)throw new IOException("键盘控制尚未连接。");
+                using var deadline=CancellationTokenSource.CreateLinkedTokenSource(token);deadline.CancelAfter(TimeSpan.FromSeconds(12));
+                ApplyState(await transport.SetScreenModeAsync((ScreenPowerMode)screen.SelectedIndex,deadline.Token));
+            });
+        };
         matrix.Toggled += (_,_) => Change(1,matrix.IsOn);
         under.Toggled += (_,_) => Change(2,under.IsOn);
         audio.Toggled += (_,_) => Change(4,audio.IsOn);
@@ -90,7 +104,7 @@ internal sealed class KeyboardControlPanel
             }
         };
         timer.Tick += (_,_) => {
-            if (closed || suspended || busy || polling || mode.IsDropDownOpen) return;
+            if (closed || suspended || busy || polling || mode.IsDropDownOpen || screen.IsDropDownOpen) return;
             if (transport is null)
             {
                 if (!manualDisconnect && device is { Kind: not ConnectionKind.Preview } choice && DateTime.UtcNow >= retryAfter)
@@ -106,7 +120,12 @@ internal sealed class KeyboardControlPanel
     private static TextBlock Note(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7 };
     private void Controls()
     {
-        foreach (Control control in new Control[] {matrix,under,audio,clicky,mode}) control.IsEnabled = !closed && !suspended && !busy && transport is not null;
+        bool enabled=!closed&&!suspended&&!busy&&transport is not null;
+        screen.IsEnabled=enabled&&lastState?.SupportsScreen==true;
+        byte capabilities=lastState?.Capabilities??(byte)31;
+        foreach(var(control,flag) in new (Control,int)[]{(matrix,1),(under,2),(audio,4),(clicky,8),(mode,16)})control.IsEnabled=enabled&&(capabilities&flag)!=0;
+        byte modes=lastState?.SupportedModes??(byte)7;
+        for(int index=1;index<mode.Items.Count;index++)((ComboBoxItem)mode.Items[index]).IsEnabled=(modes&(1<<(index-1)))!=0;
         connect.IsEnabled = !closed && !suspended && !busy && transport is null && device is { Kind: not ConnectionKind.Preview };
         disconnect.IsEnabled = !closed && !suspended && !busy && transport is not null;
     }
@@ -184,6 +203,7 @@ internal sealed class KeyboardControlPanel
         var opened=await DeviceCatalog.ConnectAsync(choice,timeout.Token);
         if(opened is not IKeyboardControlTransport control){await opened.DisposeAsync();throw new IOException("该连接不支持键盘控制。");}
         transport=control;timeout.Token.ThrowIfCancellationRequested();
+        nextClockSync=DateTime.MinValue;
         await RequestAsync(token:timeout.Token);
         status.Text=$"已连接 · {choice.Name} · 状态自动同步中";
     }
@@ -196,7 +216,7 @@ internal sealed class KeyboardControlPanel
             using var deadline=CancellationTokenSource.CreateLinkedTokenSource(deviceToken,token);deadline.CancelAfter(TimeSpan.FromSeconds(25));
             manualDisconnect=false;
             if(transport is null)await ConnectAsync(choice,deadline.Token);
-            var state=await KeyboardControlProtocol.EnableMusicLightsAsync(transport!,target,deadline.Token);
+            var state=await KeyboardControlProtocol.EnableMusicLightsAsync(transport!,target,deadline.Token,lastState?.Capabilities??(byte)31);
             if(state is not null)ApplyState(state);
         },propagate:true);
     }
@@ -206,25 +226,34 @@ internal sealed class KeyboardControlPanel
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token,token);
         deadline.CancelAfter(TimeSpan.FromSeconds(12));
         var state = await transport.ControlAsync(mask,values,selectedMode,deadline.Token);
+        if(state.SupportsClock&&(!state.ClockSynchronized||DateTime.UtcNow>=nextClockSync))
+        {
+            await transport.SyncClockAsync(DateTime.Now,deadline.Token);
+            nextClockSync=DateTime.UtcNow.AddMinutes(1);
+        }
         // A pending user command owns the visible state; an older poll must not
         // undo its toggle or dismiss the mode menu while the command waits.
-        if (closed || (background && (busy || mode.IsDropDownOpen))) return;
+        if (closed || (background && (busy || mode.IsDropDownOpen || screen.IsDropDownOpen))) return;
         ApplyState(state);
     }
     private void ApplyState(KeyboardControlState state)
     {
+        bool changed=lastState?.Capabilities!=state.Capabilities||lastState?.SupportedModes!=state.SupportedModes||lastState?.SupportsScreen!=state.SupportsScreen;
+        lastState=state;
         syncing = true;
         try
         {
             matrix.IsOn = state.Matrix; under.IsOn = state.Underglow;
             audio.IsOn = state.Audio; clicky.IsOn = state.Clicky;
             mode.SelectedIndex = (int)state.Mode;
+            screen.SelectedIndex=state.SupportsScreen?(int)state.ScreenMode:-1;
         }
         finally { syncing = false; }
+        if(changed){Controls();CapabilitiesChanged?.Invoke(state.Capabilities);}
     }
     private async Task DisconnectAsync(bool showStatus)
     {
-        var previous = transport; transport = null;
+        var previous = transport; transport = null;lastState=null;
         if (previous is not null){try{await previous.DisposeAsync();}catch(Exception ex){Program.Trace("Control dispose: "+ex.Message);}}
         if (showStatus) status.Text = "控制已断开，键盘保留当前开关状态。";
     }

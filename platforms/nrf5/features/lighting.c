@@ -3,12 +3,15 @@
 #include "nrf5_lighting.h"
 
 #include "process_underglow.h"
+#ifdef OLED_ENABLE
+#    include "oled_driver.h"
+#endif
 
 #if defined(PROTOCOL_NRF5) && defined(SEND_STRING_ENABLE)
 #    include <stdio.h>
 #    include "eeprom_nrf.h"
 #    include "nrf_gpio.h"
-#    ifdef RGB_MATRIX_IS31FL3741
+#    if defined(RGB_MATRIX_IS31FL3741) || defined(OLED_ENABLE)
 #        include "nrf5/i2c_master.h"
 #    endif
 #    ifdef MIDI_ENABLE
@@ -39,7 +42,7 @@ void nrf5_lighting_report(void) {
 #    ifdef RGB_PWR_PIN
     power = nrf_gpio_pin_read(RGB_PWR_PIN);
 #    endif
-#    ifdef RGB_MATRIX_IS31FL3741
+#    if defined(RGB_MATRIX_IS31FL3741) || defined(OLED_ENABLE)
     errors = nrf5_i2c_error_count();
 #    endif
     snprintf(report_buffer, sizeof(report_buffer),
@@ -58,6 +61,10 @@ void nrf5_lighting_report(void) {
 #        endif
     snprintf(report_buffer + used, sizeof(report_buffer) - used,
              "midi typing=%u pure=%u %s\n", nrf5_midi_typing_enabled(), pure, midi);
+#    endif
+#    ifdef OLED_ENABLE
+    size_t oled_used = strlen(report_buffer);
+    snprintf(report_buffer + oled_used, sizeof(report_buffer) - oled_used, "oled=%u\n", is_oled_on());
 #    endif
     report_position = 0;
     report_pending = true;

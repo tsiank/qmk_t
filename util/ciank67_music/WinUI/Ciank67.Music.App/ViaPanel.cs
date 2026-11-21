@@ -28,7 +28,7 @@ internal sealed class ViaPanel
     private readonly ViaKeyPicker picker;
     private readonly AutoSuggestBox keycode = new() { PlaceholderText = "搜索键码，或输入 MO(1)、LT(1,KC_SPC)…" };
     private readonly TextBlock keyLabel = new() { Text = "先读取键位，再点击键盘图选择要修改的按键", TextWrapping = TextWrapping.Wrap };
-    private readonly TextBlock status = new() { Text = "USB / 蓝牙改键 · 需要 R21 或更新固件。读取后先编辑，再写入键盘。", TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock status = new() { Text = "USB / 蓝牙改键 · 需要支持 VIA 的配套固件。读取后先编辑，再写入键盘。", TextWrapping = TextWrapping.Wrap };
     private readonly Canvas keyboard = new() { Width = 620, Height = 210 };
     private readonly ComboBox macroSlot = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ToggleSwitch macroHex = new() { Header = "宏编辑格式", OffContent = "文字", OnContent = "VIA 宏字节（十六进制）" };

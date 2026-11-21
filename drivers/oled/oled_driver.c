@@ -27,6 +27,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "compiler_support.h"
 #include "oled_driver.h"
 #include OLED_FONT_H
+#ifdef NRF5_OLED_STATUS_ENABLE
+#    include "nrf5_ui.h"
+#endif
 #include "timer.h"
 #include "print.h"
 #include <string.h>
@@ -443,6 +446,11 @@ static void rotate_90(const uint8_t *src, uint8_t *dest) {
 }
 
 void oled_render_dirty(bool all) {
+#ifdef NRF5_OLED_STATUS_ENABLE
+    // Keep dirty pixels queued while explicitly off or idle. A render must
+    // never wake an OLED against the nRF shared display power policy.
+    if (!nrf5_oled_wake_allowed()) return;
+#endif
     // Do we have work to do?
     oled_dirty &= OLED_ALL_BLOCKS_MASK;
     if (!oled_dirty || !oled_initialized || oled_scrolling) {
@@ -729,6 +737,9 @@ void oled_write_raw_P(const char *data, uint16_t size) {
 #endif // defined(__AVR__)
 
 bool oled_on(void) {
+#ifdef NRF5_OLED_STATUS_ENABLE
+    if (!nrf5_oled_wake_allowed()) return oled_active;
+#endif
     if (!oled_initialized) {
         return oled_active;
     }

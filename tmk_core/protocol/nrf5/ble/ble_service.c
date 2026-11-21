@@ -78,6 +78,8 @@
 #include "ble_service.h"
 #include "ble_hids_service.h"
 #include "outputselect.h"
+#include "nrf5_power.h"
+#include "eeprom_nrf.h"
 
 #ifdef RGBLIGHT_ENABLE
 #include "progmem.h"
@@ -90,8 +92,9 @@
 uint8_t              keyboard_ble_led_stats = 0;
 static volatile bool ble_disable            = true; /**< Handle of the current connection. */
 #ifdef POWER_SAVE_TIMEOUT
-static uint16_t power_save_counter = 0;
+static volatile uint16_t power_save_counter = 0;
 #endif
+static volatile bool automatic_sleep_pending;
 nrf_drv_wdt_channel_id m_channel_id;
 
 #define DEVICE_NAME "Nordic_Keyboard"           /**< Name of device. Will be included in the advertising data. */
@@ -527,31 +530,44 @@ void battery_level_update(nrf_saadc_value_t value, uint16_t size) {
  * @param[in]   p_context   Pointer used for passing some arbitrary information (context) from the
  *                          app_start_timer() call to the timeout handler.
  */
+static void request_automatic_sleep(void) {
+    automatic_sleep_pending = !nrf5_usb_powered();
+}
+
 static void battery_level_meas_timeout_handler(void *p_context) {
     UNUSED_PARAMETER(p_context);
-		if (!NRF_USBD->ENABLE){
-	#ifdef POWER_SAVE_TIMEOUT
-		    if (power_save_counter++ > POWER_SAVE_TIMEOUT / 2) {
-			#ifdef RGBLIGHT_ENABLE
-			       rgblight_disable();
-			#endif
-		        sleep_mode_enter();
-		    }
-	#endif
-
 #ifdef KBD_WDT_ENABLE
     nrf_drv_wdt_channel_feed(m_channel_id);
 #endif
+    if (nrf5_usb_powered()) {
+#ifdef POWER_SAVE_TIMEOUT
+        power_save_counter = 0;
+#endif
+        automatic_sleep_pending = false;
+        return;
+    }
+#ifdef POWER_SAVE_TIMEOUT
+    if (power_save_counter++ > POWER_SAVE_TIMEOUT / 2) request_automatic_sleep();
+#endif
     adc_start();
-		}
 }
 
-void reset_power_save_counter() {
-	if (!NRF_USBD->ENABLE){
+void reset_power_save_counter(void) {
 #ifdef POWER_SAVE_TIMEOUT
-    		power_save_counter = 0;
+    power_save_counter = 0;
 #endif
-	}
+    automatic_sleep_pending = false;
+}
+
+void nrf5_power_task(void) {
+    if (nrf5_usb_powered()) { reset_power_save_counter(); return; }
+    if (!automatic_sleep_pending || nrf5_eeprom_pending()) return;
+    automatic_sleep_pending = false;
+#ifdef RGBLIGHT_ENABLE
+    // Sleep must not persist the user's enabled light state as OFF.
+    rgblight_disable_noeeprom();
+#endif
+    sleep_mode_enter();
 }
 
 /**@brief Function for the GAP initialization.
@@ -792,6 +808,7 @@ static void timers_start(void) {
  * @note This function will not return.
  */
 static void sleep_mode_enter(void) {
+    if (nrf5_usb_powered()) return;
 #ifdef IS31FL3737
     i2c_stop();
 #endif
@@ -801,6 +818,15 @@ static void sleep_mode_enter(void) {
 
     static const uint8_t row_pins[MATRIX_ROWS] = MATRIX_ROW_PINS;
     static const uint8_t col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
+#if DIODE_DIRECTION == ROW2COL
+    for (uint8_t i = 0; i < MATRIX_COLS; i++) {
+        nrf_gpio_cfg_output(col_pins[i]);
+        nrf_gpio_pin_clear(col_pins[i]);
+    }
+    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
+        nrf_gpio_cfg_sense_input(row_pins[i], NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+    }
+#else
     for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
         nrf_gpio_cfg_output(row_pins[i]);
         nrf_gpio_pin_clear(row_pins[i]);
@@ -808,6 +834,7 @@ static void sleep_mode_enter(void) {
     for (uint8_t i = 0; i < MATRIX_COLS; i++) {
         nrf_gpio_cfg_sense_input(col_pins[i], NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
     }
+#endif
 
 #ifdef AUDIO_ENABLE
     extern void audio_driver_stop_impl(void);
@@ -887,10 +914,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
             break;
 
         case BLE_ADV_EVT_IDLE:
-		#ifdef RGBLIGHT_ENABLE
-		       rgblight_disable();
-		#endif
-            sleep_mode_enter();
+            // Advertising can time out even when USB is connected. Do not
+            // power off the whole keyboard from the BLE event callback.
+            request_automatic_sleep();
             break;
 
         case BLE_ADV_EVT_WHITELIST_REQUEST: {

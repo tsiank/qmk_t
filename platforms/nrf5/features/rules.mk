@@ -15,3 +15,35 @@ ifeq ($(strip $(NRF5_CONFIG_ENABLE)),yes)
         endif
     endif
 endif
+
+# UI modules also work without music/client features.
+ifeq ($(strip $(NRF5_OLED_STATUS_ENABLE)),yes)
+    ifneq ($(strip $(OLED_ENABLE)),yes)
+        $(error NRF5_OLED_STATUS_ENABLE requires OLED_ENABLE = yes)
+    endif
+    COMMON_VPATH += platforms/nrf5/features
+    OPT_DEFS += -DNRF5_OLED_STATUS_ENABLE
+    SRC += platforms/nrf5/features/oled_status.c platforms/nrf5/features/oled_power.c
+endif
+ifeq ($(strip $(NRF5_ENCODER_ENABLE)),yes)
+    ifneq ($(strip $(ENCODER_ENABLE)),yes)
+        $(error NRF5_ENCODER_ENABLE requires ENCODER_ENABLE = yes)
+    endif
+    ifeq ($(strip $(ENCODER_MAP_ENABLE)),yes)
+        $(error NRF5_ENCODER_ENABLE uses encoder_update_kb; disable ENCODER_MAP_ENABLE)
+    endif
+    COMMON_VPATH += platforms/nrf5/features
+    OPT_DEFS += -DNRF5_ENCODER_ENABLE
+    SRC += platforms/nrf5/features/encoder.c
+endif
+
+ifeq ($(strip $(NRF5_CLOCK_ENABLE)),yes)
+    ifneq ($(strip $(NRF5_CONFIG_ENABLE)),yes)
+        $(error NRF5_CLOCK_ENABLE requires NRF5_CONFIG_ENABLE = yes)
+    endif
+    ifneq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
+        $(error NRF5_CLOCK_ENABLE requires MUSIC_STREAM_ENABLE = yes for host time sync)
+    endif
+    OPT_DEFS += -DNRF5_CLOCK_ENABLE
+    SRC += platforms/nrf5/features/clock.c
+endif

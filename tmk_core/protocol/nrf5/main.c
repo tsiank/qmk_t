@@ -51,6 +51,14 @@
 
 #include "keyboard.h"
 #include "eeprom.h"
+#include "nrf5_power.h"
+#ifdef NRF5_OLED_STATUS_ENABLE
+#    include "nrf5_ui.h"
+#endif
+#ifdef OLED_ENABLE
+#include "oled_driver.h"
+#include "timer.h"
+#endif
 #ifdef RAW_ENABLE
 #include "via_transport.h"
 #endif
@@ -115,7 +123,13 @@ int main(void) {
     ret = app_timer_start(m_keyboard_scan_timer, APP_TIMER_TICKS(KEYBOARD_SCAN_INTERVAL), NULL);
     APP_ERROR_CHECK(ret);
 
-    if (!NRF_USBD->ENABLE) {
+#ifdef OLED_ENABLE
+    bool display_ready = false;
+    bool display_attempted = false;
+    uint32_t display_attempt = timer_read32();
+#endif
+
+    if (!nrf5_usb_powered()) {
         advertising_start(false);
     }
 
@@ -129,6 +143,9 @@ int main(void) {
 #ifdef RAW_ENABLE
         nrf_via_task();
 #endif
+#ifdef EXTRAKEY_ENABLE
+        nrf5_usb_extra_task();
+#endif
         if (keyboard_scan_pending) {
             keyboard_scan_pending = false;
             keyboard_task();
@@ -137,6 +154,19 @@ int main(void) {
 #endif
             eeprom_update();
             housekeeping_task();
+            nrf5_power_task();
+#ifdef OLED_ENABLE
+            // Drain USB events before any display I/O; allow enumeration to
+            // start before the first OLED attempt. Subsequent retries are slow.
+            if (!display_ready && timer_elapsed32(display_attempt) >= (display_attempted ? 1000 : 250)) {
+                display_attempted = true;
+                display_ready = oled_init(OLED_ROTATION_0);
+                display_attempt = timer_read32();
+            }
+#endif
+#ifdef NRF5_OLED_STATUS_ENABLE
+            nrf5_oled_power_task();
+#endif
 #ifdef NRF5_CONFIG_ENABLE
             nrf5_features_task();
 #endif
