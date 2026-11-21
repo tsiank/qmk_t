@@ -1,6 +1,6 @@
-param([Parameter(Mandatory = $true)][string]$PublishDirectory)
+﻿param([Parameter(Mandatory = $true)][string]$PublishDirectory)
 $ErrorActionPreference = 'Stop'
-$required = @('Qmknrf5.exe','Qmknrf5.dll','Qmknrf5.pri','App.xbf','MainWindow.xbf','Qmknrf5.runtimeconfig.json','Assets/Qmknrf5.ico','Layouts/ciank67.json','Layouts/ciank_pad.json',
+$required = @('Samples/小星星-柔和钢琴.mid','Samples/小星星-音乐盒.mid','小星星演奏说明.txt','Qmknrf5.exe','Qmknrf5.dll','Qmknrf5.pri','App.xbf','MainWindow.xbf','Qmknrf5.runtimeconfig.json','Assets/Qmknrf5.ico','Layouts/ciank67.json','Layouts/ciank_pad.json',
     'Tools/nrfutil/nrfutil.exe','Tools/README.txt',
     'Tools/bootloader/nrf52840_xxaa.hex','Tools/bootloader/s140_nrf52_6.1.1_softdevice.hex',
     'Tools/bootloader/pca10056_bootloader-0.3.2_s140_6.1.1.hex',

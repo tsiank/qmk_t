@@ -19,17 +19,19 @@ internal sealed class MidiRouter : IDisposable
     private readonly IMidiOutPort output;
     private readonly Action<Exception> failed;
     private bool disposed;
+    private bool softPlaying;
     private long count;
     private string latest = "等待键盘音符…";
 
-    internal MidiRouter(MidiInPort? input, IMidiOutPort output, Action<Exception> failed)
+    internal MidiRouter(MidiInPort? input, IMidiOutPort output, Action<Exception> failed,bool softPlaying=false)
     {
-        this.input = input; this.output = output; this.failed = failed;
+        this.input = input; this.output = output; this.failed = failed; this.softPlaying=softPlaying;
+        if(softPlaying)SetAmbience(output,true);
         if (input is not null) input.MessageReceived += Received;
     }
 
     public static async Task<MidiRouter> OpenAsync(string inputId, string outputId, byte program,
-        Action<Exception> failed, CancellationToken token)
+        Action<Exception> failed, CancellationToken token,bool softPlaying=false)
     {
         MidiInPort? input = null;
         IMidiOutPort? output = null;
@@ -46,7 +48,7 @@ internal sealed class MidiRouter : IDisposable
             token.ThrowIfCancellationRequested();
             if (output is null) throw new IOException("无法打开 MIDI 合成器，请检查输出设备后重试。");
             SetProgram(output, program);
-            return new MidiRouter(input, output, failed);
+            return new MidiRouter(input, output, failed,softPlaying);
         }
         catch
         {
@@ -54,6 +56,26 @@ internal sealed class MidiRouter : IDisposable
         }
     }
 
+    public static async Task<MidiRouter> OpenOutputAsync(string outputId,Action<Exception> failed,CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var port=await CancellableResourceOpen.OpenAsync<IMidiOutPort>(async()=>
+            outputId.Length==0?await MidiSynthesizer.CreateAsync():await MidiOutPort.FromIdAsync(outputId),p=>p.Dispose(),token);
+        if(port is null)throw new IOException("无法打开 MIDI 合成器。");
+        return new MidiRouter(null,port,failed);
+    }
+    private static void SetAmbience(IMidiOutPort output,bool soft)
+    {
+        for(byte channel=0;channel<16;channel++)if(channel!=9)
+        {
+            output.SendMessage(new MidiControlChangeMessage(channel,91,soft?(byte)28:(byte)0));
+            output.SendMessage(new MidiControlChangeMessage(channel,93,soft?(byte)4:(byte)0));
+        }
+    }
+    public void SetSoftPlaying(bool enabled)
+    {
+        lock(gate){if(disposed)return;SetAmbience(output,enabled);softPlaying=enabled;}
+    }
     private static void SetProgram(IMidiOutPort output, byte program)
     {
         for (byte channel = 0; channel < 16; channel++)
@@ -83,6 +105,12 @@ internal sealed class MidiRouter : IDisposable
             if (disposed) return;
             try
             {
+                if(softPlaying&&message is MidiNoteOnMessage inputNote&&inputNote.Velocity>0&&inputNote.Channel!=9)
+                {
+                    int velocity=(inputNote.Velocity*88+63)/127;
+                    if(inputNote.Note<60)velocity=(velocity*72+50)/100;
+                    message=new MidiNoteOnMessage(inputNote.Channel,inputNote.Note,(byte)Math.Max(1,velocity));
+                }
                 output.SendMessage(message);
                 count++;
                 latest = message switch

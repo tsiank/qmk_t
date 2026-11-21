@@ -82,6 +82,22 @@ Test("Cancelled opening does not acquire a MIDI port", () =>
     catch(OperationCanceledException) { return; }
     throw new Exception("Expected cancellation");
 });
+Test("Soft playing reduces fixed full velocity, balances bass, and preserves releases/drums", () =>
+{
+    var output=new FakeOutput();using var router=new MidiRouter(null,output,_=>throw new Exception());
+    router.SetSoftPlaying(true);
+    Assert(output.Messages.Count==30&&output.Messages.OfType<MidiControlChangeMessage>().All(e=>e.Channel!=9),"Wrong ambience channels");
+    output.Messages.Clear();
+    router.Forward(new MidiNoteOnMessage(0,61,127));router.Forward(new MidiNoteOnMessage(0,49,127));
+    router.Forward(new MidiNoteOnMessage(9,49,127));router.Forward(new MidiNoteOnMessage(0,61,0));
+    router.Forward(new MidiNoteOffMessage(0,49,20));
+    Assert(output.Messages[0] is MidiNoteOnMessage {Note:61,Velocity:88},"Melody not softened");
+    Assert(output.Messages[1] is MidiNoteOnMessage {Note:49,Velocity:63},"Bass overwhelms melody");
+    Assert(output.Messages[2] is MidiNoteOnMessage {Channel:9,Velocity:127},"Drums modified");
+    Assert(output.Messages[3] is MidiNoteOnMessage {Velocity:0}&&output.Messages[4] is MidiNoteOffMessage {Note:49,Velocity:20},"Release modified");
+    router.SetSoftPlaying(false);output.Messages.Clear();router.Forward(new MidiNoteOnMessage(0,61,127));
+    Assert(output.Messages[0] is MidiNoteOnMessage {Velocity:127},"Passthrough not restored");
+});
 Test("Windows built-in synthesizer opens and accepts program/stop commands", () =>
 {
     var synth = MidiSynthesizer.CreateAsync().AsTask().GetAwaiter().GetResult();

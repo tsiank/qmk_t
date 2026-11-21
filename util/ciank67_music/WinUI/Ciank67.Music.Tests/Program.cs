@@ -412,6 +412,7 @@ Test("Device open failures propagate and null handles are not disposed", () =>
     Check(CancellableResourceOpen.OpenAsync<object>(()=>Task.FromResult<object?>(null),_=>closed++,CancellationToken.None).GetAwaiter().GetResult() is null&&closed==0,"Null disposal");
 });
 
+TwinkleTests.Run(Test);
 KeyboardControlTests.Run(Test);
 ViaTests.Run(Test);
 FirmwareTests.Run(Test);
