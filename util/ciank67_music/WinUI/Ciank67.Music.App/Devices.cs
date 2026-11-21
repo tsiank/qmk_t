@@ -26,16 +26,15 @@ internal static class DeviceCatalog
         if (kind == ConnectionKind.Usb)
             return await Task.Run(() =>
             {
-                var candidates = DeviceList.Local.GetHidDevices()
-                    .Where(device => MusicProtocol.IsSupportedUsbIdentity(device.VendorID, device.ProductID)).ToArray();
+                var candidates = DeviceList.Local.GetHidDevices().ToArray();
                 var music = candidates.Where(IsMusicInterface).ToArray();
-                if (candidates.Length > 0 && music.Length == 0)
+                if (candidates.Any(d => MusicProtocol.IsSupportedUsbIdentity(d.VendorID,d.ProductID)) && music.Length == 0)
                     throw new IOException("已找到键盘的 USB 设备，但未检测到音乐接口。请刷入 R7 音乐固件并重新拔插 USB，再刷新设备。");
                 return music.Select(device =>
                 {
                     string name;
                     try { name = device.GetProductName() + " · " + device.GetSerialNumber(); }
-                    catch (Exception) { name = "ciank67 · " + device.DevicePath; }
+                    catch (Exception) { name = "nRF5 键盘 · " + device.DevicePath; }
                     return new DeviceChoice(kind, device.DevicePath, name);
                 }).ToList();
             }, token);
@@ -50,8 +49,7 @@ internal static class DeviceCatalog
             string address = string.Join(":", Enumerable.Range(0, 6).Select(i => hex.Substring(i * 2, 2)));
             devices.Add(new DeviceChoice(kind, item.Id, $"{item.Name} · {address}"));
         }
-        return devices.OrderByDescending(item => item.Name.Contains("ciank67", StringComparison.OrdinalIgnoreCase))
-            .ThenBy(item => item.Name).ToList();
+        return devices.OrderBy(item => item.Name).ToList();
     }
 
     private static bool IsMusicInterface(HidDevice device)
@@ -85,11 +83,6 @@ internal sealed class PreviewTransport : IMusicTransport
     public ValueTask SendAsync(ReadOnlyMemory<byte> packet, CancellationToken cancellationToken)
     { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.CompletedTask; }
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-}
-
-internal interface IKeyboardControlTransport : IMusicTransport
-{
-    Task<KeyboardControlState> ControlAsync(byte mask, byte values, KeyboardMusicMode mode, CancellationToken token);
 }
 
 internal sealed class UsbTransport : IKeyboardControlTransport
@@ -276,7 +269,7 @@ internal sealed class BluetoothTransport : IKeyboardControlTransport
         while (watch.Elapsed < TimeSpan.FromSeconds(3))
         {
             var result = await stateCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached).AsTask().WaitAsync(token);
-            if (result.Status != GattCommunicationStatus.Success) throw new IOException($"读取蓝牙键盘状态失败：{result.Status}，ATT={result.ProtocolError}。请确认已配对且连接的是 ciank67。");
+            if (result.Status != GattCommunicationStatus.Success) throw new IOException($"读取蓝牙键盘状态失败：{result.Status}，ATT={result.ProtocolError}。请确认已配对且连接的是支持 Qmknrf5 协议的键盘。");
             CryptographicBuffer.CopyToByteArray(result.Value, out byte[] packet);
             if (KeyboardControlProtocol.Parse(packet, sequence) is { } state) return state;
             await Task.Delay(40, token);

@@ -1,3 +1,6 @@
+#ifdef RAW_ENABLE
+#include "via_transport.h"
+#endif
 #include <stdint.h>
 #include "nrf5_usb.h"
 #include "ble_service.h"
@@ -77,6 +80,49 @@ static void music_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_
             app_usbd_hid_generic_class_get(instance), &size);
         if (report && size == MUSIC_PACKET_SIZE + 1 && report[0] == MUSIC_USB_REPORT_ID)
             music_stream_receive(report + 1, MUSIC_PACKET_SIZE, MUSIC_SOURCE_USB);
+    }
+}
+#endif
+
+#ifdef RAW_ENABLE
+// Standard VIA Raw HID collection, no report ID; EP7 is independent of
+// music EP1, MIDI EP5, keyboard EP6/NKRO EP2, mouse EP3 and media EP4.
+APP_USBD_HID_GENERIC_SUBCLASS_REPORT_DESC(via_desc,
+    {0x06, 0x60, 0xFF, 0x09, 0x61, 0xA1, 0x01,
+     0x15, 0x00, 0x26, 0xFF, 0x00, 0x75, 0x08, 0x95, 32,
+     0x09, 0x62, 0x81, 0x02, 0x95, 32, 0x09, 0x63, 0x91, 0x02, 0xC0});
+static const app_usbd_hid_subclass_desc_t *via_reports[] = {&via_desc};
+static void via_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event);
+// Keep the already shipped music and MIDI interface numbers unchanged.
+#    ifdef MIDI_ENABLE
+#        ifdef MUSIC_STREAM_ENABLE
+#            define VIA_INTERFACE 7
+#        else
+#            define VIA_INTERFACE 6
+#        endif
+#    elif defined(MUSIC_STREAM_ENABLE)
+#        define VIA_INTERFACE 5
+#    else
+#        define VIA_INTERFACE 4
+#    endif
+APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_via, VIA_INTERFACE, via_usb_event,
+    (NRF_DRV_USBD_EPIN7, NRF_DRV_USBD_EPOUT7), via_reports, 1,
+    32, APP_USBD_HID_SUBCLASS_NONE, APP_USBD_HID_PROTO_GENERIC);
+static bool via_tx_busy;
+static uint8_t via_tx[32];
+bool nrf_via_usb_reply(const uint8_t *data) {
+    if (!NRF_USBD->ENABLE || via_tx_busy) return false;
+    memcpy(via_tx, data, sizeof(via_tx));
+    ret_code_t result = app_usbd_hid_generic_in_report_set(&m_app_hid_via, via_tx, sizeof(via_tx));
+    if (result == NRF_SUCCESS) via_tx_busy = true;
+    return result == NRF_SUCCESS;
+}
+static void via_usb_event(app_usbd_class_inst_t const *instance, app_usbd_hid_user_event_t event) {
+    if (event == APP_USBD_HID_USER_EVT_IN_REPORT_DONE) via_tx_busy = false;
+    if (event == APP_USBD_HID_USER_EVT_OUT_REPORT_READY) {
+        size_t size;
+        const uint8_t *report = app_usbd_hid_generic_out_report_get(app_usbd_hid_generic_class_get(instance), &size);
+        nrf_via_usb_receive(report, size);
     }
 }
 #endif
@@ -240,6 +286,10 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
         case APP_USBD_EVT_DRV_SOF:
             break;
         case APP_USBD_EVT_DRV_RESET:
+#ifdef RAW_ENABLE
+            via_tx_busy = false;
+            nrf_via_disconnect(NRF_VIA_USB);
+#endif
 #ifdef MUSIC_STREAM_ENABLE
             music_stream_disconnect(MUSIC_SOURCE_USB);
 #endif
@@ -283,6 +333,10 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             set_output(OUTPUT_USB);
             break;
         case APP_USBD_EVT_POWER_REMOVED:
+#ifdef RAW_ENABLE
+            via_tx_busy = false;
+            nrf_via_disconnect(NRF_VIA_USB);
+#endif
 #ifdef MUSIC_STREAM_ENABLE
             music_stream_disconnect(MUSIC_SOURCE_USB);
 #endif
@@ -328,6 +382,9 @@ static host_driver_t driver = {
     .send_nkro = send_nkro,
     .send_mouse = send_mouse,
     .send_extra = send_extra,
+#ifdef RAW_ENABLE
+    .send_raw_hid = nrf_via_send,
+#endif
 };
 
 host_driver_t *nrf5_usb_driver(void) { return &driver; }
@@ -408,6 +465,11 @@ void usb_keyboard_init(void) {
 
 #ifdef MIDI_ENABLE
     nrf_midi_usb_init();
+#endif
+
+#ifdef RAW_ENABLE
+    ret = app_usbd_class_append(app_usbd_hid_generic_class_inst_get(&m_app_hid_via));
+    APP_ERROR_CHECK(ret);
 #endif
 
     NRF_LOG_INFO("USBD HID composite example started.");

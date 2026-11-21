@@ -19,11 +19,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\Ciank67Music.ico</ApplicationIcon>
-    <AssemblyName>Ciank67Music</AssemblyName>
+    <ApplicationIcon>Assets\Qmknrf5.ico</ApplicationIcon>
+    <AssemblyName>Qmknrf5</AssemblyName>
+    <Product>Qmknrf5配置工具</Product>
+    <Title>Qmknrf5配置工具</Title>
   </PropertyGroup>
   <ItemGroup>
-    <Content Update="Assets/Ciank67Music.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Assets/Qmknrf5.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.7.0" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.7.0" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3719.77" ExcludeAssets="native" />
@@ -31,6 +33,9 @@
     <PackageReference Include="HidSharp" Version="2.6.4" />
     <ProjectReference Include="../Ciank67.Music.Core/Ciank67.Music.Core.csproj" />
     <Content Include="../README.md" Link="使用说明.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Tools/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Layouts/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../ciank67-via.json" Link="ciank67-via.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../twinkle-keyboard.txt" Link="小星星演奏说明.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../licenses/*" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

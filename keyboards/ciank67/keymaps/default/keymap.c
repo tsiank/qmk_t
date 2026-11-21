@@ -15,8 +15,8 @@
  */
 
 #include QMK_KEYBOARD_H
-#include "lighting.h"
-#include "midi_typing.h"
+#include "nrf5_lighting.h"
+#include "nrf5_midi_typing.h"
 //#include "muse.h"
 #include "ble_service.h"
 
@@ -119,7 +119,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (!ciank67_process_midi_typing(keycode, record, MIDI_TYPING_TOGGLE)) return false;
+    if (!nrf5_process_midi_typing(keycode, record, MIDI_TYPING_TOGGLE)) return false;
 	if (!NRF_USBD->ENABLE){
 	    #ifdef POWER_SAVE_TIMEOUT
 	        if (record->event.pressed) {
@@ -127,12 +127,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 	        }
 	    #endif
 	}
-    if (!ciank67_process_lighting(keycode, record, RGBG_TOG)) {
+    if (!nrf5_process_lighting(keycode, record, RGBG_TOG)) {
         return false;
     }
     switch (keycode) {
         case UNDERGLOW_TEST:
-            if (!record->event.pressed) ciank67_underglow_test();
+            if (!record->event.pressed) nrf5_underglow_test();
             return false;
         case RGBM_M_SPECTRUM:
 #if defined(MUSIC_STREAM_ENABLE) && defined(RGB_MATRIX_ENABLE)
@@ -141,7 +141,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         case LIGHT_STATUS:
             if (!record->event.pressed) {
-                ciank67_lighting_report();
+                nrf5_lighting_report();
             }
             return false;
         case DISC:
@@ -301,18 +301,6 @@ bool led_update_user(led_t led_state){
     return true;
 }
 #endif
-
-void housekeeping_task_user(void) {
-#ifdef MUSIC_STREAM_ENABLE
-    ciank67_music_task();
-#ifdef KEYBOARD_CONTROL_ENABLE
-    extern void ciank67_keyboard_control_task(void);
-    ciank67_keyboard_control_task();
-#endif
-#endif
-    ciank67_underglow_test_task();
-    ciank67_lighting_task();
-}
 
 void keyboard_post_init_user() {
     #ifdef RGBLIGHT_ENABLE

@@ -727,6 +727,10 @@ static void services_init(void) {
     dfu_init();
     bas_init();
     hids_kbd_init();
+#ifdef RAW_ENABLE
+    extern void nrf_via_gatt_init(void);
+    nrf_via_gatt_init();
+#endif
 #ifdef MUSIC_STREAM_ENABLE
     music_gatt_init();
 #endif

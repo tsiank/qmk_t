@@ -2,6 +2,22 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using Ciank67.Music.Core;
 
+if (Environment.GetEnvironmentVariable("CIANK67_FLASH_TEST_CHILD") is string child)
+{
+    if (child == "echo") { Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(args)); return; }
+    string childName=System.IO.Path.GetFileNameWithoutExtension(Environment.ProcessPath)??"";
+    if (childName.EndsWith("-fail",StringComparison.Ordinal)) child="fail";
+    if (childName.EndsWith("-wait",StringComparison.Ordinal)) child="wait";
+    if (args.Contains("--ids")) { Console.WriteLine("12345678"); return; }
+    if (args.Contains("--deviceversion")) { Console.WriteLine("NRF52840_xxAA_REV2"); return; }
+    Console.Write("\u001b[32m0%\r"); Console.Out.Flush(); Thread.Sleep(60);
+    Console.Write("50%\r100%\n"); Console.Out.Flush();
+    Console.Error.WriteLine("test stderr");
+    if (child == "wait") Thread.Sleep(60_000);
+    if (child == "fail") Environment.Exit(7);
+    Console.WriteLine("Device programmed."); return;
+}
+
 int passed = 0;
 void Check(bool value, string message) { if (!value) throw new Exception(message); }
 void Test(string name, Action action) { action(); Console.WriteLine("PASS " + name); passed++; }
@@ -42,7 +58,8 @@ Test("USB discovery accepts current and legacy identities only on music collecti
     Check(MusicProtocol.IsMusicUsbInterface(0x1915, 0x520B, [0xFF670067]), "Legacy identity rejected");
     Check(!MusicProtocol.IsMusicUsbInterface(0x1915, 0x520B, [0x00010006]), "Ordinary keyboard selected");
     Check(!MusicProtocol.IsMusicUsbInterface(0x1915, 0x520B, [0x00010002]), "Mouse selected");
-    Check(!MusicProtocol.IsMusicUsbInterface(0x1915, 0x9999, [0xFF670067]), "Unrelated Nordic device selected");
+    Check(MusicProtocol.IsMusicUsbInterface(0x1234, 0x9999, [0xFF670067]), "Another nRF5 keyboard identity rejected");
+    Check(!MusicProtocol.IsMusicUsbInterface(0x1234, 0x9999, [0xFF600061]), "VIA interface mistaken for music interface");
 });
 Test("Custom RGB command keeps the 20-byte BLE and HID format", () =>
 {
@@ -382,6 +399,10 @@ Test("Device open failures propagate and null handles are not disposed", () =>
     Throws<IOException>(()=>CancellableResourceOpen.OpenAsync<object>(()=>Task.FromException<object?>(new IOException("Unreachable")),_=>closed++,CancellationToken.None).GetAwaiter().GetResult());
     Check(CancellableResourceOpen.OpenAsync<object>(()=>Task.FromResult<object?>(null),_=>closed++,CancellationToken.None).GetAwaiter().GetResult() is null&&closed==0,"Null disposal");
 });
+
+KeyboardControlTests.Run(Test);
+ViaTests.Run(Test);
+FirmwareTests.Run(Test);
 
 Console.WriteLine($"{passed} tests passed.");
 

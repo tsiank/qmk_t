@@ -1,17 +1,39 @@
 // Copyright 2026 QMK Contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "quantum.h"
-#include "lighting.h"
+#include "nrf5_lighting.h"
 #include "music_stream.h"
-#include "music.h"
+#include "nrf5_music.h"
+#ifdef RGBLIGHT_ENABLE
 #include "rgblight_drivers.h"
+#endif
 
+#if defined(RGBLIGHT_ENABLE) || defined(RGB_MATRIX_ENABLE)
+static rgb_t selected_rgb(music_rgb_t color, uint8_t brightness) {
+    return (rgb_t){(uint16_t)color.r * brightness / 255,
+                   (uint16_t)color.g * brightness / 255,
+                   (uint16_t)color.b * brightness / 255};
+}
+
+#endif
+#ifdef RGBLIGHT_ENABLE
 static bool underglow_owned;
 static uint16_t last_frame;
 
-// Two matrix columns per bar keep all five staggered key rows in the
+#endif
+
+#ifdef RGB_MATRIX_ENABLE
+// Two matrix columns per bar keep staggered key rows in the
 // same frequency group. The host still sends sixteen bands unchanged.
-#define SPECTRUM_BARS 7
+#ifndef NRF5_MUSIC_SPECTRUM_BARS
+#    define NRF5_MUSIC_SPECTRUM_BARS MIN((MATRIX_COLS + 1) / 2, MUSIC_BANDS)
+#endif
+#ifndef NRF5_MUSIC_SPECTRUM_ROWS
+#    define NRF5_MUSIC_SPECTRUM_ROWS MATRIX_ROWS
+#endif
+#define SPECTRUM_BARS NRF5_MUSIC_SPECTRUM_BARS
+_Static_assert(SPECTRUM_BARS > 0 && SPECTRUM_BARS <= MUSIC_BANDS, "Invalid music spectrum bar count");
+_Static_assert(NRF5_MUSIC_SPECTRUM_ROWS > 0 && NRF5_MUSIC_SPECTRUM_ROWS <= 32, "Invalid music spectrum row count");
 static int32_t spectrum_levels[SPECTRUM_BARS]; // Q8 heights.
 static uint8_t spectrum_bar[RGB_MATRIX_LED_COUNT];
 static uint32_t spectrum_at;
@@ -28,12 +50,6 @@ static uint16_t music_extent(uint8_t level) {
     return (uint32_t)scaled * scaled * 256 / 255;
 }
 
-static rgb_t selected_rgb(music_rgb_t color, uint8_t brightness) {
-    return (rgb_t){(uint16_t)color.r * brightness / 255,
-                   (uint16_t)color.g * brightness / 255,
-                   (uint16_t)color.b * brightness / 255};
-}
-
 uint8_t rgb_matrix_override_effect(uint8_t effect) {
     music_frame_t frame;
     // The core only permits overrides while enabled and not suspended. Keep
@@ -43,7 +59,7 @@ uint8_t rgb_matrix_override_effect(uint8_t effect) {
     return effect;
 }
 
-void ciank67_music_render_spectrum(uint8_t first, uint8_t last, bool init) {
+void nrf5_music_render_spectrum(uint8_t first, uint8_t last, bool init) {
     if (!rgb_matrix_is_enabled()) return;
     if (first == 0) {
         if (init) {
@@ -85,14 +101,14 @@ void ciank67_music_render_spectrum(uint8_t first, uint8_t last, bool init) {
     last = MIN(last, RGB_MATRIX_LED_COUNT);
     for (uint8_t i = first; i < last; ++i) {
         if (!(g_led_config.flags[i] & flags)) continue;
-        uint8_t row = MIN((64 - MIN(g_led_config.point[i].y, 64) + 8) / 16, 4);
+        uint8_t row = MIN(((64 - MIN(g_led_config.point[i].y, 64)) * (NRF5_MUSIC_SPECTRUM_ROWS - 1) + 32) / 64, NRF5_MUSIC_SPECTRUM_ROWS - 1);
         uint8_t level = spectrum_levels[spectrum_bar[i]] / 256;
-        int32_t fill = music_extent(level) - (int32_t)row * 51 * 256;
+        int32_t fill = music_extent(level) - (int32_t)row * (255 * 256 / NRF5_MUSIC_SPECTRUM_ROWS);
         // Fractional row coverage fades the bar edge. No detached white peak
         // markers: every lit key belongs to a contiguous bottom-up column.
         uint8_t body_value = (uint16_t)val * level / 255;
-        uint8_t brightness = fill > 0 ? MIN((int32_t)body_value * fill / (51 * 256), body_value) : 0;
-        uint8_t color_hue = spectrum_monochrome ? hue : hue + (4 - row) * 85 / 4;
+        uint8_t brightness = fill > 0 ? MIN((int32_t)body_value * fill / (255 * 256 / NRF5_MUSIC_SPECTRUM_ROWS), body_value) : 0;
+        uint8_t color_hue = spectrum_monochrome ? hue : hue + (NRF5_MUSIC_SPECTRUM_ROWS - 1 - row) * 85 / MAX(NRF5_MUSIC_SPECTRUM_ROWS - 1, 1);
         rgb_t color = spectrum_custom_color ? selected_rgb(spectrum_color, brightness) : hsv_to_rgb((hsv_t){color_hue, sat, brightness});
         rgb_matrix_set_color(i, color.r, color.g, color.b);
     }
@@ -118,7 +134,7 @@ static uint8_t dance_distance(int16_t x, int16_t y) {
     return root;
 }
 
-void ciank67_music_render_dual_dance(uint8_t first, uint8_t last, bool init) {
+void nrf5_music_render_dual_dance(uint8_t first, uint8_t last, bool init) {
     if (!rgb_matrix_is_enabled()) return;
     if (first == 0) {
         music_frame_t frame;
@@ -170,8 +186,11 @@ void ciank67_music_render_dual_dance(uint8_t first, uint8_t last, bool init) {
     }
 }
 
-void ciank67_music_task(void) {
-    if (ciank67_underglow_test_is_active()) return;
+#endif // RGB_MATRIX_ENABLE
+
+void nrf5_music_task(void) {
+#ifdef RGBLIGHT_ENABLE
+    if (nrf5_underglow_test_is_active()) return;
     music_frame_t frame;
     bool active = music_stream_read(&frame) && (frame.flags & MUSIC_UNDERGLOW);
     if (!active) {
@@ -204,4 +223,5 @@ void ciank67_music_task(void) {
     }
     // Apply Caps Lock after the music frame, using the existing layer/power path.
     rgblight_set();
+#endif // RGBLIGHT_ENABLE
 }

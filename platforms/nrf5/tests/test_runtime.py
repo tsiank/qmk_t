@@ -42,7 +42,7 @@ class RuntimeTests(unittest.TestCase):
         subprocess.run([str(executable), *args], check=True, capture_output=True, text=True,
                        env={**os.environ, 'ASAN_OPTIONS': 'detect_leaks=1'})
 
-    def check_eeprom(self, mode):
+    def check_eeprom(self, mode, capacity=64):
         self.write('nrf_log.h', '#define NRF_LOG_INFO(...)\n')
         self.write('nvm_eeprom_eeconfig_internal.h', '#define STATIC_ASSERT _Static_assert\n#define EECONFIG_SIZE 37\n')
         self.write('fds.h', r'''
@@ -166,9 +166,15 @@ int main(int argc, char **argv) {
 }
 ''')
         self.compile_and_run('platforms/nrf5/eeprom.c', flags=(
-            '-DEEPROM_NRF', '-DKEYBOARD_SCAN_INTERVAL=6', '-I', str(ROOT / 'platforms'),
+            '-DEEPROM_NRF', f'-DEEPROM_SIZE={capacity}', '-DKEYBOARD_SCAN_INTERVAL=6', '-I', str(ROOT / 'platforms'),
             '-I', str(ROOT / 'platforms/nrf5'),
         ), args=(mode,))
+
+    def test_via_two_kilobyte_store_migration(self):
+        self.check_eeprom('legacy', capacity=2048)
+
+    def test_via_two_kilobyte_store_async_snapshot(self):
+        self.check_eeprom('snapshot', capacity=2048)
 
     def test_legacy_record_migration(self):
         self.check_eeprom('legacy')

@@ -1,6 +1,6 @@
 // Copyright 2026 QMK Contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "midi_typing.h"
+#include "nrf5_midi_typing.h"
 #if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
 #    include "process_midi.h"
 #    include "process_music.h"
@@ -27,7 +27,7 @@ static void release_all(void) {
 }
 #endif
 
-bool ciank67_process_midi_typing(uint16_t keycode, keyrecord_t *record, uint16_t toggle) {
+bool nrf5_process_midi_typing(uint16_t keycode, keyrecord_t *record, uint16_t toggle) {
 #if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
     if (keycode == toggle) {
         if (record->event.pressed) {
@@ -66,14 +66,15 @@ bool ciank67_process_midi_typing(uint16_t keycode, keyrecord_t *record, uint16_t
         keycode &= 0xff;
     }
     if (keycode < KC_A || keycode > KC_SLSH || *held) return true;
-    uint8_t note = 36 + 12 * (MATRIX_ROWS - row - 1) + col;
+    uint16_t note = 36 + 12 * (MATRIX_ROWS - row - 1) + col;
+    if (note > 127) return true;
     *held = note;
     if (references[note]++ == 0) process_midi_basic_noteon(note);
 #endif
     return true;
 }
 
-bool ciank67_midi_typing_enabled(void) {
+bool nrf5_midi_typing_enabled(void) {
 #if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
     return enabled;
 #else
@@ -81,7 +82,7 @@ bool ciank67_midi_typing_enabled(void) {
 #endif
 }
 
-void ciank67_midi_typing_set(bool on) {
+void nrf5_midi_typing_set(bool on) {
 #if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
     if (enabled == on) return;
     release_all();

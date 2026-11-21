@@ -3,6 +3,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // The old 36-byte store predates QMK's current core and keyboard/user blocks.
 // Keep the capacity configurable for keymaps such as VIA.
@@ -16,3 +17,5 @@
 
 uint32_t nrf5_eeprom_last_error(void);
 uint32_t nrf5_eeprom_error_count(void);
+
+bool nrf5_eeprom_pending(void);

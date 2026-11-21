@@ -484,6 +484,12 @@ SRC += \
 # Optimize size but this may cause error "relocation truncated to fit"
 #EXTRALDFLAGS = -Wl,--relax
 
+# Resolve nRF5 shared features after keyboard/keymap overrides, before QMK
+# selects custom RGB effects and constructs include paths.
+ifeq ($(PLATFORM_KEY),nrf5)
+    include $(PLATFORM_PATH)/nrf5/features/rules.mk
+endif
+
 # Search Path
 VPATH += $(KEYMAP_PATH)
 VPATH += $(USER_PATH)

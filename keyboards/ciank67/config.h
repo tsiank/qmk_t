@@ -93,6 +93,8 @@
 //#define RGB_PWR_PIN_REVERSE 20 // N-mos
 #endif
 
+#define NRF5_UNDERGLOW_TEST_WHITE_COUNT 8
+
 #define DEBOUNCE 20
 
 #define PERMISSVIE_HOLD
@@ -173,7 +175,6 @@
 #define NKRO_EPSIZE 22
 // Enable watchdog
 // #define KBD_WDT_ENABLE
-#define MAX_ENDPOINTS 8
 
 //#define WPM_ENABLE
 
@@ -209,3 +210,9 @@
 #define AUDIO_DEFAULT_CLICKY_ON false
 #define MIDI_BASIC
 #define MIDI_ADVANCED
+
+#ifdef VIA_ENABLE
+// Preserve all seven default layers and leave room for VIA macros.
+#    define DYNAMIC_KEYMAP_LAYER_COUNT 7
+#    define EEPROM_SIZE 2048
+#endif

@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Music.App", "Ciank67.Music.App\Ciank67.Music.App.csproj", "{551EB4B9-2103-43BB-8828-1143FC3CD041}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qmknrf5.App", "Ciank67.Music.App\Ciank67.Music.App.csproj", "{551EB4B9-2103-43BB-8828-1143FC3CD041}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Music.Core", "Ciank67.Music.Core\Ciank67.Music.Core.csproj", "{90BF44E1-4468-4AA0-A554-8B371A21DC76}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qmknrf5.Core", "Ciank67.Music.Core\Ciank67.Music.Core.csproj", "{90BF44E1-4468-4AA0-A554-8B371A21DC76}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Music.Tests", "Ciank67.Music.Tests\Ciank67.Music.Tests.csproj", "{B9B84CF1-9FA4-41E1-AB63-134BD06A8215}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qmknrf5.Tests", "Ciank67.Music.Tests\Ciank67.Music.Tests.csproj", "{B9B84CF1-9FA4-41E1-AB63-134BD06A8215}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ciank67.Midi.Tests", "Ciank67.Midi.Tests\Ciank67.Midi.Tests.csproj", "{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qmknrf5.Midi.Tests", "Ciank67.Midi.Tests\Ciank67.Midi.Tests.csproj", "{7F10845A-6B27-4CF8-A1A1-B5C364C062A8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

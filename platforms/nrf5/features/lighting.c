@@ -1,6 +1,6 @@
 // Copyright 2026 QMK Contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "lighting.h"
+#include "nrf5_lighting.h"
 
 #include "process_underglow.h"
 
@@ -13,7 +13,7 @@
 #    endif
 #    ifdef MIDI_ENABLE
 #        include "midi_transport.h"
-#        include "midi_typing.h"
+#        include "nrf5_midi_typing.h"
 #        include "process_music.h"
 #    endif
 static char report_buffer[256];
@@ -22,7 +22,7 @@ static bool report_pending;
 static uint16_t last_report_character;
 #endif
 
-void ciank67_lighting_report(void) {
+void nrf5_lighting_report(void) {
 #if defined(PROTOCOL_NRF5) && defined(SEND_STRING_ENABLE)
     if (report_pending) return;
     unsigned matrix = 0, under = 0, matrix_mode = 0, under_mode = 0, power = 0, flags = 0;
@@ -43,7 +43,7 @@ void ciank67_lighting_report(void) {
     errors = nrf5_i2c_error_count();
 #    endif
     snprintf(report_buffer, sizeof(report_buffer),
-             "ciank67-usb-concurrent-r20 t=%lu m=%u:%u f=%u u=%u:%u p=%u twi=%lu ee=%lx/%lu irq=%lu reset=%lx\n",
+             "qmknrf5 t=%lu m=%u:%u f=%u u=%u:%u p=%u twi=%lu ee=%lx/%lu irq=%lu reset=%lx\n",
              (unsigned long)timer_read32(), matrix, matrix_mode, flags, under, under_mode, power, errors,
              (unsigned long)nrf5_eeprom_last_error(), (unsigned long)nrf5_eeprom_error_count(),
              (unsigned long)__get_IPSR(), (unsigned long)NRF_POWER->RESETREAS);
@@ -52,15 +52,19 @@ void ciank67_lighting_report(void) {
     size_t used = strlen(report_buffer);
     char midi[112];
     nrf_midi_diagnostics(midi, sizeof(midi));
+    unsigned pure = 0;
+#        if defined(AUDIO_ENABLE) || defined(MIDI_BASIC)
+    pure = is_midi_on();
+#        endif
     snprintf(report_buffer + used, sizeof(report_buffer) - used,
-             "midi typing=%u pure=%u %s\n", ciank67_midi_typing_enabled(), is_midi_on(), midi);
+             "midi typing=%u pure=%u %s\n", nrf5_midi_typing_enabled(), pure, midi);
 #    endif
     report_position = 0;
     report_pending = true;
 #endif
 }
 
-void ciank67_lighting_task(void) {
+void nrf5_lighting_task(void) {
 #if defined(PROTOCOL_NRF5) && defined(SEND_STRING_ENABLE)
     if (!report_pending || timer_elapsed(last_report_character) < 40) return;
     // Let the USB/BLE event loop drain reports between characters. A synchronous
@@ -104,7 +108,7 @@ static void set_underglow_enabled(bool enabled) {
 #endif
 }
 
-bool ciank67_process_lighting(uint16_t keycode, keyrecord_t *record, uint16_t combined_toggle) {
+bool nrf5_process_lighting(uint16_t keycode, keyrecord_t *record, uint16_t combined_toggle) {
     // stable processes RGB controls on key up to avoid layer/key-release edge
     // cases. Keep that behavior and consume both edges. Leave I2C running so
     // the matrix state machine can actually transmit its all-black off frame.

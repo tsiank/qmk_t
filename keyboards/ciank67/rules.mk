@@ -1,15 +1,4 @@
 MCU = NRF52840
-SRC += keyboards/ciank67/lighting.c
-SRC += keyboards/ciank67/underglow_test.c
-SRC += keyboards/ciank67/midi_typing.c
-
-MUSIC_STREAM_ENABLE ?= yes
-ifeq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
-    OPT_DEFS += -DMUSIC_STREAM_ENABLE
-    RGB_MATRIX_CUSTOM_KB = yes
-    SRC += keyboards/ciank67/music.c
-endif
-
 # Bootloader selection
 BOOTLOADER = custom
 
@@ -32,11 +21,6 @@ WS2812_DRIVER = pwm
 # NRF_DEBUG = yes
 DEBOUNCE_TYPE = sym_eager_pr
 
-ifeq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
-ifeq ($(strip $(AUDIO_ENABLE)),yes)
-ifeq ($(strip $(MIDI_ENABLE)),yes)
-    OPT_DEFS += -DKEYBOARD_CONTROL_ENABLE
-    SRC += keyboards/ciank67/keyboard_control.c
-endif
-endif
-endif
+# Shared nRF5 client features; no per-keyboard source copies.
+NRF5_CONFIG_ENABLE = yes
+MUSIC_STREAM_ENABLE ?= yes

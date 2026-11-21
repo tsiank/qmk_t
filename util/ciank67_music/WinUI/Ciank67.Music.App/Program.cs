@@ -24,7 +24,7 @@ internal static class Program
 
     internal static void Trace(string message)
     {
-        if (Environment.GetEnvironmentVariable("CIANK67_DIAGNOSTICS") != "1") return;
+        if (Environment.GetEnvironmentVariable("QMKNRF5_DIAGNOSTICS") != "1" && Environment.GetEnvironmentVariable("CIANK67_DIAGNOSTICS") != "1") return;
         try { File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "startup-trace.log"), message + Environment.NewLine); }
         catch (Exception) { }
     }

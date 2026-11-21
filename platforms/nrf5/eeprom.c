@@ -40,6 +40,7 @@ static fds_record_t const record = {
     .data.length_words = EEPROM_SIZE / sizeof(uint32_t),
 };
 
+bool nrf5_eeprom_pending(void) { return fds_update || write_pending || gc_pending; }
 uint32_t nrf5_eeprom_last_error(void) { return last_fds_error; }
 uint32_t nrf5_eeprom_error_count(void) { return fds_error_count; }
 

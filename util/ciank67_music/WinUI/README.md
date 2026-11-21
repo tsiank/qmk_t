@@ -1,4 +1,4 @@
-# ciank67 音乐律动 · WinUI 3
+# Qmknrf5配置工具 · WinUI 3
 
 C# / WinUI 3 Windows 客户端，使用原生 Fluent 控件、系统主题与 Mica 背景。沿用 R6 固件的 20 字节频谱协议；不需要升级 nRF5 SDK，不需要 Python。
 
@@ -7,9 +7,9 @@ C# / WinUI 3 Windows 客户端，使用原生 Fluent 控件、系统主题与 Mi
 1. 此发布包不包含系统运行时。首次使用需安装 **.NET 10 Runtime（x64）** 和 **Windows App Runtime 2.7（x64，或兼容的更高 2.x 版本）**。已安装则无需重复安装。面向 Windows x64，最低 Windows 10 2004；Windows 11 可显示 Mica 效果。
    - [.NET 10 Runtime 官方下载](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0/runtime)
    - [Windows App Runtime 官方下载](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)（选择与 2.7 SDK 匹配的 x64 安装程序）
-2. 保留发布包的完整目录，双击 `Ciank67Music.exe`。安装运行时后可供多份程序共用，分发 ZIP 不附带安装程序。
+2. 保留发布包的完整目录，双击 `Qmknrf5.exe`。安装运行时后可供多份程序共用，分发 ZIP 不附带安装程序。
 3. 首次可以选择 **仅预览**，打开 **演示模式**，点击 **开始律动**，在不连接键盘时检查界面和频谱。
-4. 键盘建议刷入 `ciank67-music-r15-color-picker.zip`。R15 支持客户端选择两种矩阵律动效果，USB 名称为 `ciank67`，仍沿用 R6 音乐协议。刷入后重新拔插 USB。
+4. ciank67 使用配套 `ciank67-qmknrf5-r23.zip`，刷入后重新拔插 USB；其他键盘应编译自身的固件，并在 VIA 页加载匹配的布局 JSON。R23 增加矩阵尺寸核对，仍沿用原有音乐、控制及 MIDI 协议。
 5. USB：选择 **USB** → **刷新设备** → 选择键盘。蓝牙：先在 Windows 设置配对键盘并拔掉 USB，再选择 **蓝牙（已配对）** 并刷新。蓝牙列表包含其他已配对设备，请选择键盘；已连接的键盘不需要重新广播。
 6. 选择声音的 **播放设备**。程序采集该设备正在播放的声音，不采集麦克风，也不保存录音。
 7. 关闭演示模式，选择矩阵灯 / 底灯和 **矩阵律动效果**、**律动配色**，点击 **开始律动**。灵敏度、帧率、效果和两组灯的选择可在运行中调节。
@@ -28,7 +28,7 @@ dotnet run --project Ciank67.Music.Tests -c Release
 dotnet publish Ciank67.Music.App -c Release -r win-x64 --self-contained false -o publish\win-x64
 ```
 
-输出为 `publish\win-x64\Ciank67Music.exe` 及其依赖。发布采用依赖系统运行时的轻量方式，不包含 .NET 或 Windows App SDK 运行时；分发时保留整个目录。请发布到空目录，避免混入旧版自包含发布的 DLL。源码提供 `Ciank67Music.sln`，可用支持 .NET 10 的 Visual Studio 打开。构建需要联网恢复 NuGet 包。
+输出为 `publish\win-x64\Qmknrf5.exe` 及其依赖。发布采用依赖系统运行时的轻量方式，不包含 .NET 或 Windows App SDK 运行时；分发时保留整个目录。请发布到空目录，避免混入旧版自包含发布的 DLL。源码提供 `Qmknrf5.sln`，可用支持 .NET 10 的 Visual Studio 打开。构建需要联网恢复 NuGet 包。
 
 - `Ciank67.Music.App`：WinUI 3 界面、WASAPI 回环采集、USB HID、Windows BLE GATT。
 - `Ciank67.Music.Core`：协议、PCM 解码、2048 点 FFT、16 段频谱、音频环形缓冲、发送/停止流程。
@@ -108,13 +108,13 @@ R15：将“律动配色”切换到 **纯光**，点击色块 / 十六进制值
 
 ## R19：客户端控制键盘开关
 
-先刷入配套 `ciank67-usb-concurrent-r20.zip`。客户端左侧选择 USB / 蓝牙及目标键盘，在“键盘开关”卡片点击“连接键盘控制”，客户端先读取键盘实际状态，再开放操作：
+先刷入配套 `ciank67-usb-concurrent-r20.zip`。客户端在“设备连接”页面选择 USB / 蓝牙及目标键盘，客户端会自动连接控制并读取键盘实际状态，再开放操作：
 
 - 按键矩阵灯、底灯总开关（区别于原有“按键矩阵灯 / 底灯”的律动参与选择）。
 - 键盘本地声音、键盘按键音开关；本地声音不影响电脑合成器音量。
 - 演奏模式：关闭演奏/正常打字、本地蜂鸣器音乐模式、MIDI 纯演奏、MIDI 打字伴奏。模式互斥，切换会释放原有音符。
 
-无需开启灯光律动即可控制，控制连接、律动、电脑 MIDI 演奏均可分别启停。要听电脑 MIDI 声音，还需在“MIDI 演奏”卡片点击“开始演奏”；然后可在这里将键盘设为“MIDI 打字伴奏”或“MIDI 纯演奏”，无需再按键盘 U/P。
+无需开启灯光律动即可控制，控制连接、律动、电脑 MIDI 演奏均可分别启停。要听电脑 MIDI 声音，还需在“MIDI 演奏”页面点击“开始演奏”；然后可在 MIDI 页面将键盘设为“MIDI 打字伴奏”或“MIDI 纯演奏”，无需再按键盘 U/P。
 
 客户端每秒在后台查询一次实际状态，同步期间保持控件可用，避免蓝牙连接时反复灰显闪动。用户操作会等当前查询完成后串行发送，旧查询不会覆盖待发送的开关或模式选择；模式下拉菜单展开时暂停同步。键盘物理按键修改后也会同步显示；每次只写用户操作的那个字段，查询不写 EEPROM、不开始律动，也不延长音乐帧超时。灯光和音频总开关沿用原有保存行为；演奏模式仍仅保存在 RAM。客户端断开或退出时保留键盘开关状态，电脑合成器则正常停音并释放端口。底灯关闭后，Caps Lock 指示仍按原有规则显示。
 
@@ -153,3 +153,145 @@ R15：将“律动配色”切换到 **纯光**，点击色块 / 十六进制值
 首次控制状态读取增加超时；MIDI 设备枚举超时后恢复控件，“停止演奏”也可取消正在进行的枚举或端口打开。无法原生取消的设备打开操作会在后台等待完成并释放迟到的句柄，不再让界面一直等待。检测到新增/移除的 MIDI 输入时自动刷新空闲列表。
 
 演奏进行中，输入/输出选择框仍会锁定，这是为了保护正在转发的音符；先点击“停止演奏”即可更换输入。手动选择 MIDI 输入后，“开始演奏”的可用状态会立即更新。若蓝牙控制仍失败，请提供控制卡片的完整提示；若 Windows 尚未发现新增状态特征，才需要删除旧配对后重新配对。此客户端改动不要求更新固件。
+
+## VIA 改键：USB 和蓝牙
+
+配套固件为 `ciank67-via-usb-r22.zip`，只升级应用，不升级 SDK / SoftDevice / bootloader。默认 keymap 已启用 VIA，保留原来的七层与自定义键码；模拟 EEPROM 扩大为 2048 字节，旧灯光、声音配置按原有地址迁移。首次启动由默认 keymap 初始化动态键位，之后按键从动态键位读取，USB 与蓝牙共享；不需要安装独立 VIA 客户端。
+
+1. 在“设备连接”页面选择 USB 或已配对蓝牙键盘，再从侧边栏进入 **VIA 改键**，点击 **连接并读取键位**。蓝牙首次升级若找不到 VIA 服务，先重新连接；Windows 缓存旧 GATT 表时删除旧配对再配对。
+2. 选择第 0～6 层，点击键盘图中的按键。在搜索框选择键码，或输入 `KC_A`、`MO(3)`、`TG(4)`、`LT(1,KC_SPC)`、`LCTL(KC_C)`、`LSFT_T(KC_ENT)`、`0x1234`，点击 **暂存此键**。
+3. 自定义的蓝牙切换、律动和 MIDI 开关键也可以按名称搜索。键码表由本仓库的 `quantum/keycodes.h` 及 ciank67 自定义枚举生成，避免使用旧 VIA 键码表导致映射错位。其他 QMK 组合可直接输入其 16 位十六进制键码。
+4. **宏编辑**支持 16 个宏。文字模式可填写英文、数字、标点、换行 / Tab；组合键可使用原始 VIA 宏字节格式（不含 `00` 结束符）。点击 **暂存此宏** 后，把 `QK_MACRO_0` 等键码分配给某个按键。编辑一个宏会保留其他宏的二进制内容；中文输入取决于电脑输入法。
+5. 点击 **写入键盘并保存**。程序只写改变的键位，回读全部键位与宏核对，并等待 Nordic FDS 完成 Flash 写入。提示保存成功后可断开，重新上电仍保留。写入中断可能已有部分键位生效，需要重新读取确认；宏上传在最后一个字节写完前保持不可执行状态。
+6. **导出配置**备份当前暂存稿的全部层与宏；**导入配置**先加载为暂存稿，仍需点击写入才会生效。这是本客户端的备份格式，与描述外观的 `ciank67-via.json` 不同。QMK VIA 按构建日期判断配置有效性，换日期重编译固件前请先导出备份。
+
+**并行使用：** VIA 使用独立 USB EP7（音乐 EP1 / MIDI EP5 保持不变）；蓝牙使用独立加密服务。改键连接不停止律动或电脑 MIDI 转发。若重新分配了固件功能键，它们的新位置由动态键位决定；MIDI 打字伴奏仍按物理位置映射音符。
+
+**标准 VIA 兼容：** USB 暴露标准 Usage Page `0xFF60` / Usage `0x61` 的 32 字节 Raw HID 接口，原版 VIA 可在 Design 中加载随包 `ciank67-via.json` 后使用（本仓库尚未列入官方设备库）。蓝牙配置由集成面板完成，原版 VIA 不会自动发现此自定义 GATT 服务。集成面板为原生 WinUI 实现，未嵌入官方网页，不增加 WebView2 运行时依赖。
+
+协议：复用 QMK VIA v13；附加命令 `0x80` 返回 `[80, pending, last_fds_error_be32, ...]`，`pending=0` 且 error=0 才确认持久化。BLE UUID：服务 `c1a00010-7d9b-4c7d-a568-7294e2166700`，写入特征 `...0011`、读取特征 `...0012`。每个请求拆为两次带响应写入 `[sequence_le16, offset(0/16), payload16]`，每包 19 字节，适用于 ATT MTU 23；响应是 `[sequence_le16, via_payload32]` 共 34 字节，由 GATT 长读获取。收包回调只排队，VIA / EEPROM 在主循环执行，回复按请求来源路由，不跟随打字输出模式；断开时旧请求作废。
+
+修改 QMK 键码或布局后重新运行 `python generate-via-assets.py`，再构建客户端。对应回归检查为 `platforms/nrf5/tests/test_via.py`、`test_runtime.py` 及 `Ciank67.Music.Tests/ViaTests.cs`。
+
+
+## 侧边栏导航
+
+客户端按功能分成五个页面：**设备连接**、**音乐律动**、**MIDI 演奏**、**VIA 改键**、**固件刷入**。先在设备连接中选择键盘，再进入所需功能；MIDI 输入 / 输出仍在 MIDI 页面单独选择。宽窗口展开侧栏，较窄窗口显示图标，最窄窗口通过左上角菜单展开。
+
+页面实例在窗口关闭前保留，切页不会停止律动、断开键盘控制 / MIDI / VIA，或丢弃已暂存的改键稿。每页有独立滚动位置。展开的侧栏底部显示所选键盘与律动运行状态；律动期间设备选择保持锁定，回到音乐页面即可停止。此更新仅涉及客户端，无须重刷固件。
+
+
+## VIA USB 超时修复（R22）
+
+R21 的 VIA USB 接口能枚举，但读取键位会超时：Nordic `APP_USBD_HID_GENERIC_GLOBAL_DEF_INTERNAL` 为输出报告额外预留一个 Report ID 字节，因此 `app_usbd_hid_generic_out_report_get()` 返回的是 **33 字节容量**，不是实际报文长度。旧接收回调只接受 32，导致请求全部丢弃。
+
+R22 在 VIA 接收边界统一处理：中断 OUT 从缓冲区起始取 32 字节；EP0 `SET_REPORT` 跳过 SDK 加上的零 Report ID 后取 32 字节。标准 VIA USB 描述符、客户端 33 字节 Windows HID 报告格式、蓝牙协议及灯光 / MIDI 接口均保持兼容。
+
+刷入 `ciank67-via-usb-r22.zip` 后重新插拔 USB，再从 **VIA 改键** 点击 **连接并读取键位**。当前侧边栏客户端无需更新。新增原生回归检查覆盖 33 字节容量、两种传输路径、包边界及 SDK 缓冲区不可修改。
+
+
+## VIA 键码面板与组合键编辑
+
+参照 [VIA 的分类键码面板](https://github.com/the-via/app/blob/main/src/components/panes/configure-panes/keycode.tsx) 和 [高级键码解码](https://github.com/the-via/app/blob/main/src/utils/advanced-keys.ts) 的交互方式，集成面板提供：
+
+- **键帽名称**：显示 `!`、`~`、方向键、修饰键，以及 `Space / Shift`、`Enter / Fn2` 等双行轻按 / 按住动作。选中键有高亮边框，说明区与悬停提示同时保留完整 QMK 表达式。
+- **分类点选**：基础、符号、媒体、鼠标、层切换、组合、灯光、音频 / MIDI、宏、键盘专用、其他 QMK。点击键盘图选择目标键，再点分类面板中的键位，即暂存到当前编辑稿。灯光分类列出实际启用的 RGBLight / RGB Matrix 键码；其他 QMK 枚举仍可在其他分类查找，其效果取决于固件启用的功能。
+- **搜索**：支持中文名称（例如“回车”“空格”）、QMK 短名称和长别名。输入搜索词时自动切到全部分类。程序内部范围常量和重复别名不再混入键位面板。
+- **组合编辑器**：展开“组合键 / 层功能”，选择组合类型，再勾选 Ctrl / Shift / Alt / Win、左右侧、轻按键或目标层。支持快捷键、Mod-Tap、Layer-Tap、Layer-Mod、One-Shot 修饰及 MO / TG / TO / DF / OSL / TT / PDF。选中已有组合键会自动填入对应参数；点击“使用此组合”暂存。
+- **高级输入**：展开“任意 QMK 键码（高级）”，仍可填写名称、表达式或十六进制未知键码。名字和组合值来自本仓库的 QMK 键码版本，未照搬原版 VIA 的旧字节映射；生成脚本额外读取 `keymap_us.h` 的符号别名。
+
+上述操作均先暂存，点击“写入键盘并保存”才写入固件。USB 与蓝牙使用同一套名称和编辑器。这次只需更新客户端，继续使用 R22 固件。
+
+
+## 键盘控制归入功能页面
+
+原“键盘开关”菜单已移除，控制连接仍由同一个实例维护：
+
+- **设备连接**：选择键盘，点击“连接键盘控制”或“断开控制”，查看连接状态。
+- **音乐律动**：“灯光开关”控制按键矩阵灯与底灯的实际电源状态；“律动作用灯组”选择哪些灯参与音乐律动。两者独立，关闭的灯不会因勾选律动灯组而被强制打开。
+- **MIDI 演奏**：“键盘演奏与声音”设置演奏模式、本地声音与按键音；“电脑合成器”设置 MIDI 输入、输出、音色及电脑演奏启停。
+
+先在设备连接中连接键盘控制，其他页面的硬件开关才可操作。断开后两页的硬件控件一起恢复禁用，但律动与电脑 MIDI 演奏各自保留原来的独立连接。切页不重建控制会话，后台状态同步继续运行；控制错误也会显示在对应功能页。
+
+
+## 固件刷入（应用 / Bootloader）
+
+在侧边栏进入 **固件刷入**，使用 **固件刷入** / **Bootloader 刷入** 两个标签页切换。固件页只提供 USB DFU，不检测或依赖 J-Link；Bootloader 页拥有独立的升级包、连接与工具设置。客户端已内置 `Tools/nrfutil/nrfutil.exe`（6.1.0）及 `Tools/bootloader` 全部原始文件，不依赖 F 盘，也无需选择这些文件。应用固件仍需选择 ZIP。SWD 另需安装 Nordic `nrfjprog.exe` 和 J-Link 驱动，可在高级选项中配置 nrfjprog 路径；不增加系统运行时。
+
+### 应用固件与 Bootloader DFU ZIP
+
+1. 应用固件点击“选择应用固件 ZIP”；其他 Bootloader DFU 升级包可在高级选项点击“使用其他 Bootloader ZIP（可选）”；使用配套内置 Bootloader 无需选文件。程序检查 Nordic manifest、BIN / DAT 引用和文件大小，并显示文件 SHA256。不能把包含 HEX / BAT 的普通压缩包当成 DFU ZIP。
+2. 让键盘进入 USB DFU 模式，刷新并选择对应 COM 端口。也可保持“自动等待 USB DFU 串口”，开始后在 120 秒内手动进入 DFU。自动模式只选能识别的单个 DFU 设备；有多个设备或无法识别时手选端口。蓝牙 COM 端口不可用于 USB DFU。
+3. 点击对应刷入按钮，核对 ZIP、工具和目标。程序调用 `nrfutil -v -v dfu usb-serial -pkg <ZIP> -p <COM>`，与原 VBA 的刷入参数一致，增加 INFO 日志。Bootloader DFU 包若包含 SoftDevice，会在确认内容中列出；签名、硬件版本及升级条件由设备现有 Bootloader 最终验证。
+
+### J-Link / SWD HEX 压缩包
+
+客户端启动时自动加载内置 Bootloader，默认已选好原 BAT 所用的 `nrf52840_xxaa.hex` 与 `s140_nrf52_6.1.1_softdevice.hex`，连接 J-Link 后即可开始，程序自动检测序列号，不需要填写。未发现 J-Link 时会提示检查连接；发现多个时提示只保留目标设备后重试，不会自行选择。内置目录也保留 Adafruit 合并镜像，可按需要切换；高级选项可加载其他包或恢复内置包。Bootloader 页的“检测 Bootloader 连接”会运行只读的 `nrfjprog --ids`；应用固件页“刷新 USB 串口”仅枚举串口。
+
+程序不执行 ZIP 中的 BAT。Nordic 方式按原 `bootloader\flush_nordic_bootloader.bat` 流程逐步执行：先用 `--deviceversion` 核对 nRF52840，然后 `--recover`、`--eraseall`、`--program SoftDevice --verify`、`--program Bootloader --verify`、`--reset`；每步均带 `-f NRF52 --snr <序列号>`。选用已合并 SoftDevice 的 Adafruit HEX 时只编程一次合并镜像。目标型号无法核对或任一步骤失败会停止后续动作。
+
+**SWD 会清除原应用、VIA 配置及蓝牙配对。** 需要时先导出 VIA 备份。刷好 Bootloader 后仍需刷入应用，并重新配对。UI 开始前会明确确认这一点，不会因为选择文件就自动擦除。
+
+### 过程、结果与取消
+
+刷入前会停止律动 / 电脑 MIDI，释放键盘控制与 VIA；有未暂存到键盘的 VIA 编辑稿时会先询问是否丢弃。刷入期间相关功能暂时禁用，结束后恢复可操作状态，但不会自动重启音乐或重连端口。
+
+界面显示实时 stdout / stderr、SWD 步骤和工具退出码。只有全部步骤退出码为 0 才显示成功；非零退出码、中止或超时均不显示成功。工具输出百分比时显示数值进度，否则显示动态进度条和阶段日志（nrfutil 在重定向输出下可能不绘制百分比）。中止传输前会确认；关闭客户端时同样处理正在进行的刷入，等待子进程真正退出后才释放文件与端口。执行期间保持系统运行请求，允许屏幕正常熄灭。
+
+每次实际刷入自动保存完整日志到 `%LOCALAPPDATA%\Qmknrf5\logs`，也可点击“导出日志”。ZIP 会复制到独立临时目录再检查，使用检查过的副本刷入，完成后清理；不执行 ZIP 中的脚本。测试覆盖错误包类型、HEX 校验和、路径与快照、命令参数、进程输出 / 失败 / 取消，并使用模拟工具验证 UI 流程；未在测试中刷写真实键盘。
+
+
+## 新键盘布局与公共功能
+
+客户端名称与可执行文件统一为 **Qmknrf5配置工具 / Qmknrf5.exe**。USB 使用专用音乐 HID Usage 发现设备，不再要求固定 VID/PID；蓝牙仍沿用公共服务 UUID。键盘自身的 USB / 蓝牙名称保留各自型号。工具配置与日志位于 `%LOCALAPPDATA%\Qmknrf5`，首次启动自动复制旧版 ciank67 的刷入工具配置。
+
+### 固件接入
+
+公共实现位于 `platforms/nrf5/features`：音乐灯效、MIDI 打字伴奏、客户端键盘控制、灯光按键兼容处理和底灯自测。nRF5 构建在合并 keyboard / keymap 设置后统一载入这些功能。新键盘在 `rules.mk` 设置：
+
+```make
+NRF5_CONFIG_ENABLE = yes
+MUSIC_STREAM_ENABLE = yes
+```
+
+按实际硬件开启 QMK 的 `RGB_MATRIX_ENABLE`、`RGBLIGHT_ENABLE`、`AUDIO_ENABLE`、`MIDI_ENABLE`，无需复制 ciank67 的公共 C 文件或添加其路径。公共周期任务由 nRF5 主循环调用，不必重复写 `housekeeping_task_user`。键盘若已有自定义 `rgb_matrix_kb.inc`，在其中包含公共效果文件 `platforms/nrf5/features/rgb_matrix_kb.inc`，避免覆盖自己的效果。
+
+键盘自己的目录仍负责 `keyboard.json`、引脚、LED 接线表 / 坐标、Caps Lock 指示区域、默认 keymap 及布局描述。需要键盘按键触发伴奏 / 联动灯开关时，在 `process_record_user` 复用公共处理器，并传入该 keymap 定义的键码：
+
+```c
+#include "nrf5_lighting.h"
+#include "nrf5_midi_typing.h"
+
+if (!nrf5_process_midi_typing(keycode, record, MIDI_TYPING_TOGGLE)) return false;
+if (!nrf5_process_lighting(keycode, record, RGBG_TOG)) return false;
+```
+
+矩阵音乐效果读取 `g_led_config`，频谱柱数默认按矩阵列数分组，行数默认使用 `MATRIX_ROWS`。电气矩阵与物理行差异较大时，可在键盘 `config.h` 设置 `NRF5_MUSIC_SPECTRUM_BARS`（1～16）和 `NRF5_MUSIC_SPECTRUM_ROWS`（1～32）。底灯自测默认按灯数分半；ciank67 的白色测试范围通过自身的 `NRF5_UNDERGLOW_TEST_WHITE_COUNT=8` 保持原样。Caps Lock 指示仍是键盘自身的 RGBLIGHT layer 配置。
+
+### 客户端 VIA 布局
+
+VIA 页新增 **加载键盘布局**。以发布目录 `Layouts/ciank67.json` 为格式参考，准备另一块键盘的 JSON 后加载即可，不需要改客户端代码。格式是本客户端的布局描述，不能直接导入 VIA 的 KLE definition 或键位备份：
+
+```json
+{
+  "name": "example",
+  "matrix": { "rows": 2, "cols": 2 },
+  "layout": [
+    { "matrix": [0, 0], "x": 0, "y": 0 },
+    { "matrix": [0, 1], "x": 1, "y": 0 },
+    { "matrix": [1, 0], "x": 0, "y": 1, "w": 2 }
+  ],
+  "custom_keycodes": {}
+}
+```
+
+`matrix` 是固件电气矩阵的完整尺寸，不能仅按有按键的最大坐标推断。`layout` 中可保留空洞，按键支持 `x/y/w/h`，当前不支持旋转。`custom_keycodes` 按该 keymap 的实际数值填写，范围为 QMK USER 键码（0x7E40 起）；没有自定义键码时留空即可，客户端不会把 ciank67 的自定义键名套到其他键盘。加载的布局保存在 `%LOCALAPPDATA%\Qmknrf5\layout.json`，切换实物键盘时应加载匹配的布局。
+
+新固件新增只读矩阵查询（私有 VIA 命令 0x81），在访问键位缓冲区前核对行列数；尺寸不一致即停止。R22 旧固件仍可使用原 5×14 布局，其他矩阵必须更新固件后才能通过核对。动态层数与宏容量继续从键盘读取，不再固定为 7 层或 67 键。
+
+
+## 自动键盘控制与律动灯光
+
+在设备连接页选择 USB / 蓝牙键盘后自动建立控制连接、读取实际开关状态，无需另点连接按钮。切换键盘会取消旧连接，连接中断后会自动重试；“重新连接控制”用于手动重试。“断开控制”会暂停自动重试，重新选择设备或开始律动会恢复连接。离线预览不连接键盘，固件刷入期间也不会自动重连。
+
+点击开始律动后，程序先打开“律动作用灯组”中选中的矩阵灯 / 底灯，再发送频谱。仅修改所选灯组的电源开关，不改变键盘声音、按键音或 MIDI 演奏模式；未选灯组保持原状。停止律动后恢复原有灯效，所打开的灯组保持开启，仍可用灯光开关手动关闭。

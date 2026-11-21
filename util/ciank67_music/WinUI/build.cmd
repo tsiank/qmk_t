@@ -14,7 +14,7 @@ dotnet publish Ciank67.Music.App -c Release -r win-x64 --self-contained false -o
 if errorlevel 1 goto failed
 powershell -NoProfile -ExecutionPolicy Bypass -File verify-publish.ps1 -PublishDirectory publish\win-x64
 if errorlevel 1 goto failed
-echo Ready: publish\win-x64\Ciank67Music.exe
+echo Ready: publish\win-x64\Qmknrf5.exe
 pause
 exit /b 0
 :failed

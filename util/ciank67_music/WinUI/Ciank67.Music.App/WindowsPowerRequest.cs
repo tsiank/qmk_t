@@ -13,9 +13,9 @@ internal sealed class WindowsPowerRequest : IDisposable
     private SafeFileHandle? handle;
     private const int SystemRequired = 1, ExecutionRequired = 3;
 
-    public WindowsPowerRequest()
+    public WindowsPowerRequest(string description = "Qmknrf5配置工具音乐律动正在采集声音并向键盘发送数据（允许熄屏）")
     {
-        IntPtr reason = Marshal.StringToHGlobalUni("ciank67 音乐律动正在采集声音并向键盘发送数据（允许熄屏）");
+        IntPtr reason = Marshal.StringToHGlobalUni(description);
         try
         {
             var context = new ReasonContext { Flags = 1, SimpleReason = reason };

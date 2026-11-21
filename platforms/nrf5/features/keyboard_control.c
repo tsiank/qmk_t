@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "quantum.h"
 #include "music_stream.h"
-#include "midi_typing.h"
+#include "nrf5_midi_typing.h"
+#if defined(AUDIO_ENABLE) || (defined(MIDI_ENABLE) && defined(MIDI_BASIC))
 #include "process_music.h"
+#endif
+#if defined(AUDIO_ENABLE) && defined(AUDIO_CLICKY)
 #include "process_clicky.h"
+#endif
 #include "app_util_platform.h"
 #include <string.h>
 
@@ -31,24 +35,43 @@ bool keyboard_control_receive(const uint8_t *data, music_source_t source) {
 }
 
 static uint8_t current_mode(void) {
-    return ciank67_midi_typing_enabled() ? 3 : is_midi_on() ? 2 : is_music_on() ? 1 : 0;
+    if (nrf5_midi_typing_enabled()) return 3;
+#if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
+    if (is_midi_on()) return 2;
+#endif
+#ifdef AUDIO_ENABLE
+    if (is_music_on()) return 1;
+#endif
+    return 0;
 }
 
 static void set_mode(uint8_t mode) {
-    // Physical QMK controls can enable both local music and MIDI. A summary
-    // mode alone cannot establish that the requested exclusive state is set.
-    if (ciank67_midi_typing_enabled() == (mode == 3) &&
-        is_midi_on() == (mode == 2) && is_music_on() == (mode == 1)) return;
-    ciank67_midi_typing_set(false);
-    if (is_midi_on()) midi_off();
-    if (is_music_on()) music_off();
+    bool midi = false, music = false;
+#if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
+    midi = is_midi_on();
+#endif
+#if defined(AUDIO_ENABLE) || (defined(MIDI_ENABLE) && defined(MIDI_BASIC))
+    music = is_music_on();
+#endif
+    if (nrf5_midi_typing_enabled() == (mode == 3) && midi == (mode == 2) && music == (mode == 1)) return;
+    nrf5_midi_typing_set(false);
+#if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
+    if (midi) midi_off();
+#endif
+#if defined(AUDIO_ENABLE) || (defined(MIDI_ENABLE) && defined(MIDI_BASIC))
+    if (music) music_off();
+#endif
+#ifdef AUDIO_ENABLE
     stop_all_notes();
     if (mode == 1) music_on();
+#endif
+#if defined(MIDI_ENABLE) && defined(MIDI_BASIC)
     if (mode == 2) midi_on();
-    if (mode == 3) ciank67_midi_typing_set(true);
+    if (mode == 3) nrf5_midi_typing_set(true);
+#endif
 }
 
-void ciank67_keyboard_control_task(void) {
+void nrf5_keyboard_control_task(void) {
     uint8_t command[20];
     music_source_t source;
     bool apply;
@@ -58,23 +81,43 @@ void ciank67_keyboard_control_task(void) {
     CRITICAL_REGION_EXIT();
     if (apply) {
         unsigned mask = command[3], value = command[4];
+        (void)value; // Keyboards without RGB/audio still support mode control.
+#ifdef RGB_MATRIX_ENABLE
         if (mask & 1 && rgb_matrix_is_enabled() != !!(value & 1)) {
             (value & 1) ? rgb_matrix_enable() : rgb_matrix_disable();
         }
+#endif
+#ifdef RGBLIGHT_ENABLE
         if (mask & 2 && rgblight_is_enabled() != !!(value & 2)) {
             (value & 2) ? rgblight_enable() : rgblight_disable();
         }
+#endif
+#ifdef AUDIO_ENABLE
         if (mask & 4 && is_audio_on() != !!(value & 4)) {
             (value & 4) ? audio_on() : audio_off();
         }
+#endif
+#if defined(AUDIO_ENABLE) && defined(AUDIO_CLICKY)
         if (mask & 8 && is_clicky_on() != !!(value & 8)) {
             (value & 8) ? clicky_on() : clicky_off();
         }
+#endif
         if (mask & 16) set_mode(command[5]);
         memset(response, 0, sizeof(response));
         response[0] = 0xc7; response[1] = 0x83; response[2] = command[2];
-        response[3] = rgb_matrix_is_enabled() | (rgblight_is_enabled() << 1) |
-            (is_audio_on() << 2) | (is_clicky_on() << 3);
+        response[3] = 0;
+#ifdef RGB_MATRIX_ENABLE
+        response[3] |= rgb_matrix_is_enabled();
+#endif
+#ifdef RGBLIGHT_ENABLE
+        response[3] |= rgblight_is_enabled() << 1;
+#endif
+#ifdef AUDIO_ENABLE
+        response[3] |= is_audio_on() << 2;
+#endif
+#if defined(AUDIO_ENABLE) && defined(AUDIO_CLICKY)
+        response[3] |= is_clicky_on() << 3;
+#endif
         response[4] = current_mode(); response[5] = 1; // protocol version
         response_source = source; reply_pending = true;
     }

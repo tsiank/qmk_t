@@ -4,3 +4,6 @@ publish/
 .vs/
 *.user
 .mono/
+
+# Bundled, verified nRF bootloader resources (not generated firmware).
+!Ciank67.Music.App/Tools/bootloader/*.hex

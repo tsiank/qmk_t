@@ -1,4 +1,5 @@
 /**
+
  * Copyright (c) 2017 - 2019, Nordic Semiconductor ASA
  *
  * All rights reserved.
@@ -38,6 +39,9 @@
  *
  */
 
+#ifdef NRF5_CONFIG_ENABLE
+#include "nrf5_features.h"
+#endif
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
@@ -47,6 +51,9 @@
 
 #include "keyboard.h"
 #include "eeprom.h"
+#ifdef RAW_ENABLE
+#include "via_transport.h"
+#endif
 #ifdef MIDI_ENABLE
 #include "qmk_midi.h"
 #include "midi_transport.h"
@@ -119,6 +126,9 @@ int main(void) {
 #ifdef MIDI_ENABLE
         nrf_midi_task();
 #endif
+#ifdef RAW_ENABLE
+        nrf_via_task();
+#endif
         if (keyboard_scan_pending) {
             keyboard_scan_pending = false;
             keyboard_task();
@@ -127,6 +137,9 @@ int main(void) {
 #endif
             eeprom_update();
             housekeeping_task();
+#ifdef NRF5_CONFIG_ENABLE
+            nrf5_features_task();
+#endif
         } else {
             idle_state_handle();
         }

@@ -1,5 +1,6 @@
 ROOT_DIR ?= .
 SDK_ROOT := $(ROOT_DIR)/lib/nrf5
+POST_CONFIG_H += $(PLATFORM_COMMON_DIR)/post_config.h
 PROTOCOL_DIR = $(TMK_PATH)/protocol
 APP_MAIN_DIR = $(PROTOCOL_DIR)/nrf5
 PROJ_DIR := $(APP_MAIN_DIR)
@@ -13,6 +14,10 @@ endif
 
 ifeq ($(strip $(MUSIC_STREAM_ENABLE)),yes)
   NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/music_stream.c $(APP_MAIN_DIR)/ble/music_gatt.c
+endif
+
+ifeq ($(strip $(RAW_ENABLE)),yes)
+  NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/via_transport.c $(APP_MAIN_DIR)/ble/via_gatt.c
 endif
 
 ifneq ($(findstring NRF52840, $(MCU)),)

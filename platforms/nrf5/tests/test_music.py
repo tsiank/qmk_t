@@ -37,7 +37,7 @@ uint32_t timer_elapsed32(uint32_t);
     def run_native(self, sources):
         command = [self.cc, '-std=gnu11', '-g', '-fsanitize=address,undefined', '-fno-pie', '-no-pie',
                    '-I', str(self.work), '-I', str(ROOT / 'platforms/nrf5'),
-                   '-I', str(ROOT / 'keyboards/ciank67'), '-I', str(ROOT / 'quantum/rgblight'),
+                   '-I', str(ROOT / 'platforms/nrf5/features'), '-I', str(ROOT / 'quantum/rgblight'),
                    *[str(ROOT / source) for source in sources], str(self.work / 'test.c'),
                    '-o', str(self.work / 'test')]
         for cmd in [command, [str(self.work / 'test')]]:
@@ -142,6 +142,8 @@ int main(void) {
 #include <stdbool.h>
 #include <stdint.h>
 #include "timer.h"
+#define RGB_MATRIX_ENABLE
+#define RGBLIGHT_ENABLE
 #define NO_LED 255
 #define MATRIX_ROWS 5
 #define MATRIX_COLS 14
@@ -179,8 +181,8 @@ uint16_t timer_elapsed(uint16_t);
         return r'''
 #include <assert.h>
 #include <string.h>
-#include "lighting.h"
-#include "music.h"
+#include "nrf5_lighting.h"
+#include "nrf5_music.h"
 #include "music_stream.h"
 #include "rgblight_drivers.h"
 unsigned critical_depth;
@@ -209,7 +211,7 @@ uint8_t rgblight_get_hue(void) { return 23; }
 uint8_t rgblight_get_sat(void) { return 180; }
 void rgblight_timer_disable(void) { timer_disables++; }
 void rgblight_set(void) { flushes++; }
-bool ciank67_underglow_test_is_active(void) { return selftest; }
+bool nrf5_underglow_test_is_active(void) { return selftest; }
 static void color(int i,uint8_t r,uint8_t g,uint8_t b) { assert(i>=0 && i<18); under_value[i]=b; under_hue[i]=r; under_sat[i]=g; }
 const rgblight_driver_t rgblight_driver = {.set_color=color};
 typedef struct { uint8_t iter; bool init; } effect_params_t;
@@ -240,7 +242,7 @@ int main(void) {
     uint8_t data[20]={0xC7,1,0,3};
     memset(data+4,255,16);
     assert(rgb_matrix_override_effect(7)==7);
-    ciank67_music_task(); assert(flushes==0 && restores==0 && timer_disables==0);
+    nrf5_music_task(); assert(flushes==0 && restores==0 && timer_disables==0);
     music_stream_receive(data,20,MUSIC_SOURCE_USB);
     assert(rgb_matrix_override_effect(7)==RGB_MATRIX_CUSTOM_MUSIC_SPECTRUM);
     assert(rgb_matrix_override_effect(0)==0); // Off must never be overridden.
@@ -249,20 +251,20 @@ int main(void) {
     for (unsigned step=0; step<60; ++step) {
         now+=20; music_stream_receive(data,20,MUSIC_SOURCE_USB); draw(false);
     }
-    ciank67_music_task();
+    nrf5_music_task();
     for (unsigned i=0;i<4;i++) assert(matrix_value[i]==128);
     for (unsigned i=0;i<4;i++) assert(matrix_sat[i]==255); // No white peak speckles.
     assert(matrix_hue[0]==0 && matrix_hue[1]==85 && matrix_hue[3]==85); // Red top, green base.
     for (unsigned i=0;i<18;i++) assert(under_value[i]==100);
     assert(flushes==1);
-    ciank67_music_task(); assert(flushes==1);
-    under=false; ciank67_music_task(); assert(flushes==2 && restores==0);
-    under=true; now+=33; ciank67_music_task(); assert(flushes==3);
-    selftest=true; now+=33; ciank67_music_task(); assert(flushes==3);
+    nrf5_music_task(); assert(flushes==1);
+    under=false; nrf5_music_task(); assert(flushes==2 && restores==0);
+    under=true; now+=33; nrf5_music_task(); assert(flushes==3);
+    selftest=true; now+=33; nrf5_music_task(); assert(flushes==3);
     selftest=false;
     data[3]=MUSIC_MATRIX;
-    music_stream_receive(data,20,MUSIC_SOURCE_USB); ciank67_music_task();
-    assert(restores==1); ciank67_music_task(); assert(restores==1);
+    music_stream_receive(data,20,MUSIC_SOURCE_USB); nrf5_music_task();
+    assert(restores==1); nrf5_music_task(); assert(restores==1);
     matrix=false; memset(matrix_value,17,4); draw(false);
     for (unsigned i=0;i<4;i++) assert(matrix_value[i]==17);
     matrix=true;
@@ -279,9 +281,9 @@ int main(void) {
     assert(rgb_matrix_override_effect(7)==7); // Timeout returns the configured mode.
     g_led_config.flags[3]=2; matrix_value[3]=17;
     draw(false); assert(matrix_value[3]==17); // Standard LED flags are respected.
-    data[3]=3; music_stream_receive(data,20,MUSIC_SOURCE_USB); ciank67_music_task();
-    now+=750; ciank67_music_task(); assert(restores==2);
-    ciank67_music_task(); assert(restores==2);
+    data[3]=3; music_stream_receive(data,20,MUSIC_SOURCE_USB); nrf5_music_task();
+    now+=750; nrf5_music_task(); assert(restores==2);
+    nrf5_music_task(); assert(restores==2);
     // Filled dual-center circles rise smoothly, survive timer wrap and never
     // drop out or retrigger during a steady note. Equal radii on both halves.
     g_led_config = (led_config_t){.point={{56,32},{80,32},{168,32},{192,32}}, .flags={1,1,1,1}};
@@ -328,7 +330,7 @@ int main(void) {
     for (unsigned i=0;i<4;i++) assert(matrix_value[i]==0);
 }
 ''')
-        self.run_native(['platforms/nrf5/music_stream.c', 'keyboards/ciank67/music.c'])
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_spectrum_aligns_all_staggered_keys_and_frequency_bands(self):
         board = (ROOT / 'keyboards/ciank67/ciank67.c').read_text()
@@ -344,8 +346,8 @@ int main(void) {
         for (uint8_t i=0;i<67;i++) g_led_config.flags[i]=1;
         for (unsigned step=0; step<70; ++step) {
             now+=20; music_stream_receive(data,20,MUSIC_SOURCE_USB);
-            ciank67_music_render_spectrum(0,30,step==0);
-            ciank67_music_render_spectrum(30,67,step==0);
+            nrf5_music_render_spectrum(0,30,step==0);
+            nrf5_music_render_spectrum(30,67,step==0);
         }
         for (unsigned row=0; row<MATRIX_ROWS; ++row) {
             for (unsigned col=0; col<MATRIX_COLS; ++col) {
@@ -362,7 +364,7 @@ int main(void) {
     uint8_t data[20]={0xC7,1,0,MUSIC_MATRIX}; data[9]=128;
     for (unsigned step=0; step<70; ++step) {
         now+=20; music_stream_receive(data,20,MUSIC_SOURCE_BLE);
-        ciank67_music_render_spectrum(0,67,step==0);
+        nrf5_music_render_spectrum(0,67,step==0);
     }
     uint8_t above=0;
     for (uint8_t row=0; row<MATRIX_ROWS; ++row) {
@@ -381,7 +383,32 @@ int main(void) {
     assert(above>0 && above<64); // Base brightness follows the audio as well.
 }
 ''')
-        self.run_native(['platforms/nrf5/music_stream.c', 'keyboards/ciank67/music.c'])
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
+
+    def test_shared_renderer_supports_a_4_by_12_keyboard(self):
+        prefix = self.renderer_prefix(48)
+        quantum = (self.work / 'quantum.h').read_text().replace('MATRIX_ROWS 5', 'MATRIX_ROWS 4').replace('MATRIX_COLS 14', 'MATRIX_COLS 12')
+        self.write('quantum.h', quantum)
+        self.write('test.c', prefix + r"""
+int main(void) {
+    for (unsigned row=0;row<4;row++) for(unsigned col=0;col<12;col++) {
+        unsigned led=row*12+col;
+        g_led_config.matrix_co[row][col]=led;
+        g_led_config.point[led].x=col*224/11;
+        g_led_config.point[led].y=row*64/3;
+        g_led_config.flags[led]=1;
+    }
+    uint8_t packet[20]={0xC7,1,0,MUSIC_MATRIX};memset(packet+4,255,16);
+    assert(music_stream_receive(packet,20,MUSIC_SOURCE_USB));
+    nrf5_music_render_spectrum(0,48,true);
+    for(unsigned i=0;i<48;i++)assert(matrix_value[i]>0);
+    memset(packet+4,0,16);assert(music_stream_receive(packet,20,MUSIC_SOURCE_USB));now+=150;
+    nrf5_music_render_spectrum(0,48,false);
+    for(unsigned i=0;i<48;i++)assert(matrix_value[i]==0);
+    return 0;
+}
+""")
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_spectrum_attacks_immediately_and_releases_within_120ms(self):
         prefix = self.renderer_prefix().replace(
@@ -411,7 +438,7 @@ int main(void) {
     }
 }
 ''')
-        self.run_native(['platforms/nrf5/music_stream.c', 'keyboards/ciank67/music.c'])
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_moderate_levels_do_not_pin_the_base_or_dance_centers(self):
         self.write('test.c', self.renderer_prefix() + r'''
@@ -450,7 +477,7 @@ int main(void) {
     assert(matrix_value[0]==128);
 }
 ''')
-        self.run_native(['platforms/nrf5/music_stream.c', 'keyboards/ciank67/music.c'])
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_color_mode_changes_hue_without_changing_music_motion(self):
         self.write('test.c', self.renderer_prefix() + r'''
@@ -459,12 +486,12 @@ int main(void) {
     g_led_config.matrix_co[0][0]=0; g_led_config.matrix_co[4][13]=1;
     g_led_config.matrix_co[2][7]=2; g_led_config.matrix_co[4][0]=3;
     uint8_t data[20]={0xC7,1,0,3}; memset(data+4,192,16);
-    music_stream_receive(data,20,MUSIC_SOURCE_USB); draw(true); ciank67_music_task();
+    music_stream_receive(data,20,MUSIC_SOURCE_USB); draw(true); nrf5_music_task();
     assert(matrix_hue[0]!=matrix_hue[1] && under_hue[0]!=under_hue[17]);
     uint8_t spectrum_values[4]; memcpy(spectrum_values,matrix_value,4);
     assert(spectrum_values[0]==0 && spectrum_values[1]>0 && spectrum_values[1]<128);
     data[3]=0x23; now+=33; music_stream_receive(data,20,MUSIC_SOURCE_BLE);
-    draw(false); ciank67_music_task();
+    draw(false); nrf5_music_task();
     for (unsigned i=0;i<4;i++) assert(matrix_hue[i]==0 && matrix_value[i]==spectrum_values[i]);
     for (unsigned i=0;i<18;i++) assert(under_hue[i]==23 && under_sat[i]==180 && under_value[i]==75);
     // The color selection, like the heights, is held for the entire frame.
@@ -472,7 +499,7 @@ int main(void) {
     data[3]=3; music_stream_receive(data,20,MUSIC_SOURCE_USB);
     params.iter=1; MUSIC_SPECTRUM(&params);
     for (unsigned i=0;i<4;i++) assert(matrix_hue[i]==0);
-    now+=33; draw(false); ciank67_music_task();
+    now+=33; draw(false); nrf5_music_task();
     assert(matrix_hue[0]!=matrix_hue[1] && under_hue[0]!=under_hue[17]);
     g_led_config = (led_config_t){.point={{56,32},{80,32},{168,32},{192,32}}, .flags={1,1,1,1}};
     data[3]=0x13;
@@ -487,7 +514,7 @@ int main(void) {
     assert(matrix_hue[0]!=matrix_hue[1] && !memcmp(values,matrix_value,4));
 }
 ''')
-        self.run_native(['platforms/nrf5/music_stream.c', 'keyboards/ciank67/music.c'])
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_custom_rgb_recolors_both_effects_and_underglow(self):
         self.write('test.c', self.renderer_prefix() + r'''
@@ -499,7 +526,7 @@ int main(void) {
     uint8_t color[20]={0xC7,2,255,128,64};
     music_stream_receive(color,20,MUSIC_SOURCE_USB);
     music_stream_receive(audio,20,MUSIC_SOURCE_USB);
-    draw(true); ciank67_music_task();
+    draw(true); nrf5_music_task();
     for (unsigned i=0;i<4;i++) assert(matrix_hue[i]==128 && matrix_sat[i]==64 && matrix_value[i]==32);
     for (unsigned i=0;i<18;i++) assert(under_hue[i]==100 && under_sat[i]==50 && under_value[i]==25);
     // A newly selected blue is held until the next complete matrix frame.
@@ -514,7 +541,7 @@ int main(void) {
         now+=20; music_stream_receive(audio,20,MUSIC_SOURCE_USB); draw_dance(step==0);
     }
     for (unsigned i=0;i<4;i++) assert(matrix_hue[i]==0 && matrix_sat[i]==0 && matrix_value[i]>0);
-    color[4]=0; music_stream_receive(color,20,MUSIC_SOURCE_USB); draw_dance(false); ciank67_music_task();
+    color[4]=0; music_stream_receive(color,20,MUSIC_SOURCE_USB); draw_dance(false); nrf5_music_task();
     for (unsigned i=0;i<4;i++) assert(!matrix_hue[i] && !matrix_sat[i] && !matrix_value[i]);
     for (unsigned i=0;i<18;i++) assert(!under_hue[i] && !under_sat[i] && !under_value[i]);
     // Selected RGB never affects colorful mode.
@@ -522,7 +549,7 @@ int main(void) {
     assert(matrix_hue[0]!=matrix_hue[1] && matrix_value[3]>0);
 }
 ''')
-        self.run_native(['platforms/nrf5/music_stream.c', 'keyboards/ciank67/music.c'])
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_actual_matrix_task_override_preserves_off_and_saved_mode(self):
         code = (ROOT / 'quantum/rgb_matrix/rgb_matrix.c').read_text()

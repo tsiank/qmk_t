@@ -499,11 +499,11 @@ typedef struct { struct { struct { uint8_t row,col; } key; bool pressed; } event
         self.write('process_midi.h', 'void process_midi_basic_noteon(uint8_t);void process_midi_basic_noteoff(uint8_t);void process_midi_all_notes_off(void);\n')
         self.write('process_music.h', 'bool is_midi_on(void);bool is_music_on(void);void midi_off(void);void music_off(void);\n')
         # Add board directory so its real public header is used.
-        self.write('midi_typing.h', (ROOT/'keyboards/ciank67/midi_typing.h').read_text())
+        self.write('nrf5_midi_typing.h', (ROOT/'platforms/nrf5/features/nrf5_midi_typing.h').read_text())
         self.run_c(r"""
 #include <assert.h>
 #include "quantum.h"
-#include "midi_typing.h"
+#include "nrf5_midi_typing.h"
 static unsigned on,off,panic;static uint8_t note;static bool pure;
 bool is_midi_on(void){return pure;}bool is_music_on(void){return false;}
 void midi_off(void){pure=false;}void music_off(void){}
@@ -513,7 +513,7 @@ void process_midi_all_notes_off(void){panic++;}
 void nrf_midi_reset_user(void);
 static bool key(uint16_t k,bool down,unsigned row,unsigned col,unsigned tap){
  keyrecord_t r={.event={.key={row,col},.pressed=down},.tap.count=tap};
- return ciank67_process_midi_typing(k,&r,0x6000);
+ return nrf5_process_midi_typing(k,&r,0x6000);
 }
 int main(void){
  assert(key(4,true,0,0,0)&&on==0);
@@ -538,7 +538,7 @@ int main(void){
  key(4,true,0,2,0);assert(on==before); // old pure mode owns this event
  assert(key(4,true,255,255,0));
 }
-""", ['keyboards/ciank67/midi_typing.c'])
+""", ['platforms/nrf5/features/midi_typing.c'])
 
     def test_keyboard_control_validation_main_loop_ack_and_modes(self):
         self.write('quantum.h', r"""#pragma once
@@ -549,11 +549,12 @@ bool rgb_matrix_is_enabled(void);void rgb_matrix_enable(void);void rgb_matrix_di
 bool rgblight_is_enabled(void);void rgblight_enable(void);void rgblight_disable(void);
 bool is_audio_on(void);void audio_on(void);void audio_off(void);void stop_all_notes(void);
 """)
-        self.write('midi_typing.h', '#include "quantum.h"\nbool ciank67_midi_typing_enabled(void);void ciank67_midi_typing_set(bool);\n')
+        self.write('quantum.h', '#define RGB_MATRIX_ENABLE\n#define RGBLIGHT_ENABLE\n#define AUDIO_ENABLE\n#define MIDI_ENABLE\n#define AUDIO_CLICKY\n' + (self.path/'quantum.h').read_text())
+        self.write('nrf5_midi_typing.h', '#include "quantum.h"\nbool nrf5_midi_typing_enabled(void);void nrf5_midi_typing_set(bool);\n')
         self.write('process_music.h', '#include "quantum.h"\nbool is_midi_on(void);bool is_music_on(void);void midi_on(void);void midi_off(void);void music_on(void);void music_off(void);\n')
         self.write('process_clicky.h', '#include "quantum.h"\nbool is_clicky_on(void);void clicky_on(void);void clicky_off(void);\n')
         self.write('timer.h', '#include <stdint.h>\nuint32_t timer_read32(void);uint32_t timer_elapsed32(uint32_t);\n')
-        source=ROOT/'keyboards/ciank67/keyboard_control.c'
+        source=ROOT/'platforms/nrf5/features/keyboard_control.c'
         stream=ROOT/'platforms/nrf5/music_stream.c'
         self.run_c(r"""
 #define KEYBOARD_CONTROL_ENABLE
@@ -565,14 +566,14 @@ int critical_depth;static bool matrix=true,under=true,audio=true,clicky,typing,l
 static unsigned changes,replies,ble_replies,stops;static uint8_t ack[20];
 #define FLAG(name,var) bool name(void){return var;}
 FLAG(rgb_matrix_is_enabled,matrix) FLAG(rgblight_is_enabled,under) FLAG(is_audio_on,audio)
-FLAG(is_clicky_on,clicky) FLAG(is_midi_on,midi) FLAG(is_music_on,local) FLAG(ciank67_midi_typing_enabled,typing)
+FLAG(is_clicky_on,clicky) FLAG(is_midi_on,midi) FLAG(is_music_on,local) FLAG(nrf5_midi_typing_enabled,typing)
 #define SET(name,var,value) void name(void){assert(critical_depth==0);var=value;changes++;}
 SET(rgb_matrix_enable,matrix,true) SET(rgb_matrix_disable,matrix,false)
 SET(rgblight_enable,under,true) SET(rgblight_disable,under,false)
 SET(audio_on,audio,true) SET(audio_off,audio,false)
 SET(clicky_on,clicky,true) SET(clicky_off,clicky,false)
 SET(midi_on,midi,true) SET(midi_off,midi,false) SET(music_on,local,true) SET(music_off,local,false)
-void ciank67_midi_typing_set(bool on){assert(!critical_depth);typing=on;}
+void nrf5_midi_typing_set(bool on){assert(!critical_depth);typing=on;}
 void stop_all_notes(void){assert(!critical_depth);stops++;}
 uint32_t timer_read32(void){return 0;}uint32_t timer_elapsed32(uint32_t t){return 0;}
 bool keyboard_control_usb_reply(const uint8_t*p){if(busy)return false;memcpy(ack,p,20);replies++;return true;}
@@ -581,28 +582,28 @@ bool keyboard_control_ble_reply(const uint8_t*p){memcpy(ack,p,20);ble_replies++;
 int main(void){
  uint8_t p[20]={0xc7,4,1};music_frame_t frame;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(!changes&&!replies);
- ciank67_keyboard_control_task();assert(ack[0]==0xc7&&ack[1]==0x83&&ack[2]==1&&ack[3]==7&&ack[4]==0&&ack[5]==1);
+ nrf5_keyboard_control_task();assert(ack[0]==0xc7&&ack[1]==0x83&&ack[2]==1&&ack[3]==7&&ack[4]==0&&ack[5]==1);
  assert(!changes&&!music_stream_read(&frame)); // polling is read-only, not music keepalive
  p[1]=3;p[2]=2;p[3]=1;p[4]=0;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(matrix); // no QMK in receive IRQ
- ciank67_keyboard_control_task();assert(!matrix&&under&&audio&&changes==1&&ack[3]==6);
- assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(changes==1); // idempotent
- p[3]=8;p[4]=8;assert(music_stream_receive(p,20,MUSIC_SOURCE_BLE));ciank67_keyboard_control_task();assert(clicky&&ble_replies==1);
- p[3]=16;p[4]=0;p[5]=3;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(typing&&ack[4]==3&&stops==1);
- p[5]=2;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(midi&&!typing&&!local&&ack[4]==2);
- p[5]=1;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(!midi&&!typing&&local);
- p[5]=0;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(!midi&&!typing&&!local);
- p[3]=4;p[4]=0;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(!audio);
+ nrf5_keyboard_control_task();assert(!matrix&&under&&audio&&changes==1&&ack[3]==6);
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(changes==1); // idempotent
+ p[3]=8;p[4]=8;assert(music_stream_receive(p,20,MUSIC_SOURCE_BLE));nrf5_keyboard_control_task();assert(clicky&&ble_replies==1);
+ p[3]=16;p[4]=0;p[5]=3;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(typing&&ack[4]==3&&stops==1);
+ p[5]=2;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(midi&&!typing&&!local&&ack[4]==2);
+ p[5]=1;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(!midi&&!typing&&local);
+ p[5]=0;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(!midi&&!typing&&!local);
+ p[3]=4;p[4]=0;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(!audio);
  // Physical MU_ON + MI_ON can coexist; selecting the summarized MIDI mode
  // must still disable the extra local mode instead of incorrectly no-oping.
  midi=true;local=true;p[3]=16;p[4]=0;p[5]=2;
- assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();
  assert(midi&&!local&&!typing&&ack[4]==2);
  unsigned same=changes;
- assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();assert(changes==same);
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(changes==same);
  unsigned before=changes;p[1]=4;p[3]=p[4]=p[5]=0;p[2]=255;
- busy=true;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));ciank67_keyboard_control_task();
- busy=false;ciank67_keyboard_control_task();assert(ack[2]==255&&changes==before);
+ busy=true;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();
+ busy=false;nrf5_keyboard_control_task();assert(ack[2]==255&&changes==before);
  p[3]=1;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB)); // query cannot modify state
  p[1]=3;p[3]=32;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));
  p[3]=16;p[5]=4;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));

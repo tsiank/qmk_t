@@ -9,9 +9,23 @@ public sealed record KeyboardControlState(byte Flags, KeyboardMusicMode Mode)
     public bool Audio => (Flags & 4) != 0;
     public bool Clicky => (Flags & 8) != 0;
 }
+public interface IKeyboardControlTransport : IMusicTransport
+{
+    Task<KeyboardControlState> ControlAsync(byte mask,byte values,KeyboardMusicMode mode,CancellationToken token);
+}
 public static class KeyboardControlProtocol
 {
     public static readonly Guid StateUuid = new("c1a00003-7d9b-4c7d-a568-7294e2166700");
+    public static async Task<KeyboardControlState?> EnableMusicLightsAsync(IKeyboardControlTransport transport,LightTarget target,CancellationToken token)
+    {
+        if((target&~LightTarget.Both)!=0)throw new ArgumentOutOfRangeException(nameof(target));
+        token.ThrowIfCancellationRequested();
+        byte mask=(byte)target;
+        if(mask==0)return null;
+        var state=await transport.ControlAsync(mask,mask,KeyboardMusicMode.Off,token);
+        if((state.Flags&mask)!=mask)throw new IOException("所选律动灯组未能开启，请检查键盘灯光配置。");
+        return state;
+    }
     public static byte[] Command(byte sequence, byte mask = 0, byte values = 0, KeyboardMusicMode mode = KeyboardMusicMode.Off)
     {
         if ((mask & ~31) != 0 || (values & ~15) != 0 || (byte)mode > 3) throw new ArgumentOutOfRangeException(nameof(mask));

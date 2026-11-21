@@ -10,7 +10,7 @@ namespace Ciank67.Music.App;
 
 internal sealed class MidiPanel
 {
-    private readonly ComboBox input = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择 ciank67 MIDI 输入" };
+    private readonly ComboBox input = new() { HorizontalAlignment = HorizontalAlignment.Stretch, PlaceholderText = "请选择键盘 MIDI 输入" };
     private readonly ComboBox output = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ComboBox instrument = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly Button refresh = new() { Content = "刷新 MIDI 设备" };
@@ -27,7 +27,7 @@ internal sealed class MidiPanel
     private CancellationTokenSource? discovery;
     private Task? openTask;
     private string? activeInput;
-    private bool refreshing, closed;
+    private bool refreshing, closed, suspended;
     private int generation;
     private static readonly (string Name, byte Program)[] Instruments = {
         ("钢琴", 0), ("电钢琴", 4), ("音乐盒", 10), ("马林巴", 12),
@@ -40,7 +40,7 @@ internal sealed class MidiPanel
     {
         this.dispatcher = dispatcher;
         var panel = new StackPanel { Spacing = 12 };
-        panel.Children.Add(new TextBlock { Text = "MIDI 演奏", FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        panel.Children.Add(new TextBlock { Text = "电脑合成器", FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         panel.Children.Add(new TextBlock { Text = "让键盘音符通过电脑扬声器发声，可与音乐律动同时使用。", TextWrapping = TextWrapping.Wrap, Opacity = .7 });
         panel.Children.Add(Field("键盘 MIDI 输入（USB / 蓝牙）", input));
         panel.Children.Add(Field("合成器 / MIDI 输出", output));
@@ -103,16 +103,16 @@ internal sealed class MidiPanel
     private void Controls()
     {
         bool busy = router is not null || opening is not null;
-        input.IsEnabled = output.IsEnabled = !busy && !refreshing && !closed;
-        start.IsEnabled = !busy && !refreshing && !closed && input.SelectedItem is MidiPortChoice;
+        input.IsEnabled = output.IsEnabled = !busy && !refreshing && !closed && !suspended;
+        start.IsEnabled = !busy && !refreshing && !closed && !suspended && input.SelectedItem is MidiPortChoice;
         stop.IsEnabled = (busy || refreshing) && !closed;
-        refresh.IsEnabled = !busy && !refreshing && !closed;
+        refresh.IsEnabled = !busy && !refreshing && !closed && !suspended;
         panic.IsEnabled = router is not null && !closed;
     }
 
     public async Task RefreshAsync()
     {
-        if (closed || refreshing || router is not null || opening is not null) return;
+        if (closed || suspended || refreshing || router is not null || opening is not null) return;
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         discovery = cancellation;
         refreshing = true; Controls(); status.Text = "正在查找 MIDI 输入和合成器…";
@@ -129,11 +129,11 @@ internal sealed class MidiPanel
             // computer synths only; feeding back into the keyboard is confusing.
             var outputs = new[] { new MidiPortChoice("", "内置合成器 · 默认电脑扬声器") }
                 .Concat(outTask.Result.Where(d => !inputs.Any(i => i.Id == d.Id) &&
-                    !d.Name.Contains("ciank67",StringComparison.OrdinalIgnoreCase))
+                    !inputs.Any(i => i.Name.Equals(d.Name,StringComparison.OrdinalIgnoreCase)))
                     .Select(d => new MidiPortChoice(d.Id,d.Name))).ToArray();
             input.ItemsSource = inputs;
             input.SelectedItem = inputs.FirstOrDefault(d => d.Id == previousInput) ??
-                inputs.FirstOrDefault(d => d.Name.Contains("ciank67",StringComparison.OrdinalIgnoreCase));
+                (inputs.Length==1?inputs[0]:null);
             output.ItemsSource = outputs;
             output.SelectedItem = outputs.FirstOrDefault(d => d.Id == previousOutput) ?? outputs[0];
             status.Text = inputs.Length == 0 ? "没有 MIDI 输入，请连接键盘；蓝牙需先配对。" :
@@ -146,7 +146,7 @@ internal sealed class MidiPanel
 
     private async Task StartAsync()
     {
-        if (closed || opening is not null || router is not null || input.SelectedItem is not MidiPortChoice source ||
+        if (closed || suspended || opening is not null || router is not null || input.SelectedItem is not MidiPortChoice source ||
             output.SelectedItem is not MidiPortChoice destination) return;
         int current = ++generation;
         var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
@@ -180,6 +180,13 @@ internal sealed class MidiPanel
         status.Text = message; Controls();
     }
 
+    public async Task SuspendForFirmwareAsync()
+    {
+        suspended = true; Stop("刷入前已停止 MIDI 演奏。用新固件重新连接后请刷新 MIDI 设备。");
+        if (openTask is { } task) await task;
+        Controls();
+    }
+    public void ResumeAfterFirmware() { suspended = false; Controls(); }
     public async Task CloseAsync()
     {
         closed = true; Stop("已关闭"); timer.Stop();

@@ -35,5 +35,5 @@ def render(size):
 if __name__ == '__main__':
     sizes = (16, 20, 24, 32, 40, 48, 64, 128, 256)
     frames = [render(size) for size in sizes]
-    frames[-1].save(Path(__file__).with_name('Ciank67Music.ico'), format='ICO',
+    frames[-1].save(Path(__file__).with_name('Qmknrf5.ico'), format='ICO',
                     sizes=[(s, s) for s in sizes], append_images=frames[:-1])

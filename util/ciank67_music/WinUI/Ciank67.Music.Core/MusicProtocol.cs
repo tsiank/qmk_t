@@ -24,7 +24,7 @@ public static class MusicProtocol
         (vendorId == LegacyVendorId && productId == LegacyProductId);
 
     public static bool IsMusicUsbInterface(int vendorId, int productId, IEnumerable<uint> usages) =>
-        IsSupportedUsbIdentity(vendorId, productId) && usages.Contains(HidUsage);
+        usages.Contains(HidUsage);
 
     public static byte[] Packet(byte sequence, ReadOnlySpan<byte> bands, LightTarget target, MusicEffect effect = MusicEffect.Spectrum,
         MusicColorMode colorMode = MusicColorMode.Colorful)

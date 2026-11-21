@@ -1,3 +1,6 @@
+#ifdef RAW_ENABLE
+#include "via_transport.h"
+#endif
 #include "ble_hids_service.h"
 #include "keycode_config.h"
 
@@ -389,6 +392,9 @@ static host_driver_t driver = {
     .send_nkro = send_nkro,
     .send_mouse = send_mouse,
     .send_extra = send_extra,
+#ifdef RAW_ENABLE
+    .send_raw_hid = nrf_via_send,
+#endif
 };
 
 host_driver_t *nrf5_ble_driver(void) { return &driver; }

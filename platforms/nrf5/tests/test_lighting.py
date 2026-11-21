@@ -31,7 +31,7 @@ class LightingTests(unittest.TestCase):
         commands = [
             [self.cc, '-std=gnu11', '-g', '-fsanitize=address,undefined', '-fno-pie', '-no-pie',
              '-I', str(self.work), '-I', str(ROOT / 'quantum'),
-             '-I', str(ROOT / 'quantum/process_keycode'), '-I', str(ROOT / 'keyboards/ciank67'),
+             '-I', str(ROOT / 'quantum/process_keycode'), '-I', str(ROOT / 'platforms/nrf5/features'),
              *flags, *[str(ROOT / source) for source in sources], str(self.work / 'test.c'), '-o', str(binary)],
             [str(binary)],
         ]
@@ -68,7 +68,7 @@ class LightingTests(unittest.TestCase):
         self.write('modifiers.h', '#define MOD_MASK_SHIFT 0x22\n')
         self.write('test.c', r'''
 #include <assert.h>
-#include "lighting.h"
+#include "nrf5_lighting.h"
 #include "process_underglow.h"
 #include "process_rgb_matrix.h"
 static bool matrix = true, under = true, hardware = true;
@@ -82,7 +82,7 @@ uint8_t rgblight_get_mode(void) { return last_mode; }
 ''' + '\n'.join(definitions) + r'''
 static void event(uint16_t key, bool pressed) {
     keyrecord_t record = {.event.pressed = pressed};
-    if (ciank67_process_lighting(key, &record, QK_USER_0) && process_underglow(key, &record))
+    if (nrf5_process_lighting(key, &record, QK_USER_0) && process_underglow(key, &record))
         process_rgb_matrix(key, &record);
 }
 static void tap(uint16_t key) { event(key, true); event(key, false); }
@@ -118,7 +118,7 @@ int main(void) {
 }
 ''')
         effects = ['BREATHING', 'RAINBOW_MOOD', 'RAINBOW_SWIRL', 'SNAKE', 'KNIGHT', 'CHRISTMAS', 'STATIC_GRADIENT', 'RGB_TEST', 'TWINKLE']
-        self.run_native(['keyboards/ciank67/lighting.c', 'quantum/process_keycode/process_underglow.c',
+        self.run_native(['platforms/nrf5/features/lighting.c', 'quantum/process_keycode/process_underglow.c',
                          'quantum/process_keycode/process_rgb_matrix.c'],
                         ['-DRGBLIGHT_ENABLE', '-DRGB_MATRIX_ENABLE', '-DRGB_MATRIX_IS31FL3741',
                          '-DRGB_MATRIX_DISABLE_SHARED_KEYCODES',
@@ -342,7 +342,7 @@ void ws2812_setleds(rgb_led_t *, uint16_t);
 ''')
         self.write('test.c', r'''
 #include <assert.h>
-#include "lighting.h"
+#include "nrf5_lighting.h"
 #include "nrf5/ws2812.h"
 static const rgblight_segment_t segment = {9, 8, 0, 0, 255};
 static const rgblight_segment_t *const layers[] = {&segment, NULL};
@@ -373,31 +373,31 @@ void ws2812_setleds(rgb_led_t *pixels, uint16_t count) {
     frames++;
 }
 int main(void) {
-    ciank67_underglow_test_task();
+    nrf5_underglow_test_task();
     assert(frames == 0);
-    ciank67_underglow_test();
+    nrf5_underglow_test();
     assert(rgblight_layers == NULL);
     for (phase = 0; phase < 4; phase++) {
         now = phase * 2000;
-        ciank67_underglow_test_task();
+        nrf5_underglow_test_task();
         assert(frames == phase + 1);
-        ciank67_underglow_test_task(); // No duplicate frame before 20 ms.
+        nrf5_underglow_test_task(); // No duplicate frame before 20 ms.
         assert(frames == phase + 1);
     }
     now = 8000;
-    ciank67_underglow_test_task();
+    nrf5_underglow_test_task();
     assert(restores == 1 && rgblight_layers == layers);
-    ciank67_underglow_test();
-    ciank67_underglow_test(); // Press again to cancel.
+    nrf5_underglow_test();
+    nrf5_underglow_test(); // Press again to cancel.
     assert(restores == 2 && rgblight_layers == layers);
     enabled = power = false;
-    ciank67_underglow_test();
+    nrf5_underglow_test();
     assert(power);
     now += 8000;
     phase = 4; // Disabled restoration must transmit black and cut power.
-    ciank67_underglow_test_task();
+    nrf5_underglow_test_task();
     assert(!enabled && !power && restores == 2 && frames == 4);
     assert(rgblight_layers == layers);
 }
 ''')
-        self.run_native(['keyboards/ciank67/underglow_test.c'], ['-DRGBLIGHT_LED_COUNT=18'])
+        self.run_native(['platforms/nrf5/features/underglow_test.c'], ['-DRGBLIGHT_LED_COUNT=18', '-DRGBLIGHT_ENABLE', '-DRGBLIGHT_LAYERS', '-DRGBLIGHT_WS2812', '-DRGB_PWR_PIN=8', '-DNRF5_UNDERGLOW_TEST_WHITE_COUNT=8'])
