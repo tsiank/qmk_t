@@ -355,6 +355,34 @@ if (OperatingSystem.IsWindows())
     });
 }
 
+Test("Device opening cancellation returns promptly and closes a late resource exactly once", () =>
+{
+    var native = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+    using var cancel = new CancellationTokenSource();
+    int closed=0;
+    var open = CancellableResourceOpen.OpenAsync(()=>native.Task,_=>Interlocked.Increment(ref closed),cancel.Token);
+    cancel.Cancel();
+    Throws<OperationCanceledException>(()=>open.WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult());
+    Check(closed==0,"Closed a resource before native opening completed");
+    native.SetResult(new object());
+    Check(SpinWait.SpinUntil(()=>Volatile.Read(ref closed)==1,2000),"Late resource leaked");
+});
+Test("Successful device opening transfers ownership and pre-cancellation never calls native", () =>
+{
+    var resource=new object();int closed=0,called=0;
+    var opened=CancellableResourceOpen.OpenAsync(()=>Task.FromResult<object?>(resource),_=>closed++,CancellationToken.None).GetAwaiter().GetResult();
+    Check(ReferenceEquals(opened,resource)&&closed==0,"Successful open lost ownership");
+    using var cancel=new CancellationTokenSource();cancel.Cancel();
+    Throws<OperationCanceledException>(()=>CancellableResourceOpen.OpenAsync<object>(()=>{called++;return Task.FromResult<object?>(null);},_=>closed++,cancel.Token).GetAwaiter().GetResult());
+    Check(called==0&&closed==0,"Pre-cancelled operation acquired a device");
+});
+Test("Device open failures propagate and null handles are not disposed", () =>
+{
+    int closed=0;
+    Throws<IOException>(()=>CancellableResourceOpen.OpenAsync<object>(()=>Task.FromException<object?>(new IOException("Unreachable")),_=>closed++,CancellationToken.None).GetAwaiter().GetResult());
+    Check(CancellableResourceOpen.OpenAsync<object>(()=>Task.FromResult<object?>(null),_=>closed++,CancellationToken.None).GetAwaiter().GetResult() is null&&closed==0,"Null disposal");
+});
+
 Console.WriteLine($"{passed} tests passed.");
 
 sealed class ColorTransport(CancellationTokenSource cancel, bool failColor = false) : IMusicTransport

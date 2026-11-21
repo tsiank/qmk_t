@@ -24,13 +24,15 @@ internal sealed class MidiPanel
     private readonly DeviceWatcher watcher;
     private MidiRouter? router;
     private CancellationTokenSource? opening;
+    private CancellationTokenSource? discovery;
     private Task? openTask;
     private string? activeInput;
     private bool refreshing, closed;
     private int generation;
     private static readonly (string Name, byte Program)[] Instruments = {
         ("钢琴", 0), ("电钢琴", 4), ("音乐盒", 10), ("马林巴", 12),
-        ("原声吉他", 24), ("小提琴", 40), ("弦乐", 48), ("长笛", 73)
+        ("原声吉他", 24), ("小提琴", 40), ("弦乐", 48), ("长笛", 73),
+        ("二胡（近似弓弦 · Fiddle）", 110), ("古筝（近似筝音 · Koto）", 107)
     };
     public UIElement View { get; }
 
@@ -56,6 +58,8 @@ internal sealed class MidiPanel
             (input,"MidiInput"),(output,"MidiOutput"),(instrument,"MidiInstrument"),
             (start,"StartMidi"),(stop,"StopMidi"),(refresh,"RefreshMidi"),(panic,"MidiPanic"),
             (status,"MidiStatus"),(monitor,"MidiMonitor") }) AutomationProperties.SetAutomationId(element,id);
+        input.SelectionChanged += (_,_) => Controls();
+        output.SelectionChanged += (_,_) => Controls();
         refresh.Click += async (_, _) => await RefreshAsync();
         start.Click += async (_, _) => { openTask = StartAsync(); await openTask; };
         stop.Click += (_, _) => Stop("已停止演奏 · 音符已释放");
@@ -76,10 +80,15 @@ internal sealed class MidiPanel
         timer.Start();
         watcher = DeviceInformation.CreateWatcher(MidiInPort.GetDeviceSelector());
         // DeviceWatcher requires both Added and Removed handlers.
-        watcher.Added += (_, _) => { };
-        watcher.Removed += (_, device) => dispatcher.TryEnqueue(() =>
+        watcher.Added += (_, _) => dispatcher.TryEnqueue(() =>
         {
-            if (!closed && activeInput == device.Id) Stop("键盘 MIDI 已断开 · 请重新连接后刷新设备");
+            if (!closed && router is null && opening is null) _ = RefreshAsync();
+        });
+        watcher.Removed += (sender, device) => dispatcher.TryEnqueue(() =>
+        {
+            if (closed) return;
+            if (activeInput == device.Id) Stop("键盘 MIDI 已断开 · 请重新连接后刷新设备");
+            if (router is null && opening is null) _ = RefreshAsync();
         });
         watcher.Start();
     }
@@ -96,7 +105,7 @@ internal sealed class MidiPanel
         bool busy = router is not null || opening is not null;
         input.IsEnabled = output.IsEnabled = !busy && !refreshing && !closed;
         start.IsEnabled = !busy && !refreshing && !closed && input.SelectedItem is MidiPortChoice;
-        stop.IsEnabled = busy && !closed;
+        stop.IsEnabled = (busy || refreshing) && !closed;
         refresh.IsEnabled = !busy && !refreshing && !closed;
         panic.IsEnabled = router is not null && !closed;
     }
@@ -104,13 +113,15 @@ internal sealed class MidiPanel
     public async Task RefreshAsync()
     {
         if (closed || refreshing || router is not null || opening is not null) return;
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        discovery = cancellation;
         refreshing = true; Controls(); status.Text = "正在查找 MIDI 输入和合成器…";
         try
         {
             string? previousInput = (input.SelectedItem as MidiPortChoice)?.Id;
             string? previousOutput = (output.SelectedItem as MidiPortChoice)?.Id;
-            var inTask = DeviceInformation.FindAllAsync(MidiInPort.GetDeviceSelector()).AsTask();
-            var outTask = DeviceInformation.FindAllAsync(MidiOutPort.GetDeviceSelector()).AsTask();
+            var inTask = DeviceInformation.FindAllAsync(MidiInPort.GetDeviceSelector()).AsTask().WaitAsync(cancellation.Token);
+            var outTask = DeviceInformation.FindAllAsync(MidiOutPort.GetDeviceSelector()).AsTask().WaitAsync(cancellation.Token);
             await Task.WhenAll(inTask,outTask);
             if (closed) return;
             var inputs = inTask.Result.Select(d => new MidiPortChoice(d.Id,d.Name)).ToArray();
@@ -128,8 +139,9 @@ internal sealed class MidiPanel
             status.Text = inputs.Length == 0 ? "没有 MIDI 输入，请连接键盘；蓝牙需先配对。" :
                 input.SelectedItem is null ? "请选择键盘 MIDI 输入后开始演奏。" : "MIDI 已就绪 · 点击开始演奏";
         }
+        catch (OperationCanceledException) { if (!closed) status.Text = "MIDI 查找已取消或超时，请确认蓝牙连接后刷新。"; }
         catch (Exception ex) { if (!closed) status.Text = $"MIDI 查找失败：{ex.Message}"; }
-        finally { refreshing = false; Controls(); }
+        finally { if (ReferenceEquals(discovery,cancellation)) discovery = null; refreshing = false; Controls(); }
     }
 
     private async Task StartAsync()
@@ -149,7 +161,7 @@ internal sealed class MidiPanel
                 }),cancellation.Token);
             if (closed || generation != current || cancellation.IsCancellationRequested) { opened.Dispose(); return; }
             router = opened;
-            status.Text = $"演奏中 · {source.Name} → {destination.Name}";
+            status.Text = $"演奏中 · {source.Name} → {destination.Name}（切换输入请先停止演奏）";
             monitor.Text = "等待键盘音符 · 请开启 P 伴奏或 U 演奏";
         }
         catch (OperationCanceledException) { if (!closed && generation == current) status.Text = "MIDI 连接已取消或超时，请刷新后重试"; }
@@ -163,14 +175,15 @@ internal sealed class MidiPanel
 
     private void Stop(string message)
     {
-        generation++; opening?.Cancel();
+        generation++; opening?.Cancel(); discovery?.Cancel();
         router?.Dispose(); router = null; activeInput = null;
         status.Text = message; Controls();
     }
 
     public async Task CloseAsync()
     {
-        closed = true; Stop("已关闭"); timer.Stop(); watcher.Stop();
+        closed = true; Stop("已关闭"); timer.Stop();
+        if (watcher.Status is DeviceWatcherStatus.Started or DeviceWatcherStatus.EnumerationCompleted) watcher.Stop();
         if (openTask is { } task) await task;
     }
 }

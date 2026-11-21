@@ -7,4 +7,5 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup><Compile Include="../Ciank67.Music.App/MidiRouter.cs" Link="MidiRouter.cs" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../Ciank67.Music.Core/Ciank67.Music.Core.csproj" /></ItemGroup>
 </Project>

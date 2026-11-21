@@ -21,7 +21,7 @@ internal sealed class KeyboardControlPanel
     private readonly CancellationTokenSource cancellation = new();
     private IKeyboardControlTransport? transport;
     private Task? operation;
-    private bool syncing, busy, closed;
+    private bool syncing, busy, polling, closed;
     public UIElement View { get; }
 
     public KeyboardControlPanel(Func<DeviceChoice?> selected)
@@ -48,8 +48,18 @@ internal sealed class KeyboardControlPanel
         under.Toggled += (_,_) => Change(2,under.IsOn);
         audio.Toggled += (_,_) => Change(4,audio.IsOn);
         clicky.Toggled += (_,_) => Change(8,clicky.IsOn);
-        mode.SelectionChanged += (_,_) => { if (!syncing && mode.SelectedIndex >= 0) Begin(() => RequestAsync(16,0,(KeyboardMusicMode)mode.SelectedIndex)); };
-        timer.Tick += (_,_) => { if (transport is not null && !mode.IsDropDownOpen) Begin(() => RequestAsync()); };
+        mode.SelectionChanged += (_,_) => {
+            if (!syncing && mode.SelectedIndex >= 0)
+            {
+                var requested = (KeyboardMusicMode)mode.SelectedIndex;
+                Begin(() => RequestAsync(16,0,requested));
+            }
+        };
+        timer.Tick += (_,_) => {
+            if (closed || busy || polling || transport is null || mode.IsDropDownOpen) return;
+            polling = true;
+            operation = RunAsync(() => RequestAsync(background: true), background: true);
+        };
         Controls(); timer.Start();
     }
     private void Controls()
@@ -65,12 +75,17 @@ internal sealed class KeyboardControlPanel
     private void Begin(Func<Task> action)
     {
         if (syncing || busy || closed) return;
-        operation = RunAsync(action);
+        // Keep user commands behind the in-flight poll without dropping the click.
+        operation = RunAsync(action, preceding: polling ? operation : null);
     }
-    private async Task RunAsync(Func<Task> action)
+    private async Task RunAsync(Func<Task> action, bool background = false, Task? preceding = null)
     {
-        busy = true; Controls();
-        try { await action(); }
+        if (!background) { busy = true; Controls(); }
+        try
+        {
+            if (preceding is not null) await preceding;
+            if (!closed) await action();
+        }
         catch (OperationCanceledException)
         {
             if (!closed) status.Text = "控制连接已取消或超时，请重新连接。";
@@ -79,9 +94,17 @@ internal sealed class KeyboardControlPanel
         catch (Exception ex)
         {
             status.Text = ex.Message;
+            try { File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"keyboard-control-error.log"),
+                $"{DateTimeOffset.Now:O} {selected()?.Name}\n{ex}"); } catch (Exception) { }
             await DisconnectAsync(false);
         }
-        finally { busy = false; Controls(); }
+        finally
+        {
+            if (background) polling = false;
+            else busy = false;
+            // Read-only polling must not animate enabled/disabled transitions.
+            if (!background || transport is null) Controls();
+        }
     }
     private async Task ConnectAsync()
     {
@@ -96,11 +119,15 @@ internal sealed class KeyboardControlPanel
         await RequestAsync();
         status.Text = $"已连接 · {choice.Name} · 状态自动同步中";
     }
-    private async Task RequestAsync(byte mask=0,byte values=0,KeyboardMusicMode selectedMode=KeyboardMusicMode.Off)
+    private async Task RequestAsync(byte mask=0,byte values=0,KeyboardMusicMode selectedMode=KeyboardMusicMode.Off,bool background=false)
     {
         if (transport is null) return;
-        var state = await transport.ControlAsync(mask,values,selectedMode,cancellation.Token);
-        if (closed) return;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(12));
+        var state = await transport.ControlAsync(mask,values,selectedMode,deadline.Token);
+        // A pending user command owns the visible state; an older poll must not
+        // undo its toggle or dismiss the mode menu while the command waits.
+        if (closed || (background && (busy || mode.IsDropDownOpen))) return;
         syncing = true;
         try
         {

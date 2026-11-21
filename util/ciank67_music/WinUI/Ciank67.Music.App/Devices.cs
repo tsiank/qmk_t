@@ -50,7 +50,8 @@ internal static class DeviceCatalog
             string address = string.Join(":", Enumerable.Range(0, 6).Select(i => hex.Substring(i * 2, 2)));
             devices.Add(new DeviceChoice(kind, item.Id, $"{item.Name} · {address}"));
         }
-        return devices;
+        return devices.OrderByDescending(item => item.Name.Contains("ciank67", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(item => item.Name).ToList();
     }
 
     private static bool IsMusicInterface(HidDevice device)
@@ -211,18 +212,27 @@ internal sealed class BluetoothTransport : IKeyboardControlTransport
         GattSession? session = null;
         try
         {
-            device = await BluetoothLEDevice.FromIdAsync(id).AsTask(token) ?? throw new IOException("无法打开蓝牙键盘，请先在 Windows 设置中配对。");
-            session = await GattSession.FromDeviceIdAsync(device.BluetoothDeviceId).AsTask(token);
+            device = await CancellableResourceOpen.OpenAsync(
+                () => BluetoothLEDevice.FromIdAsync(id).AsTask(), value => value.Dispose(), token) ?? throw new IOException("无法打开蓝牙键盘，请先在 Windows 设置中配对。");
+            session = await CancellableResourceOpen.OpenAsync(
+                () => GattSession.FromDeviceIdAsync(device.BluetoothDeviceId).AsTask(), value => value.Dispose(), token)
+                ?? throw new IOException("无法建立蓝牙会话，请重新连接键盘。");
             session.MaintainConnection = true;
-            var services = await device.GetGattServicesForUuidAsync(MusicProtocol.ServiceUuid, BluetoothCacheMode.Uncached).AsTask(token);
+            var services = await CancellableResourceOpen.OpenAsync(
+                () => device.GetGattServicesForUuidAsync(MusicProtocol.ServiceUuid, BluetoothCacheMode.Uncached).AsTask(),
+                result => { foreach (var lateService in result.Services) lateService.Dispose(); }, token)
+                ?? throw new IOException("蓝牙服务发现未返回结果。");
             if (services.Status != GattCommunicationStatus.Success || services.Services.Count == 0)
-                throw new IOException("未找到音乐服务。请确认键盘已刷入 R6 固件、已切换到蓝牙模式，并在必要时移除后重新配对。");
+                throw new IOException($"未找到蓝牙音乐服务（{services.Status}，ATT={services.ProtocolError}）。请拔掉键盘 USB 并确认蓝牙可打字；必要时删除旧配对后重新配对。");
             service = services.Services[0];
             foreach (var extra in services.Services.Skip(1)) extra.Dispose();
-            var characteristics = await service.GetCharacteristicsForUuidAsync(MusicProtocol.ReceiveUuid, BluetoothCacheMode.Uncached).AsTask(token);
+            var characteristics = await service.GetCharacteristicsForUuidAsync(MusicProtocol.ReceiveUuid, BluetoothCacheMode.Uncached).AsTask().WaitAsync(token);
             if (characteristics.Status != GattCommunicationStatus.Success || characteristics.Characteristics.Count == 0)
-                throw new IOException("无法读取音乐特征，请重新连接键盘。");
+                throw new IOException($"无法读取蓝牙音乐特征（{characteristics.Status}，ATT={characteristics.ProtocolError}），请重新连接键盘。");
             var characteristic = characteristics.Characteristics[0];
+            // Firmware uses SEC_JUST_WORKS. Establish encryption before sending
+            // write-without-response frames, which cannot report ATT rejection.
+            characteristic.ProtectionLevel = GattProtectionLevel.EncryptionRequired;
             if (!characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.WriteWithoutResponse))
                 throw new IOException("所选设备不支持音乐数据写入。");
             return new BluetoothTransport(device, service, session, characteristic);
@@ -248,18 +258,25 @@ internal sealed class BluetoothTransport : IKeyboardControlTransport
     {
         if (stateCharacteristic is null)
         {
-            var result = await service.GetCharacteristicsForUuidAsync(KeyboardControlProtocol.StateUuid, BluetoothCacheMode.Uncached).AsTask(token);
+            var result = await service.GetCharacteristicsForUuidAsync(KeyboardControlProtocol.StateUuid, BluetoothCacheMode.Uncached).AsTask().WaitAsync(token);
             if (result.Status != GattCommunicationStatus.Success || result.Characteristics.Count == 0)
-                throw new IOException("未找到键盘控制服务，请刷入 R19 固件；必要时删除旧蓝牙配对后重新配对。");
+                throw new IOException($"未找到键盘控制状态特征（{result.Status}，ATT={result.ProtocolError}）。请确认 R19/R20 或更新固件，并删除旧蓝牙配对后重新配对。");
             stateCharacteristic = result.Characteristics[0];
+            stateCharacteristic.ProtectionLevel = GattProtectionLevel.EncryptionRequired;
         }
         byte sequence = ++controlSequence;
-        await SendAsync(KeyboardControlProtocol.Command(sequence, mask, values, mode), token);
+        var command = CryptographicBuffer.CreateFromByteArray(KeyboardControlProtocol.Command(sequence, mask, values, mode));
+        // Settings use an acknowledged write, unlike the high-rate music frames.
+        // This exposes encryption/permission failures instead of silently losing
+        // a command and waiting forever for its state acknowledgement.
+        var written = await characteristic.WriteValueWithResultAsync(command, GattWriteOption.WriteWithResponse).AsTask().WaitAsync(token);
+        if (written.Status != GattCommunicationStatus.Success)
+            throw new IOException($"蓝牙控制写入失败：{written.Status}，ATT={written.ProtocolError}。请确认键盘已配对并处于蓝牙模式。");
         var watch = System.Diagnostics.Stopwatch.StartNew();
         while (watch.Elapsed < TimeSpan.FromSeconds(3))
         {
-            var result = await stateCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached).AsTask(token);
-            if (result.Status != GattCommunicationStatus.Success) throw new IOException($"读取键盘状态失败：{result.Status}");
+            var result = await stateCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached).AsTask().WaitAsync(token);
+            if (result.Status != GattCommunicationStatus.Success) throw new IOException($"读取蓝牙键盘状态失败：{result.Status}，ATT={result.ProtocolError}。请确认已配对且连接的是 ciank67。");
             CryptographicBuffer.CopyToByteArray(result.Value, out byte[] packet);
             if (KeyboardControlProtocol.Parse(packet, sequence) is { } state) return state;
             await Task.Delay(40, token);

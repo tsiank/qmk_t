@@ -1,6 +1,6 @@
 // Copyright 2026 QMK Contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
-using Windows.Devices.Enumeration;
+using Ciank67.Music.Core;
 using Windows.Devices.Midi;
 
 namespace Ciank67.Music.App;
@@ -36,12 +36,13 @@ internal sealed class MidiRouter : IDisposable
         try
         {
             token.ThrowIfCancellationRequested();
-            // WinRT port opening isn't cancellable. Always await completion and
-            // dispose late results so stop/close cannot leak an occupied port.
-            input = await MidiInPort.FromIdAsync(inputId);
+            input = await CancellableResourceOpen.OpenAsync(
+                () => MidiInPort.FromIdAsync(inputId).AsTask(), value => value.Dispose(), token);
             token.ThrowIfCancellationRequested();
             if (input is null) throw new IOException("无法打开 MIDI 输入，请关闭 MIDIberry 等占用端口的软件，再刷新设备。");
-            output = outputId.Length == 0 ? await MidiSynthesizer.CreateAsync() : await MidiOutPort.FromIdAsync(outputId);
+            output = await CancellableResourceOpen.OpenAsync<IMidiOutPort>(async () =>
+                outputId.Length == 0 ? await MidiSynthesizer.CreateAsync() : await MidiOutPort.FromIdAsync(outputId),
+                value => value.Dispose(), token);
             token.ThrowIfCancellationRequested();
             if (output is null) throw new IOException("无法打开 MIDI 合成器，请检查输出设备后重试。");
             SetProgram(output, program);

@@ -31,6 +31,7 @@
     <PackageReference Include="HidSharp" Version="2.6.4" />
     <ProjectReference Include="../Ciank67.Music.Core/Ciank67.Music.Core.csproj" />
     <Content Include="../README.md" Link="使用说明.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../twinkle-keyboard.txt" Link="小星星演奏说明.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../licenses/*" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- WinUI generates these after normal publish item discovery. Keep the
