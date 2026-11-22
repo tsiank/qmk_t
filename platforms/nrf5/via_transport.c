@@ -5,6 +5,9 @@
 #include "eeprom_nrf.h"
 #include "app_util_platform.h"
 #include <string.h>
+#ifdef NRF5_VIA_UI_ENABLE
+#    include "nrf5_via_ui.h"
+#endif
 
 // SDK callbacks only copy bounded packets. VIA and EEPROM run in thread mode.
 #define QUEUE_SIZE 4
@@ -61,6 +64,9 @@ void nrf_via_ble_fragment(const uint8_t *data, uint8_t length) {
 }
 
 void nrf_via_disconnect(uint8_t source) {
+#ifdef NRF5_VIA_UI_ENABLE
+    if (source <= NRF_VIA_BLE) nrf5_ui_disconnect(source);
+#endif
     if (source > NRF_VIA_BLE) return;
     CRITICAL_REGION_ENTER();
     generation[source]++;
@@ -109,6 +115,9 @@ void nrf_via_task(void) {
         current.data[1] = 1;
         current.data[2] = MATRIX_ROWS;
         current.data[3] = MATRIX_COLS;
+#ifdef NRF5_VIA_UI_ENABLE
+        current.data[4] = 1;
+#endif
         nrf_via_send(current.data, 32);
 #endif
     } else if (current.data[0] == 0x80) {
@@ -117,6 +126,13 @@ void nrf_via_task(void) {
         current.data[1] = nrf5_eeprom_pending();
         for (uint8_t i = 0; i < 4; ++i) current.data[2 + i] = error >> (24 - i * 8);
         nrf_via_send(current.data, 32);
+#ifdef NRF5_VIA_UI_ENABLE
+    } else if (current.data[0] == 0x82) {
+        nrf5_ui_diagnostics(current.data);
+        nrf_via_send(current.data, 32);
+    } else if (nrf5_ui_command(current.data, current.source)) {
+        nrf_via_send(current.data, 32);
+#endif
     } else raw_hid_receive(current.data, 32);
     executing = false;
 }

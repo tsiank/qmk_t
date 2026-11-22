@@ -91,7 +91,7 @@ static inline bool IS_DIPSWITCHEVENT(const keyevent_t event) {
  */
 #define MAKE_TICK_EVENT MAKE_EVENT(0, 0, false, TICK_EVENT)
 
-#ifdef ENCODER_MAP_ENABLE
+#if defined(ENCODER_MAP_ENABLE) || defined(NRF5_VIA_UI_ENABLE)
 /* Encoder events */
 #    define MAKE_ENCODER_CW_EVENT(enc_id, press) MAKE_EVENT(KEYLOC_ENCODER_CW, (enc_id), (press), ENCODER_CW_EVENT)
 #    define MAKE_ENCODER_CCW_EVENT(enc_id, press) MAKE_EVENT(KEYLOC_ENCODER_CCW, (enc_id), (press), ENCODER_CCW_EVENT)

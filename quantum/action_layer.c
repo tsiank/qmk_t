@@ -240,7 +240,7 @@ void layer_debug(void) {
  */
 
 uint8_t source_layers_cache[((MATRIX_ROWS * MATRIX_COLS) + (CHAR_BIT)-1) / (CHAR_BIT)][MAX_LAYER_BITS] = {{0}};
-#    ifdef ENCODER_MAP_ENABLE
+#    if defined(ENCODER_MAP_ENABLE) || defined(NRF5_VIA_UI_ENABLE)
 uint8_t encoder_source_layers_cache[(NUM_ENCODERS + (CHAR_BIT)-1) / (CHAR_BIT)][MAX_LAYER_BITS] = {{0}};
 #    endif // ENCODER_MAP_ENABLE
 
@@ -281,7 +281,7 @@ void update_source_layers_cache(keypos_t key, uint8_t layer) {
         const uint16_t entry_number = (uint16_t)(key.row * MATRIX_COLS) + key.col;
         update_source_layers_cache_impl(layer, entry_number, source_layers_cache);
     }
-#    ifdef ENCODER_MAP_ENABLE
+#    if defined(ENCODER_MAP_ENABLE) || defined(NRF5_VIA_UI_ENABLE)
     else if (key.row == KEYLOC_ENCODER_CW || key.row == KEYLOC_ENCODER_CCW) {
         const uint16_t entry_number = key.col;
         update_source_layers_cache_impl(layer, entry_number, encoder_source_layers_cache);
@@ -298,7 +298,7 @@ uint8_t read_source_layers_cache(keypos_t key) {
         const uint16_t entry_number = (uint16_t)(key.row * MATRIX_COLS) + key.col;
         return read_source_layers_cache_impl(entry_number, source_layers_cache);
     }
-#    ifdef ENCODER_MAP_ENABLE
+#    if defined(ENCODER_MAP_ENABLE) || defined(NRF5_VIA_UI_ENABLE)
     else if (key.row == KEYLOC_ENCODER_CW || key.row == KEYLOC_ENCODER_CCW) {
         const uint16_t entry_number = key.col;
         return read_source_layers_cache_impl(entry_number, encoder_source_layers_cache);

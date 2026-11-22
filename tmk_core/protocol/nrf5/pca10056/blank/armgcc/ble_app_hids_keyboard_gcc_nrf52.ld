@@ -6,12 +6,17 @@ SEARCH_DIR(.)
 
 MEMORY
 {
-  FLASH (rx) : ORIGIN = 0x26000, LENGTH = 0xda000
+  FLASH (rx) : ORIGIN = 0x26000, LENGTH = DEFINED(NRF5_APP_FLASH_END) ? NRF5_APP_FLASH_END - 0x26000 : 0xda000
   RAM (rwx) :  ORIGIN = 0x20002da8, LENGTH = 0x3d258
 }
 
 SECTIONS
 {
+  .nrf5_fault (NOLOAD) :
+  {
+    . = ALIGN(4);
+    KEEP(*(.nrf5_fault))
+  } > RAM
 }
 
 SECTIONS

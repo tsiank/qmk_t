@@ -47,3 +47,17 @@ ifeq ($(strip $(NRF5_CLOCK_ENABLE)),yes)
     OPT_DEFS += -DNRF5_CLOCK_ENABLE
     SRC += platforms/nrf5/features/clock.c
 endif
+
+ifeq ($(strip $(NRF5_VIA_UI_ENABLE)),yes)
+    ifneq ($(strip $(VIA_ENABLE)),yes)
+        $(error NRF5_VIA_UI_ENABLE requires VIA_ENABLE)
+    endif
+    ifneq ($(strip $(NRF5_OLED_STATUS_ENABLE)),yes)
+        $(error NRF5_VIA_UI_ENABLE requires NRF5_OLED_STATUS_ENABLE)
+    endif
+    ifneq ($(strip $(NRF5_ENCODER_ENABLE)),yes)
+        $(error NRF5_VIA_UI_ENABLE requires NRF5_ENCODER_ENABLE)
+    endif
+    OPT_DEFS += -DNRF5_VIA_UI_ENABLE
+    SRC += platforms/nrf5/features/via_ui.c platforms/nrf5/features/via_ui_oled.c platforms/nrf5/features/via_ui_diagnostics.c
+endif

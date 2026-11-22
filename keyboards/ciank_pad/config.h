@@ -64,7 +64,14 @@
 #ifdef VIA_ENABLE
 #    define VIA_EEPROM_CUSTOM_CONFIG_SIZE 1
 #    define DYNAMIC_KEYMAP_LAYER_COUNT 5
-#    define EEPROM_SIZE 2048
+// One nearly-full EEPROM record needs room for old/new copies, peer
+// records and FDS garbage collection. Three default FDS pages are too few.
+#    define FDS_VIRTUAL_PAGES 5
+// Bound individual SoftDevice flash operations while USB is active.
+#    define NRF_FSTORAGE_SD_MAX_WRITE_SIZE 128
+#    define EEPROM_SIZE 3840
+#    define DYNAMIC_KEYMAP_EEPROM_MAX_ADDR 2047
+#    define NRF5_UI_EEPROM_ADDR 2048
 #endif
 
 // Shared UI configuration; indices are this keyboard's layer numbers.

@@ -241,7 +241,7 @@ int main(void){
     def test_layout_matches_twenty_one_keys_and_old_macro_cells(self):
         import json
         definition=json.loads((ROOT/'keyboards/ciank_pad/keyboard.json').read_text())
-        profile=json.loads((ROOT/'util/ciank67_music/WinUI/Ciank67.Music.App/Layouts/ciank_pad.json').read_text())
+        profile=json.loads((ROOT/'util/ciank67_music/WinUI/Qmknrf5.App/Layouts/ciank_pad.json').read_text())
         keys=definition['layouts']['LAYOUT']['layout']
         self.assertEqual(keys,profile['layout'])
         self.assertEqual(len(keys),21)
@@ -495,7 +495,8 @@ int main(void){
     nrf5_clock_set(23,59,59,999);advance(33);expect(0,0,0);
     nrf5_clock_set(11,44,59,999);advance(33);expect(11,45,0);
     nrf5_clock_set(7,8,9,0);for(int i=0;i<32768;i++)advance(1);expect(7,8,10);
-    // Exact 32768 Hz conversion over one day, including many RTC rollovers.
+    // One initial host calibration, then a full day without further host packets.
+    // Exact 32768 Hz conversion includes many RTC rollovers.
     nrf5_clock_set(1,2,3,0);for(int i=0;i<288;i++)advance(300u*32768u);expect(1,2,3);
     nrf5_clock_set(0,60,0,0);expect(1,2,3);
     nrf5_clock_set(0,0,60,0);expect(1,2,3);

@@ -23,3 +23,9 @@ NRF5_OLED_STATUS_ENABLE = yes
 NRF5_ENCODER_ENABLE = yes
 
 NRF5_CLOCK_ENABLE = yes
+
+NRF5_VIA_UI_ENABLE = yes
+
+# Keep both application banks below the enlarged FDS store for the existing
+# Nordic (0xe0000+) and Adafruit bootloaders; no bootloader update is needed.
+LDFLAGS += -Wl,--defsym=NRF5_APP_FLASH_END=0x80000

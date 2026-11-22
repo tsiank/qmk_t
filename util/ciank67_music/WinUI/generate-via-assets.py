@@ -22,7 +22,7 @@ for name, basic, alias in re.findall(r'^#define\s+(KC_\w+)\s+(?:S\((KC_\w+)\)|(K
 custom = re.search(r'enum planck_keycodes\s*\{(.*?)\}', (ROOT / 'keyboards/ciank67/keymaps/default/keymap.c').read_text(), re.S)[1]
 for i, item in enumerate(custom.split(',')):
     values[item.split('=')[0].strip()] = values['QK_USER'] + i
-(HERE / 'Ciank67.Music.Core/ViaKeycodes.json').write_text(json.dumps(values, indent=2) + '\n')
+(HERE / 'Qmknrf5.Core/ViaKeycodes.json').write_text(json.dumps(values, indent=2) + '\n')
 info = json.loads((ROOT / 'keyboards/ciank67/keyboard.json').read_text())
 layout = info['layouts']['LAYOUT']['layout']
 rows = []
@@ -42,4 +42,4 @@ definition = {'name': 'ciank67', 'vendorId': info['usb']['vid'], 'productId': in
               'layouts': {'keymap': rows}}
 (HERE / 'ciank67-via.json').write_text(json.dumps(definition, indent=2) + '\n')
 
-(HERE / 'Ciank67.Music.App/Layouts/ciank67.json').write_text(json.dumps({'name': 'ciank67', 'matrix': {'rows': 5, 'cols': 14}, 'layout': layout, 'custom_keycodes': {k: v for k, v in values.items() if v >= values['QK_USER'] and not k.startswith('QK_')}}, indent=2) + '\n')
+(HERE / 'Qmknrf5.App/Layouts/ciank67.json').write_text(json.dumps({'name': 'ciank67', 'matrix': {'rows': 5, 'cols': 14}, 'layout': layout, 'custom_keycodes': {k: v for k, v in values.items() if v >= values['QK_USER'] and not k.startswith('QK_')}}, indent=2) + '\n')

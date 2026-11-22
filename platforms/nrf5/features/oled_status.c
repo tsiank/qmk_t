@@ -152,6 +152,11 @@ static void draw_traditional_time(uint8_t hour, uint8_t minute, bool valid, cons
 
 bool nrf5_oled_task(void) {
     if (!oled_task_user()) return false;
+#ifdef NRF5_VIA_UI_ENABLE
+    void nrf5_ui_oled_render(void);
+    nrf5_ui_oled_render();
+    return false;
+#endif
     // Leave one text column free: QMK automatically advances on a full row,
     // and a following write_ln would clear the next row (including artwork).
 #ifndef NRF5_CLOCK_ENABLE

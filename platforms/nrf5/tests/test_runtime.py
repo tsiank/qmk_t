@@ -179,6 +179,10 @@ int main(int argc, char **argv) {
     def test_legacy_record_migration(self):
         self.check_eeprom('legacy')
 
+    def test_ui_capacity_preserves_old_bytes_and_snapshots_large_writes(self):
+        self.check_eeprom('legacy', capacity=3840)
+        self.check_eeprom('snapshot', capacity=3840)
+
     def test_larger_record_is_clipped_to_capacity(self):
         self.check_eeprom('large')
 

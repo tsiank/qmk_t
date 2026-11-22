@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "nrf5_ui.h"
 #include "ble_service.h"
+#ifdef NRF5_VIA_UI_ENABLE
+#    include "nrf5_via_ui.h"
+#endif
 #ifdef OLED_ENABLE
 #    include "oled_driver.h"
 #endif
@@ -20,8 +23,16 @@ bool nrf5_encoder_update(uint8_t index, bool clockwise) {
     if (!encoder_update_user(index, clockwise)) return false;
     bool known = false;
     uint8_t layer = get_highest_layer(layer_state | default_layer_state);
-    for (uint8_t i = 0; i < ARRAY_SIZE(bindings); i++) {
-        const nrf5_encoder_binding_t *binding = &bindings[i];
+    nrf5_encoder_binding_t custom;
+#ifdef NRF5_VIA_UI_ENABLE
+    uint8_t action;
+    bool configured = nrf5_ui_encoder(index, layer, &action, &custom.clockwise, &custom.counterclockwise);
+    if (configured) { custom.index = index; custom.layer = layer; custom.action = action; }
+#else
+    bool configured = false;
+#endif
+    for (uint8_t i = 0; i < (configured ? 1 : ARRAY_SIZE(bindings)); i++) {
+        const nrf5_encoder_binding_t *binding = configured ? &custom : &bindings[i];
         if (binding->index != index) continue;
         if (!known) {
             reset_power_save_counter();
@@ -33,7 +44,17 @@ bool nrf5_encoder_update(uint8_t index, bool clockwise) {
         if (binding->layer != layer) continue;
         if (binding->action == NRF5_ENCODER_KEYS) {
             uint16_t keycode = clockwise ? binding->clockwise : binding->counterclockwise;
-            if (keycode != KC_NO) tap_code16(keycode);
+            if (keycode != KC_NO) {
+#ifdef NRF5_VIA_UI_ENABLE
+                // Use QMK's event pipeline so macros, layer keys, custom
+                // keyboard actions and RGB keycodes work like physical keys.
+                action_exec(clockwise ? MAKE_ENCODER_CW_EVENT(index, true) : MAKE_ENCODER_CCW_EVENT(index, true));
+                wait_ms(TAP_CODE_DELAY);
+                action_exec(clockwise ? MAKE_ENCODER_CW_EVENT(index, false) : MAKE_ENCODER_CCW_EVENT(index, false));
+#else
+                tap_code16(keycode);
+#endif
+            }
         }
 #ifdef RGBLIGHT_ENABLE
         else if (binding->action == NRF5_ENCODER_UNDERGLOW) {

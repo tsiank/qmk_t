@@ -24,15 +24,15 @@ C# / WinUI 3 Windows 客户端，使用原生 Fluent 控件、系统主题与 Mi
 Windows 安装 .NET 10 SDK，双击 `build.cmd`。也可在当前目录执行：
 
 ```powershell
-dotnet run --project Ciank67.Music.Tests -c Release
-dotnet publish Ciank67.Music.App -c Release -r win-x64 --self-contained false -o publish\win-x64
+dotnet run --project Qmknrf5.Tests -c Release
+dotnet publish Qmknrf5.App -c Release -r win-x64 --self-contained false -o publish\win-x64
 ```
 
 输出为 `publish\win-x64\Qmknrf5.exe` 及其依赖。发布采用依赖系统运行时的轻量方式，不包含 .NET 或 Windows App SDK 运行时；分发时保留整个目录。请发布到空目录，避免混入旧版自包含发布的 DLL。源码提供 `Qmknrf5.sln`，可用支持 .NET 10 的 Visual Studio 打开。构建需要联网恢复 NuGet 包。
 
-- `Ciank67.Music.App`：WinUI 3 界面、WASAPI 回环采集、USB HID、Windows BLE GATT。
-- `Ciank67.Music.Core`：协议、PCM 解码、2048 点 FFT、16 段频谱、音频环形缓冲、发送/停止流程。
-- `Ciank67.Music.Tests`：不依赖硬件的核心回归测试，可在 Linux 或 Windows 运行。
+- `Qmknrf5.App`：WinUI 3 界面、WASAPI 回环采集、USB HID、Windows BLE GATT。
+- `Qmknrf5.Core`：协议、PCM 解码、2048 点 FFT、16 段频谱、音频环形缓冲、发送/停止流程。
+- `Qmknrf5.Tests`：不依赖硬件的核心回归测试，可在 Linux 或 Windows 运行。
 
 界面使用 C# 创建原生 WinUI 控件，App.xaml / MainWindow.xaml 负责标准资源和窗口初始化；没有 WinForms、WebView 或 Python 运行时。采集和数据发送不在 UI 线程执行；绘图只读取最新频谱，不排队补发旧帧。USB 和 BLE 与原 Python 客户端共用固件协议，请不要同时运行多个控制程序。
 
@@ -50,7 +50,7 @@ NuGet：引用 Microsoft.WindowsAppSDK.WinUI / Runtime 2.7.0 及其必需依赖�
 
 如果提示“已找到键盘的 USB 设备，但未检测到音乐接口”，说明普通键盘接口可见，音乐接口还未出现。确认 USB 连的是已刷音乐固件的同一块键盘，刷入 R15 后重新拔插并刷新设备。USB 产品名在仓库 `keyboards/ciank67/keyboard.json` 的 `keyboard_name` 字段中修改。
 
-应用图标为原创的键盘与彩色频谱图案，包含 16～256 像素多尺寸图层，同时用于 EXE、窗口和任务栏。图标及可重生成的绘制脚本位于 `Ciank67.Music.App/Assets/`；仅重新绘制图标时需要 Pillow，构建及运行客户端无需 Python。
+应用图标为原创的键盘与彩色频谱图案，包含 16～256 像素多尺寸图层，同时用于 EXE、窗口和任务栏。图标及可重生成的绘制脚本位于 `Qmknrf5.App/Assets/`；仅重新绘制图标时需要 Pillow，构建及运行客户端无需 Python。
 
 ## 矩阵律动效果
 
@@ -103,7 +103,7 @@ R15：将“律动配色”切换到 **纯光**，点击色块 / 十六进制值
 
 声音已经播放但灯光不跟随时，确认律动的播放设备与系统默认音频输出相同，并关闭演示模式。合成器声音也能像其他系统声音一样驱动 FFT 律动。
 
-发布继续使用共享 .NET 10 / Windows App Runtime，不捆绑运行时，不新增 MIDI 驱动或第三方合成器包。Windows 专用 MIDI 测试：`dotnet run --project Ciank67.Midi.Tests -c Release`。
+发布继续使用共享 .NET 10 / Windows App Runtime，不捆绑运行时，不新增 MIDI 驱动或第三方合成器包。Windows 专用 MIDI 测试：`dotnet run --project Qmknrf5.Midi.Tests -c Release`。
 
 
 ## R19：客户端控制键盘开关
@@ -171,7 +171,7 @@ R15：将“律动配色”切换到 **纯光**，点击色块 / 十六进制值
 
 协议：复用 QMK VIA v13；附加命令 `0x80` 返回 `[80, pending, last_fds_error_be32, ...]`，`pending=0` 且 error=0 才确认持久化。BLE UUID：服务 `c1a00010-7d9b-4c7d-a568-7294e2166700`，写入特征 `...0011`、读取特征 `...0012`。每个请求拆为两次带响应写入 `[sequence_le16, offset(0/16), payload16]`，每包 19 字节，适用于 ATT MTU 23；响应是 `[sequence_le16, via_payload32]` 共 34 字节，由 GATT 长读获取。收包回调只排队，VIA / EEPROM 在主循环执行，回复按请求来源路由，不跟随打字输出模式；断开时旧请求作废。
 
-修改 QMK 键码或布局后重新运行 `python generate-via-assets.py`，再构建客户端。对应回归检查为 `platforms/nrf5/tests/test_via.py`、`test_runtime.py` 及 `Ciank67.Music.Tests/ViaTests.cs`。
+修改 QMK 键码或布局后重新运行 `python generate-via-assets.py`，再构建客户端。对应回归检查为 `platforms/nrf5/tests/test_via.py`、`test_runtime.py` 及 `Qmknrf5.Tests/ViaTests.cs`。
 
 
 ## 侧边栏导航
@@ -306,8 +306,10 @@ pad 使用扩展能力状态 v2：客户端自动禁用矩阵灯、蜂鸣器和�
 ## OLED 传统时刻与自动校时（pad R7）
 
 R7 pad 使用状态协议 v3，保留 v2 的硬件能力字段，并增加时钟能力与是否已校时。
-本客户端连接键盘控制后自动发送 Windows 本地时间，之后每分钟校正一次；
-USB / 蓝牙均支持，无需开始律动。校时独立于灯光和 MIDI 开关。
+本客户端仅在键盘报告“尚未校时”时发送一次 Windows 本地时间，之后由键盘 RTC 独立走时；
+USB / 蓝牙均支持，无需开始律动。已校时的键盘在重连或客户端重启时不会被自动覆盖。
+需要纠偏时，在“设备连接 → 键盘控制”点击“手动校时”，用电脑当前时间校准。
+校时独立于灯光和 MIDI 开关，不写入 Flash。
 旧 v1/v2 键盘仍能正常控制，不会收到新校时命令。
 R7 pad 需配套本次更新的客户端，旧客户端不识别 v3 状态。
 
@@ -354,3 +356,49 @@ MIDI 页新增“柔和演奏”和“试听《小星星》”。柔和模式对
 试听与手弹互斥；停止、全部停音、关闭窗口或刷入固件都会取消试听并释放音符。
 它不改变键盘 MIDI/灯光开关。Samples 中附“柔和钢琴”和“音乐盒”两个标准 MIDI 文件，
 与客户端使用同一编曲数据生成。本次仅更新客户端和曲谱，固件不变。
+
+## VIA 屏幕、字模、Logo 与旋钮
+
+`ciank_pad` 配套新固件启用了屏幕与旋钮运行时配置；旧固件和没有这两个外设的
+键盘仍可正常改键，不会自动加载不支持的屏幕配置。先备份键位，再刷入新固件。
+在 **VIA 改键 → 连接并读取键位** 后，可切换三个页签：
+
+- **键位与宏**：保留原来的改键功能；旋钮按下也在这里设置。
+- **屏幕与字模**：选择 Logo、标题、传统时刻、数字时间、电量、连接方式或层，
+  调整显示开关、X/Y 像素位置与 1×/2× 大小；预览为示例状态，实际数据由键盘生成。
+  屏幕电源策略随此配置保存；设备控制中的快捷亮屏／熄屏则是当前运行时设置。
+- **旋钮**：每个旋钮、每层独立设置顺逆时针 QMK 键码，支持搜索与表达式；
+  可保留固件默认动作、关闭旋转动作，或选择保留 Alt/Ctrl 调色逻辑的灯光动作。
+  设置后先点击 **暂存旋钮动作**，再点击此页的 **写入旋钮并保存**。
+
+展开 **中文字模与 Logo**：可使用已安装的 Windows 字体直接生成标题与时刻中文字模，
+也可以导入 PNG/BMP/JPEG 或 PCtoLCD TXT/H。导入前设置画布大小、阈值和反色；
+图片等比缩放、居中，深色部分转换为亮点。标题最大 128×32，Logo 最大 64×32，
+超出屏幕的部分会裁切。PCtoLCD 使用“逐行、横向、高位在前、C 数组”格式；
+16×16 字符数组选择“逐字”排列，单张位图选择“整张图片逐行”。
+传统时刻字模需 21 个 16×16 字，顺序为：
+`子丑寅卯辰巳午未申酉戌亥初正一二三刻待校时`。小号 ASCII 字体仍使用内置字体。
+
+屏幕、旋钮和键位／宏三部分使用各自的写入、导入、导出按钮。屏幕备份包含全部图案，
+可离线保存；各页的 **恢复默认（暂存）** 只恢复当前部分，点击本页写入后生效。
+上传在完整校验前不影响键盘，客户端会回读并等待 Flash 保存完成。断开客户端或重启
+后仍保留配置；USB 与蓝牙共用。屏幕／旋钮配置协议与移植参数见
+`platforms/nrf5/features/README.md`。
+
+VIA 连接会先查询矩阵。连接 ciank_pad / ciank67 且当前布局矩阵不符时，客户端根据设备名称
+与矩阵自动选取对应的内置布局；矩阵一致的手动布局会保留，未知或有歧义的布局仍需手动加载。
+读取进度、完成信息和错误显示在顶部连接按钮下方，无需滚动到底部查看。
+
+导入文件格式或尺寸错误不会断开 VIA 连接，也不会覆盖编辑稿，可以直接重新选择文件。
+字模支持 ANSI/GBK、UTF-8、UTF-16（含无 BOM 导出）、UTF-32 编码；数据支持
+8 位 C 数组 `0xNN` 和分隔的纯十六进制字节。设备发现错误只显示在“设备连接”页。
+
+PCtoLCD 的“逐字 16×16”导入会按实际字数自动设置画布宽度，不再要求手动计算。
+例如五个字自动导入为 80×16；标题最多八个字（128×16），Logo 最多四个字（64×16）。
+整图模式与图片导入仍按所选画布大小处理。
+
+屏幕与旋钮页的读取、保存、恢复默认、导入、导出相互独立。保存会先读取键盘的
+最新配置快照，只修改当前部分及其校验值；另一部分的键盘配置与客户端未保存编辑均保留。
+旋钮备份不包含图案，屏幕备份不包含旋钮键码。旧版合并备份仍可导入，但仅应用当前页的数据。
+如果 USB 重新枚举导致通信中断，编辑稿会保留，仍可编辑和导出；使用顶部
+**重新连接（保留编辑稿）** 恢复连接后可重试保存。Flash 完成前不会报告保存成功。

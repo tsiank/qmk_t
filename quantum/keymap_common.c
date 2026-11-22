@@ -25,8 +25,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "keycode_config.h"
 #include "quantum_keycodes.h"
 
-#ifdef ENCODER_MAP_ENABLE
+#if defined(ENCODER_MAP_ENABLE) || defined(NRF5_VIA_UI_ENABLE)
 #    include "encoder.h"
+#endif
+
+#ifdef NRF5_VIA_UI_ENABLE
+#    include "nrf5_via_ui.h"
 #endif
 
 #ifdef DIP_SWITCH_MAP_ENABLE
@@ -199,6 +203,11 @@ __attribute__((weak)) uint16_t keymap_key_to_keycode(uint8_t layer, keypos_t key
     if (key.row < MATRIX_ROWS && key.col < MATRIX_COLS) {
         return keycode_at_keymap_location(layer, key.row, key.col);
     }
+#ifdef NRF5_VIA_UI_ENABLE
+    else if ((key.row == KEYLOC_ENCODER_CW || key.row == KEYLOC_ENCODER_CCW) && key.col < NUM_ENCODERS) {
+        return nrf5_ui_encoder_key(key.col, layer, key.row == KEYLOC_ENCODER_CW);
+    }
+#endif
 #ifdef ENCODER_MAP_ENABLE
     else if (key.row == KEYLOC_ENCODER_CW && key.col < NUM_ENCODERS) {
         return keycode_at_encodermap_location(layer, key.col, true);

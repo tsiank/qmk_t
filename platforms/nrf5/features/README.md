@@ -169,8 +169,10 @@ second is 正. Within each hour, minutes 00–14 are 初刻, 15–29 一刻,
 | 23:00 | 子初初刻 |
 | 00:00 | 子正初刻 |
 
-The updated client synchronizes Windows local wall time after connecting over
-USB or BLE, then once a minute while control remains connected. Time sync is a
+The client synchronizes Windows local wall time only when the keyboard reports
+an uninitialized clock. Once initialized, the RTC remains authoritative: no
+periodic sync is sent, even across client restarts or reconnects. A manual sync
+button in the device connection page provides explicit recalibration. Time sync is a
 separate command; it does not start music, switch lights/MIDI, write EEPROM or
 extend the battery sleep timeout. Closing the client leaves RTC time advancing
 while the keyboard remains powered/awake. Power loss or System OFF reset loses
@@ -253,3 +255,96 @@ the emblem's proportions and is vertically centered in a 16x16 prefix cell,
 requiring 32 flash bytes. With its 64-pixel name, the combined title is 80 pixels
 and the large layer label starts at x=80. The original image and its SHA256 are
 kept alongside the generated header for reference.
+
+## VIA OLED / encoder configuration
+
+`NRF5_VIA_UI_ENABLE = yes` adds runtime configuration on the existing USB/BLE
+VIA transport. It currently requires the shared OLED and encoder features, at
+most four encoders/eight layers, and a 128×32 or 128×64 display. The `ciank_pad`
+build enables it. Other keyboards without these peripherals retain their current
+VIA behavior; the client's matrix descriptor checks for support before loading.
+
+Keep the old keymap/macro region intact, then reserve 1792 bytes after it. The
+pad uses EEPROM 3840 bytes, UI base 2048, and dynamic keymap maximum address 2047.
+Five FDS pages are required so old/new large records, peer-manager bonds and
+GC can coexist; the default three pages can run out of contiguous space even
+after garbage collection. Increasing the page count extends the store below the
+old three pages, which remain inside the scanned range. The pad also limits the
+application to 0x80000 with NRF5_APP_FLASH_END, leaving room for two application
+banks below FDS for the existing Nordic 0xe0000+ / Adafruit bootloaders. No SDK,
+SoftDevice or bootloader change is needed for these small application images.
+This preserves the previous keymap, macro, lighting and one-byte keymap-ID
+addresses. The new FDS record remains smaller than a 4096-byte flash page. Old
+shorter records fill the extension with FF and load compiled UI defaults. Back up
+keymaps before a rebuild: QMK's independent VIA build-date reset still applies.
+
+The native client has three VIA tabs. The UI configuration stores seven widgets
+(logo, title, traditional clock, digital clock, battery, connection, layer), each
+with enable/X/Y/1x-or-2x settings; the persisted screen power policy; title and
+logo pixels; all 21 clock glyphs; and per-layer encoder actions. Positions are
+pixel coordinates; drawing is clipped to the screen. Rendering stays in the
+shared library, without per-keyboard layout copies or an I2C transfer in a
+transport callback. No font files or image decoder are needed in firmware.
+
+Title bitmap slot: 512 bytes, maximum 128×32. Logo: 256 bytes, maximum 64×32.
+Clock font: 672 bytes, 21 glyphs of 16×16, in this order:
+`子丑寅卯辰巳午未申酉戌亥初正一二三刻待校时`.
+All pixel data is horizontal, row-major, MSB first; a set bit is lit.
+The client converts Windows-font text, PNG/BMP/JPEG, and PCtoLCD C-array TXT/H
+files. Per-character 16×16 arrays are transposed into a single title bitmap.
+The custom font affects the Chinese clock; the small ASCII font remains built in.
+
+Encoder action 255 retains the compiled binding; 0 runs configured CW/CCW QMK
+keys through QMK's press/release pipeline (including macros, layers and custom
+keyboard keycodes); 1/2 retain underglow/matrix modifier-based color adjustment;
+3 does nothing. Turning is a brief key tap, so held layer/modifier gestures are
+better assigned to the encoder's push switch. The standard VIA 0x14/0x15 encoder
+commands access the same store; editing with those commands selects action 0.
+QMK's separate ENCODER_MAP_ENABLE stays disabled to avoid moving macro addresses.
+The nRF-specific virtual encoder event/cache hooks are compiled only with this
+feature enabled.
+
+### Custom channel wire format (version 1)
+
+The VIA custom value commands 07/08/09 use channel 71. Byte 2 is the operation;
+byte 3 is status (0 OK, 1 unsupported, 2 bounds, 3 session, 4 validation). All
+integers below are little endian, except the existing Flash-status command 80.
+
+- Get 08/op0: response [4]=version, [5/6]=width/height, [7/8]=encoders/layers,
+  [9:11]=configuration length (1792), [11]=lighting bits (1 underglow, 2 matrix).
+- Set 07/op1: request [4]=0 current or 1 compiled defaults. Response [4:6] is
+  a nonzero staging-session ID. Begin does not change live configuration.
+- Set 07/op2 writes / Get 08/op3 reads: [4:6]=session ID, [6:8]=offset,
+  [8]=length (1..23), [9:32]=data. Read ID 0 reads active bytes; a nonzero ID
+  reads a consistent staging snapshot. Offsets/count/session are echoed.
+- Save 09/op4 validates and commits the staging buffer once. Set 07/op5 aborts.
+  Both use [4:6]=session ID. An invalid upload does not change RAM or EEPROM.
+
+Sessions are tied to the USB/BLE source, superseded by a new Begin from the same
+source, invalidated on disconnect or standard encoder edits, and expire after
+30 seconds without session activity. Clients abort in finally blocks, including
+after cancellation. Writes are staged in RAM so a disconnected image upload
+cannot leave half a logo active or partially update the EEPROM cache. Successful
+commit updates the EEPROM cache in one operation; the client compares readback
+and waits for FDS completion via 80 before reporting durable success. FDS retains
+the previous whole record through interrupted asynchronous flash writes.
+
+Configuration offsets: version/flags/power/reserved 0..3; title/Logo dimensions
+4..7; seven four-byte widgets starting at 16; 32 five-byte encoder slots at 48
+(slot=layer*4+index: action,cw16,ccw16); title 224; Logo 736; clock glyphs 992.
+Bytes 1788..1791 contain IEEE CRC32 of bytes 0..1787. Unknown/bad-checksum stored
+versions fall back to compiled defaults. Reserved bytes are written as zero by
+clients. JSON backups include the whole blob and checksum, so artwork is kept.
+
+The client now uses independent screen/encoder backups and section-only patches.
+It begins with a fresh consistent snapshot, replaces only the selected section,
+patches those ranges plus CRC, commits, reads back, and waits for FDS completion.
+Screen-owned ranges: 1..7, 16..43, 224..1663. Encoder-owned range: 48..207.
+The shared blob version/size and legacy full-upload commands remain compatible.
+
+`ciank_pad` limits SoftDevice flash writes to 128-byte chunks. The optional
+0x82 diagnostic reply (with NRF5_VIA_UI_ENABLE) reports version at byte 1;
+uptime32 at 2; retained fault ID/PC/info/SDK error at 6/10/14/18; FDS start at 22;
+bootloader address at 26; and low 16 reset-reason bits at 30. All are big endian.
+The fatal handler records only to a 20-byte NOLOAD RAM section and resets; it
+never attempts flash, USB, logging or I2C I/O while handling a fatal error.
