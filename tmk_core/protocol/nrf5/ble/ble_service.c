@@ -78,6 +78,10 @@
 #include "ble_service.h"
 #include "ble_hids_service.h"
 #include "outputselect.h"
+#ifdef NRF5_ESB_ENABLE
+#    include "esb_settings.h"
+#    include "esb_pair.h"
+#endif
 #include "nrf5_power.h"
 #include "eeprom_nrf.h"
 
@@ -91,6 +95,9 @@
 
 uint8_t              keyboard_ble_led_stats = 0;
 static volatile bool ble_disable            = true; /**< Handle of the current connection. */
+#ifdef NRF5_ESB_TX
+static volatile bool ble_pair_pending, ble_pair_disconnect_requested, ble_pairing_open;
+#endif
 #ifdef POWER_SAVE_TIMEOUT
 static volatile uint16_t power_save_counter = 0;
 #endif
@@ -297,6 +304,9 @@ static void delete_bonds(void) {
 /**@brief Function for starting advertising.
  */
 void advertising_start(bool erase_bonds) {
+#ifdef NRF5_ESB_ENABLE
+    if (!nrf5_output_ble_allowed()) return;
+#endif
     if (erase_bonds == true) {
         delete_bonds();
     } else {
@@ -319,6 +329,9 @@ void advertising_start(bool erase_bonds) {
         options.ble_adv_slow_interval              = APP_ADV_SLOW_INTERVAL;
         options.ble_adv_slow_timeout               = APP_ADV_SLOW_DURATION;
         options.ble_adv_on_disconnect_disabled     = false;
+#ifdef NRF5_ESB_TX
+        options.ble_adv_on_disconnect_disabled = true;
+#endif
         ble_advertising_modes_config_set(&m_advertising, &options);
 
         m_whitelist_peer_cnt = BLE_GAP_DEVICE_IDENTITIES_MAX_COUNT;
@@ -341,7 +354,10 @@ void advertising_start(bool erase_bonds) {
     }
 }
 
-void advertising_without_whitelist() {
+static void advertising_open(void) {
+#ifdef NRF5_ESB_ENABLE
+    if (!nrf5_output_ble_allowed()) return;
+#endif
     if (m_conn_handle == BLE_CONN_HANDLE_INVALID) {
         if (ble_disable == true) {
             advertising_start(false);
@@ -353,6 +369,40 @@ void advertising_without_whitelist() {
         }
     }
 }
+
+void advertising_without_whitelist(void) {
+#ifdef NRF5_ESB_TX
+    // This is an explicit keyboard action, unlike automatic advertising calls
+    // from USB/GAP events. Select BLE first and defer until the route is ready.
+    if (!nrf5_output_request(NRF5_MODE_BLE)) return;
+    ble_pair_pending = true;
+    ble_pair_disconnect_requested = false;
+#else
+    advertising_open();
+#endif
+}
+
+#ifdef NRF5_ESB_TX
+void nrf5_ble_pairing_task(void) {
+    if (nrf5_esb_settings()->mode != NRF5_MODE_BLE) {
+        ble_pair_pending = ble_pairing_open = false;
+        return;
+    }
+    if (!ble_pair_pending || !nrf5_output_ble_allowed()) return;
+    if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
+        // GAP disconnection completes asynchronously. Do not restart
+        // advertising or repeatedly request a disconnect in the meantime.
+        if (!ble_pair_disconnect_requested) {
+            ble_disconnect();
+            ble_pair_disconnect_requested = true;
+        }
+        return;
+    }
+    ble_pair_pending = false;
+    ble_pairing_open = true;
+    advertising_open();
+}
+#endif
 
 void ble_disconnect(void) {
     ret_code_t ret;
@@ -373,6 +423,9 @@ void ble_disconnect(void) {
 }
 
 void restart_advertising_id(uint8_t id) {
+#ifdef NRF5_ESB_ENABLE
+    if (!nrf5_output_ble_allowed()) return;
+#endif
     ret_code_t ret;
 
     if (!ble_disable && m_conn_handle == BLE_CONN_HANDLE_INVALID) {
@@ -411,6 +464,9 @@ void restart_advertising_id(uint8_t id) {
         options.ble_adv_slow_enabled               = true;
         options.ble_adv_slow_interval              = APP_ADV_SLOW_INTERVAL;
         options.ble_adv_slow_timeout               = APP_ADV_SLOW_DURATION;
+#ifdef NRF5_ESB_TX
+        options.ble_adv_on_disconnect_disabled = true;
+#endif
         ble_advertising_modes_config_set(&m_advertising, &options);
 
         ret = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
@@ -439,6 +495,9 @@ static void pm_evt_handler(pm_evt_t const *p_evt) {
         } break;
 
         case PM_EVT_CONN_SEC_SUCCEEDED: {
+#ifdef NRF5_ESB_TX
+            ble_pairing_open = false;
+#endif
             NRF_LOG_INFO("Connected to device %d.", p_evt->peer_id);
             NRF_LOG_DEBUG("Connection secured: role: %d, conn_handle: 0x%x, procedure: %d, id: %d.", ble_conn_state_role(p_evt->conn_handle), p_evt->conn_handle, p_evt->params.conn_sec_succeeded.procedure, p_evt->peer_id);
 
@@ -458,6 +517,11 @@ static void pm_evt_handler(pm_evt_t const *p_evt) {
         case PM_EVT_CONN_SEC_CONFIG_REQ: {
             // Reject pairing request from an already bonded peer.
             pm_conn_sec_config_t conn_sec_config = {.allow_repairing = false};
+#ifdef NRF5_ESB_TX
+            // Windows may have deleted its copy while the keyboard retains
+            // the bond. Permit replacement only after the explicit ADVW key.
+            conn_sec_config.allow_repairing = ble_pairing_open;
+#endif
             pm_conn_sec_config_reply(p_evt->conn_handle, &conn_sec_config);
         } break;
 
@@ -560,6 +624,16 @@ void reset_power_save_counter(void) {
 }
 
 void nrf5_power_task(void) {
+#ifdef NRF5_ESB_ENABLE
+    if (nrf5_esb_settings_pending() || nrf5_pair_busy()) return;
+#endif
+#ifdef NRF5_ESB_RX
+    // Receiver / RF mode stay awake until duty-cycled wake is implemented.
+    reset_power_save_counter();
+    return;
+#elif defined(NRF5_ESB_TX)
+    if (where_to_send() == OUTPUT_NRF5_ESB) { reset_power_save_counter(); return; }
+#endif
     if (nrf5_usb_powered()) { reset_power_save_counter(); return; }
     if (!automatic_sleep_pending || nrf5_eeprom_pending()) return;
     automatic_sleep_pending = false;
@@ -914,6 +988,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
             break;
 
         case BLE_ADV_EVT_IDLE:
+#ifdef NRF5_ESB_TX
+            ble_pairing_open = false;
+#endif
             // Advertising can time out even when USB is connected. Do not
             // power off the whole keyboard from the BLE event callback.
             request_automatic_sleep();
@@ -984,6 +1061,9 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
             options.ble_adv_slow_enabled               = true;
             options.ble_adv_slow_interval              = APP_ADV_SLOW_INTERVAL;
             options.ble_adv_slow_timeout               = APP_ADV_SLOW_DURATION;
+#ifdef NRF5_ESB_TX
+            options.ble_adv_on_disconnect_disabled = true;
+#endif
 
             ble_advertising_modes_config_set(&m_advertising, &options);
 
@@ -1002,6 +1082,12 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
             // report containing the Caps lock state.
             // disabling alert 3. signal - used for capslock ON
             keyboard_ble_led_stats = 0;
+#ifdef NRF5_ESB_TX
+            if (nrf5_output_ble_allowed() && !ble_disable) {
+                ble_disable = true;
+                advertising_start(false);
+            }
+#endif
 
             if (ble_disable) {
                 ret_code_t ret;
@@ -1152,6 +1238,9 @@ static void advertising_init(void) {
     init.config.ble_adv_slow_timeout               = APP_ADV_SLOW_DURATION;
 
     init.evt_handler   = on_adv_evt;
+#ifdef NRF5_ESB_TX
+    init.config.ble_adv_on_disconnect_disabled = true;
+#endif
     init.error_handler = ble_advertising_error_handler;
 
     err_code = ble_advertising_init(&m_advertising, &init);

@@ -215,4 +215,7 @@
 // Preserve all seven default layers and leave room for VIA macros.
 #    define DYNAMIC_KEYMAP_LAYER_COUNT 7
 #    define EEPROM_SIZE 2048
+// Keep large VIA/RGB configuration saves in short SoftDevice operations,
+// as on ciank_pad, rather than submitting the whole 2 KiB in one write.
+#    define NRF_FSTORAGE_SD_MAX_WRITE_SIZE 128
 #endif

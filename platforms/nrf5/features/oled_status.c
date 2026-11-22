@@ -3,6 +3,9 @@
 #include "oled_driver.h"
 #include "adc.h"
 #include "outputselect.h"
+#ifdef NRF5_ESB_ENABLE
+#    include "nrf5_esb.h"
+#endif
 #include <stdio.h>
 #ifdef RGBLIGHT_ENABLE
 #    include "rgblight.h"
@@ -165,6 +168,9 @@ bool nrf5_oled_task(void) {
     uint8_t layer = get_highest_layer(layer_state | default_layer_state);
     uint8_t output = where_to_send();
     const char *host = output == OUTPUT_USB ? "USB" : output == OUTPUT_BLUETOOTH ? "BLE" : "AUTO";
+#ifdef NRF5_ESB_ENABLE
+    if (output == OUTPUT_NRF5_ESB) host = nrf5_esb_connected() ? "RF+" : "RF-";
+#endif
 #ifdef NRF5_CLOCK_ENABLE
     uint8_t hour = 0, minute = 0, second = 0;
     bool valid = nrf5_clock_read(&hour, &minute, &second);

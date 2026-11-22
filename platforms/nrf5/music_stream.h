@@ -16,7 +16,7 @@
 #define MUSIC_TIMEOUT_MS 750
 #define MUSIC_USB_REPORT_ID 4
 
-typedef enum { MUSIC_SOURCE_USB = 1, MUSIC_SOURCE_BLE = 2 } music_source_t;
+typedef enum { MUSIC_SOURCE_USB = 1, MUSIC_SOURCE_BLE = 2, MUSIC_SOURCE_ESB = 3 } music_source_t;
 typedef enum { MUSIC_EFFECT_SPECTRUM = 0, MUSIC_EFFECT_DUAL_DANCE = 1 } music_effect_t;
 typedef struct { uint8_t r, g, b; } music_rgb_t;
 typedef struct {

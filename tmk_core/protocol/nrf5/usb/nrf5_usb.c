@@ -7,6 +7,9 @@
 #include "outputselect.h"
 #include "nrf_delay.h"
 #include "usb_device_state.h"
+#ifdef NRF5_ESB_RX
+#    include "esb_packet.h"
+#endif
 #ifdef MIDI_ENABLE
 #    include "midi_transport.h"
 #endif
@@ -41,6 +44,60 @@ APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_mouse, HID_MOUSE_INTERFACE, hid_user_e
 #ifdef EXTRAKEY_ENABLE
 static const app_usbd_hid_subclass_desc_t *extra_hid_report_desc[] = {&extrakey_desc};
 APP_USBD_HID_GENERIC_GLOBAL_DEF(m_app_hid_extra, HID_EXTRA_INTERFACE, hid_user_ev_handler, (NRF_DRV_USBD_EPIN4), extra_hid_report_desc, 1, 0, APP_USBD_HID_SUBCLASS_NONE, APP_USBD_HID_PROTO_GENERIC);
+#endif
+
+#ifdef NRF5_ESB_RX
+static const app_usbd_class_inst_t *esb_usb_active;
+static uint8_t esb_usb_buffer[NRF5_ESB_REPORT_MAX];
+static void esb_usb_done(const app_usbd_class_inst_t *instance) {
+    if (instance == esb_usb_active) esb_usb_active = NULL;
+}
+bool nrf5_usb_esb_report(uint8_t kind, const uint8_t *data, uint8_t length) {
+    if (esb_usb_active || !NRF_USBD->ENABLE || app_usbd_core_state_get() != APP_USBD_STATE_Configured) return false;
+    const app_usbd_hid_generic_t *hid;
+    switch (kind) {
+        case NRF5_ESB_KEYBOARD:
+            if (length != 8) return true;
+            hid = &m_app_hid_kbd;
+            break;
+        case NRF5_ESB_NKRO:
+#    ifdef NKRO_ENABLE
+            if (length != 31) return true;
+            length = NKRO_EPSIZE;
+            hid = &m_app_hid_kbd2;
+            break;
+#    else
+            return true;
+#    endif
+        case NRF5_ESB_MOUSE:
+#    ifdef MOUSE_ENABLE
+            if (length != 5) return true;
+            hid = &m_app_hid_mouse;
+            break;
+#    else
+            return true;
+#    endif
+        case NRF5_ESB_EXTRA:
+#    ifdef EXTRAKEY_ENABLE
+            if (length != 3) return true;
+            hid = &m_app_hid_extra;
+            break;
+#    else
+            return true;
+#    endif
+        default: return true;
+    }
+    memcpy(esb_usb_buffer, data, length);
+    ret_code_t rc = app_usbd_hid_generic_in_report_set(hid, esb_usb_buffer, length);
+    if (rc != NRF_SUCCESS) {
+        // The SDK may have queued the pointer before transfer setup failed.
+        // Abort/clear it before allowing the same DMA buffer to be reused.
+        UNUSED_RETURN_VALUE(hid_generic_clear_buffer(app_usbd_hid_generic_class_inst_get(hid)));
+        return false;
+    }
+    esb_usb_active = app_usbd_hid_generic_class_inst_get(hid);
+    return true;
+}
 #endif
 
 #ifdef MUSIC_STREAM_ENABLE
@@ -247,6 +304,10 @@ static void kbd_status(void) {
  * @param event     Class specific event.
  * */
 void hid_kbd_user_ev_handler(app_usbd_class_inst_t const *p_inst, app_usbd_hid_user_event_t event) {
+#ifdef NRF5_ESB_RX
+    if (event == APP_USBD_HID_USER_EVT_IN_REPORT_DONE) esb_usb_done(p_inst);
+    if (event == APP_USBD_HID_USER_EVT_SET_BOOT_PROTO || event == APP_USBD_HID_USER_EVT_SET_REPORT_PROTO) esb_usb_done(p_inst);
+#endif
     switch (event) {
         case APP_USBD_HID_USER_EVT_OUT_REPORT_READY: {
             m_report_pending = false;
@@ -279,6 +340,10 @@ void hid_kbd_user_ev_handler(app_usbd_class_inst_t const *p_inst, app_usbd_hid_u
 }
 
 void hid_user_ev_handler(app_usbd_class_inst_t const *p_inst, app_usbd_hid_user_event_t event) {
+#ifdef NRF5_ESB_RX
+    if (event == APP_USBD_HID_USER_EVT_IN_REPORT_DONE) esb_usb_done(p_inst);
+    if (event == APP_USBD_HID_USER_EVT_SET_BOOT_PROTO || event == APP_USBD_HID_USER_EVT_SET_REPORT_PROTO) esb_usb_done(p_inst);
+#endif
     switch (event) {
         case APP_USBD_HID_USER_EVT_OUT_REPORT_READY: {
             m_report_pending = false;
@@ -320,6 +385,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
         case APP_USBD_EVT_DRV_SOF:
             break;
         case APP_USBD_EVT_DRV_RESET:
+#ifdef NRF5_ESB_RX
+            esb_usb_active = NULL;
+#endif
 #ifdef EXTRAKEY_ENABLE
             extra_reset();
 #endif
@@ -358,6 +426,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             // bsp_board_led_on(LED_USB_START);
             break;
         case APP_USBD_EVT_STOPPED:
+#ifdef NRF5_ESB_RX
+            esb_usb_active = NULL;
+#endif
             app_usbd_disable();
 #ifdef EXTRAKEY_ENABLE
             extra_reset();
@@ -369,7 +440,9 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
             if (!nrf_drv_usbd_is_enabled()) {
                 app_usbd_enable();
             }
+#ifndef NRF5_ESB_TX
             ble_disconnect();
+#endif
             set_output(OUTPUT_USB);
             break;
         case APP_USBD_EVT_POWER_REMOVED:

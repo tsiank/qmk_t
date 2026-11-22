@@ -8,8 +8,8 @@ using Windows.Security.Cryptography;
 
 namespace Qmknrf5.App;
 
-internal enum ConnectionKind { Usb, Bluetooth, Preview }
-internal sealed record DeviceChoice(ConnectionKind Kind, string Id, string Name)
+internal enum ConnectionKind { Usb, Bluetooth, Receiver, Preview }
+internal sealed record DeviceChoice(ConnectionKind Kind, string Id, string Name, bool IsReceiver = false)
 {
     public override string ToString() => Name;
 }
@@ -23,19 +23,20 @@ internal static class DeviceCatalog
     public static async Task<List<DeviceChoice>> GetKeyboardsAsync(ConnectionKind kind, CancellationToken token)
     {
         if (kind == ConnectionKind.Preview) return [new(kind, "", "本机频谱预览")];
-        if (kind == ConnectionKind.Usb)
+        if (kind is ConnectionKind.Usb or ConnectionKind.Receiver)
             return await Task.Run(() =>
             {
                 var candidates = DeviceList.Local.GetHidDevices().ToArray();
                 var music = candidates.Where(IsMusicInterface).ToArray();
-                if (candidates.Any(d => MusicProtocol.IsSupportedUsbIdentity(d.VendorID,d.ProductID)) && music.Length == 0)
+                var receivers = candidates.Where(IsReceiverInterface).ToArray();
+                if (candidates.Any(d => MusicProtocol.IsSupportedUsbIdentity(d.VendorID,d.ProductID)) && music.Length == 0 && receivers.Length == 0)
                     throw new IOException("已找到键盘的 USB 设备，但未检测到音乐接口。请刷入配套的 Qmknrf5 固件并重新拔插 USB，再刷新设备。");
-                return music.Select(device =>
+                return (kind == ConnectionKind.Receiver ? receivers : music).Select(device =>
                 {
                     string name;
                     try { name = device.GetProductName() + " · " + device.GetSerialNumber(); }
                     catch (Exception) { name = "nRF5 键盘 · " + device.DevicePath; }
-                    return new DeviceChoice(kind, device.DevicePath, name);
+                    return new DeviceChoice(kind, device.DevicePath, name, IsReceiverInterface(device));
                 }).ToList();
             }, token);
         List<DeviceChoice> devices = [];
@@ -59,6 +60,12 @@ internal static class DeviceCatalog
         catch (Exception) { return false; }
     }
 
+    internal static bool IsReceiverInterface(HidDevice device)
+    {
+        try { return device.GetReportDescriptor().DeviceItems.SelectMany(item => item.Usages.GetAllValues()).Contains(0xFF670068u); }
+        catch (Exception) { return false; }
+    }
+
     public static List<PlaybackChoice> GetPlaybackDevices()
     {
         using var enumerator = new MMDeviceEnumerator();
@@ -72,6 +79,7 @@ internal static class DeviceCatalog
 
     public static async Task<IMusicTransport> ConnectAsync(DeviceChoice choice, CancellationToken token)
     {
+        if (choice.Kind == ConnectionKind.Receiver) return await Task.Run<IMusicTransport>(() => new ReceiverTransport(choice.Id), token);
         if (choice.Kind == ConnectionKind.Preview) return new PreviewTransport();
         if (choice.Kind == ConnectionKind.Usb) return await Task.Run<IMusicTransport>(() => new UsbTransport(choice.Id), token);
         return await BluetoothTransport.ConnectAsync(choice.Id, token);

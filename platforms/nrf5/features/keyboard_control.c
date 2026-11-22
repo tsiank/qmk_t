@@ -26,6 +26,9 @@ static bool ready;
 static uint8_t response[20];
 static music_source_t response_source;
 static bool reply_pending;
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+bool nrf5_esb_control_ready(void) { return !ready && !reply_pending; }
+#endif
 extern bool keyboard_control_usb_reply(const uint8_t *data);
 extern bool keyboard_control_ble_reply(const uint8_t *data);
 
@@ -50,12 +53,18 @@ bool keyboard_control_receive(const uint8_t *data, music_source_t source) {
         if (data[1] == 4 && (data[3] || data[4] || data[5])) return false;
         for (unsigned i = 6; i < 20; i++) if (data[i]) return false;
     }
+    bool accepted=true;
     CRITICAL_REGION_ENTER();
-    memcpy(pending, data, 20);
-    pending_source = source;
-    ready = true;
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+    if(source==MUSIC_SOURCE_ESB && ready)accepted=false;
+#endif
+    if(accepted) {
+        memcpy(pending, data, 20);
+        pending_source = source;
+        ready = true;
+    }
     CRITICAL_REGION_EXIT();
-    return true;
+    return accepted;
 }
 
 static uint8_t current_mode(void) {
@@ -111,6 +120,10 @@ void nrf5_keyboard_control_task(void) {
         if (command[1] == 6) nrf5_oled_set_power_mode(command[3]);
 #endif
         unsigned mask = command[1] == 3 ? command[3] : 0, value = command[4];
+#ifdef NRF5_LIGHTING_DIAGNOSTICS
+        void nrf5_lighting_control_trace(uint8_t mask, uint8_t values);
+        nrf5_lighting_control_trace(mask, value);
+#endif
         (void)value; // Keyboards without RGB/audio still support mode control.
 #ifdef RGB_MATRIX_ENABLE
         if (mask & 1 && rgb_matrix_is_enabled() != !!(value & 1)) {
@@ -184,7 +197,14 @@ void nrf5_keyboard_control_task(void) {
         response_source = source; reply_pending = true;
     }
     if (reply_pending) {
-        bool sent = response_source == MUSIC_SOURCE_USB ? keyboard_control_usb_reply(response) : keyboard_control_ble_reply(response);
+        bool sent;
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+        if(response_source==MUSIC_SOURCE_ESB) {
+            bool nrf5_esb_control_reply(const uint8_t *);
+            sent=nrf5_esb_control_reply(response);
+        } else
+#endif
+        sent = response_source == MUSIC_SOURCE_USB ? keyboard_control_usb_reply(response) : keyboard_control_ble_reply(response);
         if (sent) reply_pending = false;
     }
 }

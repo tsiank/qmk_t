@@ -39,6 +39,7 @@ public sealed partial class MainWindow : Window
     private readonly ViaPanel viaPanel;
     private readonly MidiPanel midiPanel;
     private readonly KeyboardControlPanel keyboardControls;
+    private readonly WirelessPanel wirelessPanel;
     private readonly NavigationView navigation = new() {
         PaneDisplayMode = NavigationViewPaneDisplayMode.Auto, OpenPaneLength = 208,
         CompactModeThresholdWidth = 640, ExpandedModeThresholdWidth = 1100,
@@ -78,6 +79,8 @@ public sealed partial class MainWindow : Window
         viaPanel = new ViaPanel(() => keyboard.SelectedItem as DeviceChoice, () => WinRT.Interop.WindowNative.GetWindowHandle(this));
         midiPanel = new MidiPanel(DispatcherQueue);
         keyboardControls = new KeyboardControlPanel(() => keyboard.SelectedItem as DeviceChoice);
+        wirelessPanel = new WirelessPanel(() => keyboard.SelectedItem as DeviceChoice);
+        Closed += (_, _) => wirelessPanel.Close();
         firmwarePanel = new FirmwarePanel(() => WinRT.Interop.WindowNative.GetWindowHandle(this), DispatcherQueue, PrepareFirmwareAsync, FinishFirmware);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Qmknrf5.ico"));
         var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
@@ -87,7 +90,7 @@ public sealed partial class MainWindow : Window
         AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
             workArea.X + (workArea.Width - width) / 2, workArea.Y + (workArea.Height - height) / 2, width, height));
         SystemBackdrop = new MicaBackdrop();
-        connection.Items.Add("USB"); connection.Items.Add("蓝牙（已配对）"); connection.Items.Add("仅预览");
+        connection.Items.Add("USB"); connection.Items.Add("蓝牙（已配对）"); connection.Items.Add("2.4G 接收器"); connection.Items.Add("仅预览");
         connection.SelectedIndex = 0;
         effect.Items.Add("频谱柱"); effect.Items.Add("双心共舞"); effect.SelectedIndex = 0;
         colorMode.Items.Add("彩光"); colorMode.Items.Add("纯光"); colorMode.SelectedIndex = 0;
@@ -113,7 +116,7 @@ public sealed partial class MainWindow : Window
         };
         deviceControls.Children.Add(bluetoothSettings);
         deviceControls.Children.Add(deviceStatus);
-        deviceControls.Children.Add(new TextBlock { Text = "USB 可直接刷新。蓝牙请先在 Windows 设置中配对，并拔掉键盘 USB。选择的键盘供律动、灯光与演奏控制、VIA 改键使用；MIDI 页面单独选择输入端口。", TextWrapping = TextWrapping.Wrap, Opacity = .7 });
+        deviceControls.Children.Add(new TextBlock { Text = "USB 可直接刷新。蓝牙请先在 Windows 设置中配对。自动模式下拔掉键盘 USB；三模固件也可手动选择蓝牙并保留 USB 供电。这里选择客户端的连接方式，下方输出模式决定键盘向哪个主机打字。MIDI 页面单独选择输入端口。", TextWrapping = TextWrapping.Wrap, Opacity = .7 });
         var openMusic = new Button { Content = "前往音乐律动", HorizontalAlignment = HorizontalAlignment.Left };
         AutomationProperties.SetAutomationId(openMusic, "OpenMusicPage");
         openMusic.Click += (_, _) => Navigate("music");
@@ -167,6 +170,7 @@ public sealed partial class MainWindow : Window
         musicPage.SizeChanged += (_, args) => Arrange(Math.Max(0, args.NewSize.Width - 48));
         var devicePage = new StackPanel { Spacing = 20 };
         devicePage.Children.Add(Card(deviceControls)); devicePage.Children.Add(Card(keyboardControls.ConnectionView));
+        devicePage.Children.Add(Card(wirelessPanel.View));
         AddPage("devices", "设备连接", "选择 USB 或蓝牙键盘，连接键盘控制。", "\uE772", devicePage, 760, 0);
         var midiPage = new StackPanel { Spacing = 20 };
         midiPage.Children.Add(Card(keyboardControls.PerformanceView)); midiPage.Children.Add(Card(midiPanel.View));
@@ -211,6 +215,8 @@ public sealed partial class MainWindow : Window
             var choice=keyboard.SelectedItem as DeviceChoice;
             selectedDevice.Text=choice?.Name??"尚未选择键盘";
             await keyboardControls.SelectDeviceAsync(choice);
+            await wirelessPanel.SelectDeviceAsync();
+            UpdateControls();
         };
         refresh.Click += async (_, _) => await RefreshAsync();
         connection.SelectionChanged += async (_, _) => { if (!running) await RefreshAsync(); };
@@ -341,7 +347,7 @@ public sealed partial class MainWindow : Window
     private void UpdateControls()
     {
         connection.IsEnabled = !running && !firmwareMaintenance;
-        keyboard.IsEnabled = !running && !refreshing && !firmwareMaintenance && connection.SelectedIndex != 2;
+        keyboard.IsEnabled = !running && !refreshing && !firmwareMaintenance && connection.SelectedIndex != 3;
         playback.IsEnabled = !running && !refreshing && !firmwareMaintenance && !demo.IsOn;
         demo.IsEnabled = !running && !firmwareMaintenance;
         refresh.IsEnabled = !running && !refreshing && !firmwareMaintenance;
@@ -363,7 +369,7 @@ public sealed partial class MainWindow : Window
         int index = connection.SelectedIndex;
         try
         {
-            var kind = index == 0 ? ConnectionKind.Usb : index == 1 ? ConnectionKind.Bluetooth : ConnectionKind.Preview;
+            var kind = index == 0 ? ConnectionKind.Usb : index == 1 ? ConnectionKind.Bluetooth : index == 2 ? ConnectionKind.Receiver : ConnectionKind.Preview;
             var devices = await DeviceCatalog.GetKeyboardsAsync(kind, cancellation.Token);
             var audio = await Task.Run(DeviceCatalog.GetPlaybackDevices, cancellation.Token);
             if (cancellation.IsCancellationRequested || closing) return;

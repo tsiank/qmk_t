@@ -14,6 +14,9 @@
 #define BASE_USB_HID_SPEC_VERSION 0x0101 /**< Version number of base USB HID Specification implemented by this application. */
 
 static bool            m_in_boot_mode = false; /**< Current protocol mode. */
+#ifdef NRF5_ESB_TX
+volatile uint8_t nrf5_ble_led_last_report, nrf5_ble_led_report_count;
+#endif
 extern keymap_config_t keymap_config;
 
 BLE_HIDS_DEF(m_hids_kbd, /**< Structure used to identify the HID service. */
@@ -368,6 +371,14 @@ static void on_hids_evt(ble_hids_t *p_hids, ble_hids_evt_t *p_evt) {
             break;
 
         case BLE_HIDS_EVT_REP_CHAR_WRITE:
+#ifdef NRF5_ESB_TX
+            if ((p_evt->params.char_write.char_id.rep_type == BLE_HIDS_REP_TYPE_OUTPUT ||
+                 p_evt->params.char_write.char_id.uuid == BLE_UUID_BOOT_KEYBOARD_OUTPUT_REPORT_CHAR) &&
+                p_evt->params.char_write.offset == 0 && p_evt->params.char_write.len && p_evt->params.char_write.data) {
+                nrf5_ble_led_last_report = p_evt->params.char_write.data[0];
+                nrf5_ble_led_report_count++;
+            }
+#endif
             on_hid_rep_char_write(p_evt);
             break;
 

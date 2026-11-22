@@ -157,3 +157,6 @@ extern uint8_t keyboard_protocol;
 host_driver_t *nrf5_usb_driver(void);
 void           usb_keyboard_init(void);
 void           nrf5_usb_extra_task(void);
+#ifdef NRF5_ESB_RX
+bool nrf5_usb_esb_report(uint8_t kind, const uint8_t *data, uint8_t length);
+#endif

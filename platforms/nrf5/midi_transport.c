@@ -5,6 +5,10 @@
 #include "host.h"
 #include "nrf5_usb.h"
 #include "ble_service.h"
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+#    include "nrf5_esb.h"
+#    include "esb_bridge.h"
+#endif
 #ifdef AUDIO_ENABLE
 #    include "audio.h"
 #    include <math.h>
@@ -191,6 +195,12 @@ void nrf_midi_task(void) {
         bool sent;
         if (driver == nrf5_usb_driver()) sent = nrf_midi_usb_send(tx[tx_read]);
         else if (driver == nrf5_ble_driver()) sent = nrf_midi_ble_send(tx[tx_read]);
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+        else if(driver==nrf5_esb_driver()) {
+            if(!nrf5_esb_connected()) { tx_read=tx_write;break; }
+            sent=nrf5_bridge_send(NRF5_BRIDGE_MIDI,0,tx[tx_read],4);
+        }
+#endif
         else { tx_read = tx_write; break; }
         if (!sent) break;
         consumed_count++;

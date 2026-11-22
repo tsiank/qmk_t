@@ -30,6 +30,24 @@ float[] Tone(double frequency) => Enumerable.Range(0, SpectrumAnalyzer.Size)
     .Select(i => (float)(0.5 * Math.Sin(2 * Math.PI * frequency * i / 48000))).ToArray();
 int Peak(byte[] values) => Array.IndexOf(values, values.Max());
 
+Test("Receiver proxy preserves all music bytes and validates correlated control replies", () =>
+{
+    byte[] music=MusicProtocol.Packet(43,Enumerable.Repeat((byte)77,16).ToArray(),LightTarget.Both);
+    byte[] wrapped=ReceiverProtocol.WrapMusic(music);
+    Check(wrapped.Length==32&&wrapped.AsSpan(0,20).SequenceEqual(music)&&wrapped.AsSpan(20).IndexOfAnyExcept((byte)0)<0,"padded receiver frame changed music");
+    byte[] control=KeyboardControlProtocol.Command(27,2,2,KeyboardMusicMode.Off);
+    Check(ReceiverProtocol.WrapMusic(control).AsSpan(0,20).SequenceEqual(control),"control changed");
+    byte[] reply=new byte[32];reply[0]=0xC7;reply[1]=0x83;reply[2]=27;reply[3]=3;reply[5]=2;reply[6]=31;reply[7]=7;
+    var state=ReceiverProtocol.ParseControl(reply,27);Check(state.Matrix&&state.Underglow,"state lost");
+    Throws<IOException>(()=>ReceiverProtocol.ParseControl(reply,28));
+    reply[31]=1;Throws<IOException>(()=>ReceiverProtocol.ParseControl(reply,27));reply[31]=0;
+    reply[1]=0xFF;Throws<IOException>(()=>ReceiverProtocol.ParseControl(reply,27));
+    reply[0]=0xFF;Throws<IOException>(()=>ReceiverProtocol.ParseControl(reply,27));
+    Throws<IOException>(()=>ReceiverProtocol.ParseControl(new byte[20],27));
+    Throws<ArgumentException>(()=>ReceiverProtocol.WrapMusic(new byte[20]));
+    Throws<ArgumentException>(()=>ReceiverProtocol.WrapMusic(new byte[32]));
+});
+
 Test("Wire packet matches firmware and Python layout", () =>
 {
     byte[] bands = Enumerable.Range(0, 16).Select(i => (byte)i).ToArray();
@@ -417,6 +435,7 @@ KeyboardControlTests.Run(Test);
 ViaTests.Run(Test);
 ViaUiTests.Run(Test);
 FirmwareTests.Run(Test);
+WirelessTests.Run(Test);
 
 Console.WriteLine($"{passed} tests passed.");
 

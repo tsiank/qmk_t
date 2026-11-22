@@ -52,6 +52,10 @@
 #include "keyboard.h"
 #include "eeprom.h"
 #include "nrf5_power.h"
+#ifdef NRF5_ESB_ENABLE
+#    include "nrf5_esb.h"
+#    include "outputselect.h"
+#endif
 #ifdef NRF5_OLED_STATUS_ENABLE
 #    include "nrf5_ui.h"
 #endif
@@ -113,6 +117,10 @@ int main(void) {
 
     usb_keyboard_init();
     ble_service_init();
+#ifdef NRF5_ESB_ENABLE
+    nrf5_esb_init();
+    nrf5_output_init();
+#endif
 
     #ifdef MIDI_ENABLE
         setup_midi();
@@ -137,6 +145,13 @@ int main(void) {
         while (app_usbd_event_queue_process()) {
             /* Nothing to do */
         }
+#ifdef NRF5_ESB_ENABLE
+        nrf5_esb_task();
+        nrf5_output_task();
+#ifdef NRF5_ESB_TX
+        nrf5_ble_pairing_task();
+#endif
+#endif
 #ifdef MIDI_ENABLE
         nrf_midi_task();
 #endif

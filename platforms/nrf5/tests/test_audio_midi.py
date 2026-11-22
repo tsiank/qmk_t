@@ -260,6 +260,8 @@ typedef unsigned nrf_drv_usbd_ep_status_t;
 #define NRF_ERROR_INVALID_LENGTH 3
 #define NRF_DRV_USBD_EPIN5 0x85
 #define NRF_DRV_USBD_EPOUT5 5
+#define NRF_DRV_USBD_EPIN6 0x86
+#define NRF_DRV_USBD_EPOUT6 6
 #define NRF_USBD_EP_OK 0
 #define NRF_USBD_EP_ABORTED 1
 #define NRF_USBD_EP_WAITING 2
@@ -290,7 +292,7 @@ unsigned app_usbd_class_append(const app_usbd_class_inst_t*);
         macros = header[header.index('#define APP_USBD_CLASS_DESCRIPTOR_BEGIN'):header.index('/** @} */',header.index('#define APP_USBD_CLASS_DESCRIPTOR_BEGIN'))]
         with (self.path/'app_usbd.h').open('a') as f:
             f.write('\n#define ASSERT assert\n' + macros)
-        self.run_c(r"""
+        code=r"""
 #include <assert.h>
 #include <string.h>
 #include "app_usbd.h"
@@ -350,7 +352,15 @@ int main(void){
  event(APP_USBD_EVT_DRV_RESET,0,0);assert(!configured&&!tx_busy);
  deselect_interface(&midi_instance.base,1);assert(!configured);
 }
-""", [])
+"""
+        if getattr(self,'receiver_usb',False):
+            code='#define NRF5_ESB_DONGLE\n'+code.replace('0x85','0x86').replace('ep==5','ep==6').replace('EPTRANSFER,5,','EPTRANSFER,6,').replace('descriptors[i+2]==5','descriptors[i+2]==6').replace('descriptors[i+2]==4','descriptors[i+2]==5')
+        self.run_c(code,[])
+
+    def test_receiver_midi_usb_descriptors_and_endpoint_lifecycle(self):
+        self.receiver_usb=True
+        self.test_usb_descriptors_and_endpoint_lifecycle()
+
 
     def test_ble_registration_handshake_bond_restore_and_backpressure(self):
         self.write('app_timer.h', '#include <stdint.h>\n#define APP_TIMER_CLOCK_FREQ 32768\nuint32_t app_timer_cnt_get(void); uint32_t app_timer_cnt_diff_compute(uint32_t,uint32_t);\n')

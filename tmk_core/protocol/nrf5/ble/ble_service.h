@@ -11,6 +11,9 @@ uint32_t voltage;
  */
 void advertising_start(bool erase_bonds);
 void advertising_without_whitelist(void);
+#ifdef NRF5_ESB_TX
+void nrf5_ble_pairing_task(void);
+#endif
 void restart_advertising_id(uint8_t id);
 void idle_state_handle(void);
 void ble_service_init(void);

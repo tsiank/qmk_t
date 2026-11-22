@@ -1,6 +1,6 @@
 # ciank67
 
-使用 nRF52840 的 67 键蓝牙键盘，支持 IS31FL3741 RGB Matrix 和 WS2812 RGBLight。
+使用 nRF52840 的 67 键 USB／蓝牙／2.4G 三模键盘，支持 IS31FL3741 RGB Matrix 和 WS2812 RGBLight。
 
 键盘定义位于 `keyboard.json`。`LAYOUT` 由 QMK 根据其中的 `matrix` 坐标生成，沿用原有的 5×14 矩阵及 67 个按键顺序。蓝牙参数和硬件引脚保留在 `config.h` 中。
 
@@ -9,6 +9,12 @@
 ```sh
 make ciank67:default
 ```
+
+default 直接启用 ESB 发送端，恢复原有 Dvorak 基础层和七层编号，不再使用临时
+QWERTY 固定测试映射。VIA 正常编辑和保存恢复；首次从测试镜像刷入时初始化正常
+键位，之后重启保留修改。`make ciank67:esb_tx` 是相同配置的兼容目标。
+灯光保存使用 128 字节 Flash 分块写入，保留 Caps 指示修正。
+接收器、配对和切换方法见 [三模说明](../../docs/nrf5_esb.md)。
 
 需要 `qmk`、Python 3、ARM GCC 工具链及仓库的 nRF5 SDK 子模块。若使用 QMK 安装在用户目录下的工具链，可先执行：
 

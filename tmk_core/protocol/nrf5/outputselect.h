@@ -12,6 +12,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -25,7 +26,8 @@ enum outputs {
     OUTPUT_BLUETOOTH,
 
     // backward compatibility
-    OUTPUT_USB_AND_BT
+    OUTPUT_USB_AND_BT,
+    OUTPUT_NRF5_ESB
 };
 
 /**
@@ -44,3 +46,10 @@ void    set_output_user(uint8_t output);
 bool    process_nrf5_output(uint16_t keycode, keyrecord_t *record);
 uint8_t auto_detect_output(void);
 uint8_t where_to_send(void);
+#ifdef NRF5_ESB_ENABLE
+void nrf5_output_init(void);
+void nrf5_output_task(void);
+bool nrf5_output_request(uint8_t mode);
+uint8_t nrf5_output_mode(void);
+bool nrf5_output_ble_allowed(void);
+#endif

@@ -3,17 +3,29 @@
 #include "app_usbd.h"
 #include "app_usbd_core.h"
 #include "app_error.h"
-#include "midi_transport.h"
+#ifdef NRF5_ESB_DONGLE
+void nrf_midi_reset(void);
+void nrf_midi_receive(const uint8_t packet[4]);
+#else
+#    include "midi_transport.h"
+#endif
 #include <string.h>
 
-#ifdef MUSIC_STREAM_ENABLE
+#ifdef NRF5_ESB_DONGLE
+#    define MIDI_CONTROL_INTERFACE 5
+#elif defined(MUSIC_STREAM_ENABLE)
 #    define MIDI_CONTROL_INTERFACE 5
 #else
 #    define MIDI_CONTROL_INTERFACE 4
 #endif
 #define MIDI_STREAM_INTERFACE (MIDI_CONTROL_INTERFACE + 1)
-#define MIDI_IN NRF_DRV_USBD_EPIN5
-#define MIDI_OUT NRF_DRV_USBD_EPOUT5
+#ifdef NRF5_ESB_DONGLE
+#    define MIDI_IN NRF_DRV_USBD_EPIN6
+#    define MIDI_OUT NRF_DRV_USBD_EPOUT6
+#else
+#    define MIDI_IN NRF_DRV_USBD_EPIN5
+#    define MIDI_OUT NRF_DRV_USBD_EPOUT5
+#endif
 #define MIDI_CONFIG ((MIDI_CONTROL_INTERFACE), (MIDI_STREAM_INTERFACE, MIDI_IN, MIDI_OUT))
 
 // USB MIDI 1.0, one cable in each direction. Bulk endpoints are independent of
@@ -145,6 +157,7 @@ void nrf_midi_usb_task(void) {
         if (write_packet(packet)) panic_remaining--;
     }
 }
+void nrf_midi_usb_panic(void) { panic_remaining=16; }
 
 bool nrf_midi_usb_send(const uint8_t packet[4]) {
     if (panic_remaining) return false;

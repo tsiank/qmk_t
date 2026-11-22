@@ -1,1 +1,2 @@
 VIA_ENABLE = yes
+NRF5_ESB_ROLE = tx

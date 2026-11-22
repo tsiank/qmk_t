@@ -5,6 +5,31 @@ PROTOCOL_DIR = $(TMK_PATH)/protocol
 APP_MAIN_DIR = $(PROTOCOL_DIR)/nrf5
 PROJ_DIR := $(APP_MAIN_DIR)
 
+# Experimental ESB roles are opt-in; ordinary USB/BLE builds are unchanged.
+ifneq ($(strip $(NRF5_ESB_ROLE)),)
+  ifeq ($(filter $(NRF5_ESB_ROLE),tx rx),)
+    $(error NRF5_ESB_ROLE must be tx or rx)
+  endif
+  NRF_CFLAGS += -DNRF5_ESB_ENABLE -DNRF5_ESB_BRIDGE_ENABLE
+  ifeq ($(strip $(NRF5_ESB_ROLE)),tx)
+    NRF_CFLAGS += -DNRF5_ESB_TX
+    NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/features/esb_services.c
+  else
+    NRF_CFLAGS += -DNRF5_ESB_RX
+  endif
+  NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/esb_bridge.c \
+                  $(PLATFORM_COMMON_DIR)/esb_packet.c \
+                  $(PLATFORM_COMMON_DIR)/esb_radio.c \
+                  $(PLATFORM_COMMON_DIR)/esb_transport.c \
+                  $(PLATFORM_COMMON_DIR)/esb_crypto.c \
+                  $(PLATFORM_COMMON_DIR)/esb_settings.c \
+                  $(PLATFORM_COMMON_DIR)/esb_control.c \
+                  $(PLATFORM_COMMON_DIR)/esb_pair.c \
+                  $(PLATFORM_COMMON_DIR)/esb_pair_crypto.c
+  NRFINC_FOLDERS += $(SDK_ROOT)/external/nrf_oberon/include $(SDK_ROOT)/external/nrf_oberon
+  NRF_LDFLAGS += $(SDK_ROOT)/external/nrf_oberon/lib/cortex-m4/hard-float/liboberon_2.0.7.a
+endif
+
 ifeq ($(strip $(MIDI_ENABLE)),yes)
   NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/midi_transport.c \
                   $(PLATFORM_COMMON_DIR)/midi_codec.c \
@@ -173,6 +198,11 @@ NRFINC_FOLDERS += \
   $(SDK_ROOT)/modules/nrfx/hal \
   $(SDK_ROOT)/modules/nrfx/mdk \
 
+ifeq ($(strip $(NRF5_ESB_DONGLE)),yes)
+  # SoC services (RNG, Flash, Timeslot) stay enabled; no BLE HID/peer manager.
+  NRFSRC_FILES := $(filter-out $(SDK_ROOT)/components/ble/% $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c,$(NRFSRC_FILES))
+endif
+
 ifeq ($(NRF_DEBUG), yes)
   NRF_CFLAGS += -DNRF_LOG_ENABLED=1
   NRF_CFLAGS += -DNRF_LOG_BACKEND_RTT_ENABLED=1
@@ -188,8 +218,10 @@ endif
 NRF_OPT = -Os -g3
 NRF_CFLAGS += $(NRF_OPT)
 NRF_CFLAGS += -DBOARD_PCA10056
+ifneq ($(strip $(NRF5_ESB_DONGLE)),yes)
 NRF_CFLAGS += -DCONFIG_NFCT_PINS_AS_GPIOS
 NRF_CFLAGS += -DCONFIG_GPIO_AS_PINRESET
+endif
 NRF_CFLAGS += -DFLOAT_ABI_HARD
 NRF_CFLAGS += -DNRF52840_XXAA
 NRF_CFLAGS += -DSWI_DISABLE0

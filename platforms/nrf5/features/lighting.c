@@ -3,6 +3,59 @@
 #include "nrf5_lighting.h"
 
 #include "process_underglow.h"
+#ifdef NRF5_LIGHTING_DIAGNOSTICS
+#    include "adc.h"
+#    include "nrf_gpio.h"
+#    include <string.h>
+static uint16_t lighting_presses, lighting_releases, lighting_controls, lighting_last_key;
+static uint8_t lighting_last_edge, lighting_last_mask, lighting_last_values;
+void nrf5_lighting_control_trace(uint8_t mask, uint8_t values) {
+    if (!mask) return;
+    ++lighting_controls;
+    lighting_last_mask = mask;
+    lighting_last_values = values;
+}
+static void lighting_put16(uint8_t *p, uint16_t value) { p[0] = value >> 8; p[1] = value; }
+void nrf5_lighting_diagnostics(uint8_t data[32]) {
+    memset(data + 1, 0, 31);
+    data[1] = 1;
+#    ifdef RGB_MATRIX_ENABLE
+    data[2] |= rgb_matrix_is_enabled() ? 1 : 0;
+    data[20] = rgb_matrix_get_mode();
+    data[21] = rgb_matrix_get_val();
+#    endif
+#    ifdef RGBLIGHT_ENABLE
+    data[2] |= rgblight_is_enabled() ? 2 : 0;
+    data[22] = rgblight_get_mode();
+    data[23] = rgblight_get_val();
+#    endif
+#    ifdef RGB_PWR_PIN
+    data[3] = nrf_gpio_pin_out_read(RGB_PWR_PIN);
+#    endif
+    uint32_t now = timer_read32();
+    for (unsigned i = 0; i < 4; ++i) data[4 + i] = now >> (24 - 8 * i);
+    lighting_put16(data + 8, get_vcc());
+    lighting_put16(data + 10, lighting_presses);
+    lighting_put16(data + 12, lighting_releases);
+    lighting_put16(data + 14, lighting_controls);
+    lighting_put16(data + 16, lighting_last_key);
+    data[18] = lighting_last_edge;
+    data[19] = lighting_last_mask;
+    data[24] = lighting_last_values;
+}
+#endif
+#ifdef NRF5_ESB_TX
+#    include "nrf5_esb.h"
+extern volatile uint8_t nrf5_ble_led_last_report, nrf5_ble_led_report_count;
+void nrf5_esb_led_diagnostics(uint8_t data[3]) {
+    data[0] = host_keyboard_leds() & 31;
+#    ifdef RGBLIGHT_LAYERS
+    if (rgblight_get_layer_state(0)) data[0] |= 0x80;
+#    endif
+    data[1] = nrf5_ble_led_last_report;
+    data[2] = nrf5_ble_led_report_count;
+}
+#endif
 #ifdef OLED_ENABLE
 #    include "oled_driver.h"
 #endif
@@ -116,6 +169,14 @@ static void set_underglow_enabled(bool enabled) {
 }
 
 bool nrf5_process_lighting(uint16_t keycode, keyrecord_t *record, uint16_t combined_toggle) {
+#ifdef NRF5_LIGHTING_DIAGNOSTICS
+    if (keycode == combined_toggle || keycode == QK_RGB_MATRIX_TOGGLE || keycode == QK_RGB_MATRIX_ON || keycode == QK_RGB_MATRIX_OFF || keycode == QK_UNDERGLOW_TOGGLE) {
+        if (record->event.pressed) ++lighting_presses;
+        else ++lighting_releases;
+        lighting_last_key = keycode;
+        lighting_last_edge = record->event.pressed;
+    }
+#endif
     // stable processes RGB controls on key up to avoid layer/key-release edge
     // cases. Keep that behavior and consume both edges. Leave I2C running so
     // the matrix state machine can actually transmit its all-black off frame.

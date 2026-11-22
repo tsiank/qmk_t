@@ -12,12 +12,17 @@ internal static class ViaDevices
     public static async Task<IViaTransport> OpenAsync(DeviceChoice choice, CancellationToken token)
     {
         if (choice.Kind == ConnectionKind.Bluetooth) return await ViaBluetooth.OpenAsync(choice.Id, token);
-        if (choice.Kind != ConnectionKind.Usb) throw new IOException("请先选择 USB 或蓝牙键盘。");
+        if (choice.Kind is not (ConnectionKind.Usb or ConnectionKind.Receiver)) throw new IOException("请先选择 USB、蓝牙或 2.4G 接收器。");
         return await Task.Run<IViaTransport>(() =>
         {
             token.ThrowIfCancellationRequested();
             var all = DeviceList.Local.GetHidDevices().ToArray();
             var source = all.FirstOrDefault(d => d.DevicePath == choice.Id) ?? throw new IOException("键盘已断开，请刷新设备。");
+            // The receiver proxies VIA through its shared management collection.
+            if (choice.IsReceiver) {
+                if (!DeviceCatalog.IsReceiverInterface(source)) throw new IOException("接收器控制接口已改变，请刷新设备。");
+                return new ViaUsb(source);
+            }
             var raw = all.Where(d => d.VendorID == source.VendorID && d.ProductID == source.ProductID).Where(d =>
             {
                 try { return d.GetReportDescriptor().DeviceItems.SelectMany(i => i.Usages.GetAllValues()).Contains(0xFF600061u); }
@@ -35,12 +40,25 @@ internal static class ViaDevices
 
 internal sealed class ViaUsb : IViaTransport
 {
+    private static readonly SharedDevicePool<ViaUsbConnection> connections = new(
+        path => new ViaUsbConnection(DeviceList.Local.GetHidDevices().FirstOrDefault(d => d.DevicePath == path)
+            ?? throw new IOException("VIA USB 设备已断开。")),
+        value => value.DisposeAsync().GetAwaiter().GetResult());
+    private readonly SharedDevicePool<ViaUsbConnection>.Lease lease;
+    public ViaUsb(HidDevice device) { lease = connections.Acquire(device.DevicePath); }
+    public Task<byte[]> ExchangeAsync(byte[] request, CancellationToken token) => lease.Value.ExchangeAsync(request, token);
+    public Task SendAsync(byte[] request, CancellationToken token) => lease.Value.SendAsync(request,token);
+    public ValueTask DisposeAsync() { lease.Dispose(); return ValueTask.CompletedTask; }
+}
+
+internal sealed class ViaUsbConnection : IViaTransport
+{
     private readonly HidStream stream;
     private readonly UsbOutputFallback output;
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly string path;
     private WindowsHidOutput? fallback;
-    public ViaUsb(HidDevice device)
+    public ViaUsbConnection(HidDevice device)
     {
         if (device.GetMaxOutputReportLength() != 33 || device.GetMaxInputReportLength() != 33) throw new IOException("VIA USB 报告长度错误。");
         path = device.DevicePath; stream = device.Open(); stream.WriteTimeout = 500; stream.ReadTimeout = 100;
@@ -48,13 +66,21 @@ internal sealed class ViaUsb : IViaTransport
             (bytes, ct) => new ValueTask(Task.Run(() => { ct.ThrowIfCancellationRequested(); stream.Write(bytes); })),
             (bytes, ct) => new ValueTask(Task.Run(() => { fallback ??= new WindowsHidOutput(path); fallback.Write(bytes, ct); })));
     }
+    public async Task SendAsync(byte[] request, CancellationToken token)
+    {
+        if(request.Length!=32 || request[0]!=0xC7 || request[1] is not (1 or 2))throw new ArgumentException("无响应写入仅支持音乐帧和颜色设置。");
+        await gate.WaitAsync(token);
+        byte[] report=new byte[33];request.CopyTo(report,1);
+        try { await output.SendAsync(report,token); }
+        finally { Array.Clear(report);gate.Release(); }
+    }
     public async Task<byte[]> ExchangeAsync(byte[] request, CancellationToken token)
     {
         if (request.Length != 32) throw new ArgumentException("VIA request must be 32 bytes.");
         await gate.WaitAsync(token);
+        byte[] report = new byte[33]; request.CopyTo(report, 1);
         try
         {
-            byte[] report = new byte[33]; request.CopyTo(report, 1);
             await output.SendAsync(report, token);
             return await Task.Run(() =>
             {
@@ -65,14 +91,18 @@ internal sealed class ViaUsb : IViaTransport
                     try
                     {
                         int length = stream.Read(data);
-                        if (length == 33 && data[0] == 0 && (data[1] == request[0] || data[1] == 0xFF)) return data[1..];
+                        if (length == 33 && data[0] == 0 && (data[1] == request[0] || data[1] == 0xFF)) {
+                            if (request[0] == 0xC7 && data[1] == 0xC7 && data[3] != request[2]) continue;
+                            if (data[1] == 0x84 && (data[26] != request[30] || data[27] != request[31])) continue;
+                            return data[1..];
+                        }
                     }
                     catch (TimeoutException) { }
                 }
-                throw new IOException("VIA USB 响应超时，请重新读取键盘；尚未完成的写入可能已部分生效。");
+                throw new IOException("USB 配置响应超时，请刷新设备后重试；尚未完成的写入可能已部分生效。");
             }, token);
         }
-        finally { gate.Release(); }
+        finally { Array.Clear(report); gate.Release(); }
     }
     public ValueTask DisposeAsync() { fallback?.Dispose(); stream.Dispose(); gate.Dispose(); return ValueTask.CompletedTask; }
 }

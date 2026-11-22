@@ -8,6 +8,10 @@ void nrf5_keyboard_control_task(void);
 #    include "nrf5_clock.h"
 #endif
 void nrf5_features_task(void) {
+#ifdef NRF5_ESB_INDICATOR_ENABLE
+    void nrf5_esb_indicator_task(void);
+    nrf5_esb_indicator_task();
+#endif
 #ifdef NRF5_CLOCK_ENABLE
     nrf5_clock_task();
 #endif

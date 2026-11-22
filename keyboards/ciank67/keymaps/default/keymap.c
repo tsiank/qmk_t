@@ -22,6 +22,13 @@
 
 #include "nrf_gpio.h"
 #include "adc.h"
+#ifdef NRF5_ESB_TX
+#    define NRF5_RADIO_MODE_KEY OU_2P4G
+#    define NRF5_AUTO_MODE_KEY OU_AUTO
+#else
+#    define NRF5_RADIO_MODE_KEY KC_TRNS
+#    define NRF5_AUTO_MODE_KEY KC_TRNS
+#endif
 
 // adafruit bootloader, send "dfu" to debug serial port
 #define DFU_MAGIC_UF2_RESET             0x57
@@ -82,15 +89,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______,    _______, _______, KC_TRNS,       RSFT_T(KC_SPC),       KC_TRNS,  _______, _______, _______,    SEL0, SEL1, SEL2
                       ),
     [_NUM]      = LAYOUT(
-        _______,  SLEEP,  NK_TOGG, _______,    _______, _______,  _______, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
-        RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
+        _______,  SLEEP,  NK_TOGG, NRF5_AUTO_MODE_KEY,    _______, _______,  _______, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
+        RGBG_TOG,  OU_USB, OU_BT,  DISC,   NRF5_RADIO_MODE_KEY,KC_1,   KC_2, KC_3, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RM_TOGG,  RM_NEXT,RM_PREV,  _______,  _______, KC_4, KC_5, KC_6, KC_DELETE, KC_END,KC_PGDN, _______, _______,
         _______, _______, _______, _______, _______, KC_7, KC_8, KC_9, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
         UG_TOGG, RGBRST, UG_NEXT,  UG_PREV,               KC_0,                        KC_TRNS, BATT_LV, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
                       ),
     [_FN]   = LAYOUT(
-        _______,  SLEEP,  NK_TOGG, _______,    KC_F1, KC_F2,  KC_F3, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
-        RGBG_TOG,  OU_USB, OU_BT,  DISC,   _______,KC_F4,   KC_F5, KC_F6, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
+        _______,  SLEEP,  NK_TOGG, NRF5_AUTO_MODE_KEY,    KC_F1, KC_F2,  KC_F3, KC_PSCR, KC_SCRL, KC_PAUSE, _______, _______,ENT_DFU, QK_REBOOT,
+        RGBG_TOG,  OU_USB, OU_BT,  DISC,   NRF5_RADIO_MODE_KEY,KC_F4,   KC_F5, KC_F6, KC_INSERT, KC_HOME, KC_PGUP, _______,_______, REBOOT,
         RM_TOGG,  RM_NEXT,RM_PREV,  _______,  _______, KC_F7, KC_F8, KC_F9, KC_DELETE, KC_END,KC_PGDN, _______, _______,
         _______, _______, _______, _______, _______, KC_F10, KC_F11, KC_F12, _______, _______,_______, DELB,ADVW,  TO(_DVORAKR),
         UG_NEXT, RGBRST, UG_NEXT,  UG_PREV,               _______,                        BATT_LV, KC_TRNS, BATT_LV2, _______, TG(_QWERTY),TO(_RGBST), TO(_MOUSE)
@@ -100,7 +107,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC, KC_RBRC, KC_BSLS,
         KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,          KC_ENT,
         KC_LSFT,          KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_GRAVE,  KC_UP,  TO(_DVORAKR),
-        KC_LCTL,    KC_LWIN, KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN),  KC_RALT, KC_MENU,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
+        KC_LCTL,    KC_LWIN, KC_LALT,  MO(_SIGN),              RSFT_T(KC_SPC), MO(_FN), KC_RALT, KC_MENU,                KC_RCTL, KC_LEFT, KC_DOWN, KC_RGHT
                        ),
     [_RGBST] = LAYOUT(
         _______, RM_HUEU, RM_HUED, RM_SATU, RM_SATD, RM_VALU, RM_VALD, RM_SPDU, RM_SPDD, RGBM_M_P, RGBM_M_B, RGBM_M_R, RGBM_M_SW, _______,

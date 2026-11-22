@@ -60,11 +60,13 @@ class LightingTests(unittest.TestCase):
                       'CHRISTMAS', 'STATIC_GRADIENT', 'RGB_TEST', 'TWINKLE']
         modes = '\n'.join(f'#define RGBLIGHT_MODE_{name} {i+1}\n#define RGBLIGHT_MODE_{name}_end {i+2}' for i, name in enumerate(mode_names))
         self.write('quantum.h', '#pragma once\n#include <stdint.h>\n#include "action.h"\n#include "keycodes.h"\n' +
-                   '\n'.join(declarations) + '\nvoid rgblight_mode(uint8_t mode);\nuint8_t rgblight_get_mode(void);\n' + modes)
+                   '\n'.join(declarations) + '\nuint32_t timer_read32(void);\nuint8_t rgb_matrix_get_mode(void);\nuint8_t rgb_matrix_get_val(void);\nuint8_t rgblight_get_val(void);\nvoid rgblight_mode(uint8_t mode);\nuint8_t rgblight_get_mode(void);\n' + modes)
         self.write('rgb_matrix.h', '#include "quantum.h"\n')
         self.write('rgblight.h', '#include "quantum.h"\n')
         self.write('nrf5/i2c_master.h', 'void i2c_start(void);\nvoid i2c_stop(void);\n')
         self.write('action_util.h', '#include <stdint.h>\nuint8_t get_mods(void);\n')
+        self.write('adc.h', '#include <stdint.h>\nuint16_t get_vcc(void);\n')
+        self.write('nrf_gpio.h', '#include <stdint.h>\nuint32_t nrf_gpio_pin_out_read(uint32_t);\n')
         self.write('modifiers.h', '#define MOD_MASK_SHIFT 0x22\n')
         self.write('test.c', r'''
 #include <assert.h>
@@ -74,6 +76,14 @@ class LightingTests(unittest.TestCase):
 static bool matrix = true, under = true, hardware = true;
 static unsigned matrix_changes, under_changes, starts, stops, mode_calls;
 static uint8_t last_mode;
+uint32_t timer_read32(void) { return 1024; }
+uint16_t get_vcc(void) { return 3800; }
+uint32_t nrf_gpio_pin_out_read(uint32_t pin) { assert(pin == 8); return !under; }
+uint8_t rgb_matrix_get_mode(void) { return 1; }
+uint8_t rgb_matrix_get_val(void) { return 64; }
+uint8_t rgblight_get_val(void) { return 96; }
+void nrf5_lighting_diagnostics(uint8_t data[32]);
+void nrf5_lighting_control_trace(uint8_t, uint8_t);
 uint8_t get_mods(void) { return 0; }
 void i2c_start(void) { hardware = true; starts++; }
 void i2c_stop(void) { hardware = false; stops++; }
@@ -114,13 +124,24 @@ int main(void) {
     assert(mode_calls == 1 && under_changes == u + 1);
     tap(RGB_M_SW);
     assert(last_mode == RGBLIGHT_MODE_RAINBOW_SWIRL && mode_calls == 2);
+    uint8_t diagnostics[32] = {0x85};
+    nrf5_lighting_control_trace(0,0); // Polling never counts as a write.
+    nrf5_lighting_control_trace(2,0); // Observation does not itself apply a change.
+    nrf5_lighting_diagnostics(diagnostics);
+    assert(diagnostics[0] == 0x85 && diagnostics[1] == 1 && diagnostics[2] == 3);
+    assert(diagnostics[3] == 0 && diagnostics[6] == 4 && diagnostics[7] == 0);
+    assert(diagnostics[8] == (3800 >> 8) && diagnostics[9] == (3800 & 255));
+    assert(diagnostics[10] == 0 && diagnostics[11] == 5 && diagnostics[12] == 0 && diagnostics[13] == 5);
+    assert(diagnostics[14] == 0 && diagnostics[15] == 1 && diagnostics[18] == 0);
+    assert(diagnostics[19] == 2 && diagnostics[24] == 0 && matrix && under);
+    for (unsigned i = 25; i < 32; ++i) assert(diagnostics[i] == 0);
     return 0;
 }
 ''')
         effects = ['BREATHING', 'RAINBOW_MOOD', 'RAINBOW_SWIRL', 'SNAKE', 'KNIGHT', 'CHRISTMAS', 'STATIC_GRADIENT', 'RGB_TEST', 'TWINKLE']
         self.run_native(['platforms/nrf5/features/lighting.c', 'quantum/process_keycode/process_underglow.c',
                          'quantum/process_keycode/process_rgb_matrix.c'],
-                        ['-DRGBLIGHT_ENABLE', '-DRGB_MATRIX_ENABLE', '-DRGB_MATRIX_IS31FL3741',
+                        ['-DRGBLIGHT_ENABLE', '-DRGB_MATRIX_ENABLE', '-DRGB_MATRIX_IS31FL3741', '-DNRF5_LIGHTING_DIAGNOSTICS', '-DRGB_PWR_PIN=8',
                          '-DRGB_MATRIX_DISABLE_SHARED_KEYCODES',
                          *['-DRGBLIGHT_EFFECT_' + effect for effect in effects]])
 
@@ -226,7 +247,10 @@ int main(void) {
 #include <stdint.h>
 void nrf_gpio_pin_write(uint32_t, uint32_t);
 void nrf_gpio_cfg_output(uint32_t);
+uint32_t nrf_gpio_pin_out_read(uint32_t);
 ''')
+        self.write('app_util.h', '#pragma once\n#define MIN(a,b) ((a)<(b)?(a):(b))\n')
+        self.write('wait.h', 'void wait_us(unsigned);\n')
         self.write('progmem.h', '''#pragma once
 #include <stdint.h>
 #include <string.h>
@@ -238,7 +262,8 @@ void nrf_gpio_cfg_output(uint32_t);
 ''')
         self.write('debug.h', '#define dprintf(...) ((void)0)\n')
         self.write('sync_timer.h', '''#include <stdint.h>
-static inline uint16_t sync_timer_read(void) { return 100; }
+extern uint16_t test_time;
+static inline uint16_t sync_timer_read(void) { return test_time; }
 #define timer_expired(now, last) ((int16_t)((now) - (last)) >= 0)
 ''')
         self.write('eeconfig.h', '''#pragma once
@@ -256,10 +281,14 @@ typedef struct { bool caps_lock; } led_t;
 const rgblight_segment_t PROGMEM my_capslock_layer[]''' + caps_code + r'''
 static rgb_t pixels[RGBLIGHT_LED_COUNT];
 static bool power;
-void nrf_gpio_pin_write(uint32_t pin, uint32_t value) { assert(pin == 8); power = !value; }
+uint16_t test_time;
+static unsigned settling, frames, power_ready_at;
+void wait_us(unsigned us) { assert(us == 2000 && power); test_time += us / 1000; settling++; }
+uint32_t nrf_gpio_pin_out_read(uint32_t pin) { assert(pin == 8); return !power; }
+void nrf_gpio_pin_write(uint32_t pin, uint32_t value) { assert(pin == 8); if (!value && !power) power_ready_at = test_time + 2; power = !value; }
 void nrf_gpio_cfg_output(uint32_t pin) { assert(pin == 8); }
 static void init(void) {}
-static void flush(void) {}
+static void flush(void) { if (power) assert((int16_t)(test_time - power_ready_at) >= 0); frames++; }
 static void color(int i, uint8_t r, uint8_t g, uint8_t b) {
     assert(i >= 0 && i < RGBLIGHT_LED_COUNT);
     pixels[i] = (rgb_t){r, g, b};
@@ -294,7 +323,18 @@ int main(void) {
     rgblight_disable_noeeprom();
     assert(!power);
     check(true, false);
+    // Power-up must settle once. A lost first frame is followed by two
+    // bounded refreshes without toggling power or enabling the base effect.
+    unsigned previous_frames = frames, previous_settling = settling;
+    test_time += 19; rgblight_task(); assert(frames == previous_frames);
+    test_time++; rgblight_task(); assert(frames == previous_frames + 1);
+    test_time += 20; rgblight_task(); assert(frames == previous_frames + 2);
+    test_time += 200; rgblight_task(); assert(frames == previous_frames + 2);
+    assert(settling == previous_settling);
     check(false, false);
+    // The next retry must render the new OFF state, never replay stale white.
+    test_time += 20; rgblight_task(); assert(!power);
+    for (unsigned i = 0; i < RGBLIGHT_LED_COUNT; i++) assert(!pixels[i].r && !pixels[i].g && !pixels[i].b);
     rgblight_enable_noeeprom();
     check(true, true);
     rgblight_disable_noeeprom(); // Caps already on when the base is disabled.
@@ -313,7 +353,7 @@ int main(void) {
         self.run_native(['quantum/rgblight/rgblight.c', 'quantum/color.c'],
                         ['-I', str(ROOT / 'quantum/rgblight'), '-I', str(ROOT),
                          '-DRGBLIGHT_ENABLE', '-DRGBLIGHT_LED_COUNT=18', '-DRGBLIGHT_LAYERS',
-                         '-DRGBLIGHT_LAYERS_OVERRIDE_RGB_OFF', '-DRGB_PWR_PIN=8',
+                         '-DRGBLIGHT_LAYERS_OVERRIDE_RGB_OFF', '-DRGB_PWR_PIN=8', '-DPROTOCOL_NRF5',
                          '-include', str(self.work / 'nrf_gpio.h')])
 
     def test_underglow_selftest_patterns_and_restore(self):

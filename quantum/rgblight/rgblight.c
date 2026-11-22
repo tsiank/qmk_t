@@ -28,6 +28,7 @@
 
 #if defined(PROTOCOL_NRF5)
 #include "nrf_gpio.h"
+#include "wait.h"
 #endif
 
 #ifdef RGBLIGHT_SPLIT
@@ -121,6 +122,12 @@ animation_status_t animation_status = {};
 rgblight_segment_t const *const *rgblight_layers = NULL;
 
 static bool deferred_set_layer_state = false;
+#    if defined(PROTOCOL_NRF5) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
+// A static indicator has no animation to send another frame after power-up.
+// Retry the current state briefly; never retain a snapshot of an old layer.
+static uint8_t layer_refresh_remaining;
+static uint16_t layer_refresh_timer;
+#    endif
 #endif
 
 rgblight_ranges_t rgblight_ranges = {0, RGBLIGHT_LED_COUNT, 0, RGBLIGHT_LED_COUNT, RGBLIGHT_LED_COUNT};
@@ -209,11 +216,25 @@ void eeconfig_debug_rgblight(void) {
 //����RGB��Դ
 void rgb_pwr_on(void)
 {
+#if defined(PROTOCOL_NRF5) && (defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE))
+    bool was_off = false;
+#    ifdef RGB_PWR_PIN
+    was_off |= nrf_gpio_pin_out_read(RGB_PWR_PIN) != 0;
+#    endif
+#    ifdef RGB_PWR_PIN_REVERSE
+    was_off |= nrf_gpio_pin_out_read(RGB_PWR_PIN_REVERSE) == 0;
+#    endif
+#endif
 #ifdef RGB_PWR_PIN
     nrf_gpio_pin_write(RGB_PWR_PIN, 0);
 #endif
 #ifdef RGB_PWR_PIN_REVERSE
     nrf_gpio_pin_write(RGB_PWR_PIN_REVERSE, 1);
+#endif
+#if defined(PROTOCOL_NRF5) && (defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE))
+    // Allow the switched LED rail and the pixels' reset circuit to settle
+    // before their first data frame. Already-powered animations don't wait.
+    if (was_off) wait_us(2000);
 #endif
 }
 
@@ -1176,7 +1197,20 @@ void rgblight_timer_task(void) {
             rgblight_set();
         }
 #        endif
+#        if defined(PROTOCOL_NRF5) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
+        layer_refresh_remaining = 2;
+        layer_refresh_timer = sync_timer_read();
+#        endif
     }
+#    if defined(PROTOCOL_NRF5) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
+    if (layer_refresh_remaining && (uint16_t)(sync_timer_read() - layer_refresh_timer) >= 20) {
+        --layer_refresh_remaining;
+        layer_refresh_timer = sync_timer_read();
+        // Dynamic effects already flush themselves. For static/off modes,
+        // repeat the composed frame, including a just-cleared Caps layer.
+        if (!rgblight_config.enable || !rgblight_status.timer_enabled) rgblight_set();
+    }
+#    endif
 #    endif
 }
 

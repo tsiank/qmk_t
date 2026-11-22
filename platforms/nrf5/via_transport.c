@@ -1,10 +1,22 @@
 // Copyright 2026 QMK Contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "via_transport.h"
+#ifdef NRF5_ESB_ENABLE
+#    include "nrf5_esb.h"
+#endif
 #include "raw_hid.h"
 #include "eeprom_nrf.h"
 #include "app_util_platform.h"
 #include <string.h>
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+#    define NRF_VIA_SOURCE_MAX NRF_VIA_ESB
+#else
+#    define NRF_VIA_SOURCE_MAX NRF_VIA_BLE
+#endif
+#ifdef NRF5_LIGHTING_DIAGNOSTICS
+void nrf5_ui_diagnostics(uint8_t *data);
+void nrf5_lighting_diagnostics(uint8_t data[32]);
+#endif
 #ifdef NRF5_VIA_UI_ENABLE
 #    include "nrf5_via_ui.h"
 #endif
@@ -18,13 +30,13 @@ typedef struct {
 } request_t;
 static request_t queue[QUEUE_SIZE], current;
 static volatile uint8_t head, count;
-static volatile uint32_t generation[2];
+static volatile uint32_t generation[3];
 static uint8_t response[32], fragments[32];
 static uint16_t fragment_sequence;
 static bool first_fragment, replying, executing;
 
 bool nrf_via_receive(const uint8_t *data, uint8_t length, uint8_t source, uint16_t sequence) {
-    if (!data || length != 32 || source > NRF_VIA_BLE) return false;
+    if (!data || length != 32 || source > NRF_VIA_SOURCE_MAX) return false;
     bool accepted = false;
     CRITICAL_REGION_ENTER();
     if (count < QUEUE_SIZE) {
@@ -65,9 +77,9 @@ void nrf_via_ble_fragment(const uint8_t *data, uint8_t length) {
 
 void nrf_via_disconnect(uint8_t source) {
 #ifdef NRF5_VIA_UI_ENABLE
-    if (source <= NRF_VIA_BLE) nrf5_ui_disconnect(source);
+    if (source <= NRF_VIA_SOURCE_MAX) nrf5_ui_disconnect(source);
 #endif
-    if (source > NRF_VIA_BLE) return;
+    if (source > NRF_VIA_SOURCE_MAX) return;
     CRITICAL_REGION_ENTER();
     generation[source]++;
     if (source == NRF_VIA_BLE) first_fragment = false;
@@ -84,7 +96,17 @@ void nrf_via_send(uint8_t *data, uint8_t length) {
 void nrf_via_task(void) {
     if (replying) {
         if (current.generation != generation[current.source]) replying = false;
-        else if (current.source == NRF_VIA_USB ? nrf_via_usb_reply(response) : nrf_via_ble_reply(response, current.sequence)) replying = false;
+        else {
+            bool sent;
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+            if(current.source==NRF_VIA_ESB) {
+                bool nrf5_esb_via_reply(const uint8_t *,uint16_t);
+                sent=nrf5_esb_via_reply(response,current.sequence);
+            } else
+#endif
+            sent=current.source == NRF_VIA_USB ? nrf_via_usb_reply(response) : nrf_via_ble_reply(response, current.sequence);
+            if(sent)replying=false;
+        }
         return;
     }
     bool available = false;
@@ -120,16 +142,34 @@ void nrf_via_task(void) {
 #endif
         nrf_via_send(current.data, 32);
 #endif
+#ifdef NRF5_ESB_ENABLE
+    } else if (current.data[0] == 0x84) {
+        nrf5_esb_command(current.data, current.source == NRF_VIA_USB);
+        nrf_via_send(current.data, 32);
+    } else if (current.data[0] == 0x83) {
+        nrf5_esb_diagnostics(current.data);
+        nrf_via_send(current.data, 32);
+#endif
+#ifdef NRF5_LIGHTING_DIAGNOSTICS
+    } else if (current.data[0] == 0x82) {
+        nrf5_ui_diagnostics(current.data);
+        nrf_via_send(current.data, 32);
+    } else if (current.data[0] == 0x85) {
+        nrf5_lighting_diagnostics(current.data);
+        nrf_via_send(current.data, 32);
+#endif
     } else if (current.data[0] == 0x80) {
         // Private extension: acknowledge persistence only after FDS completes.
         uint32_t error = nrf5_eeprom_last_error();
         current.data[1] = nrf5_eeprom_pending();
         for (uint8_t i = 0; i < 4; ++i) current.data[2 + i] = error >> (24 - i * 8);
         nrf_via_send(current.data, 32);
-#ifdef NRF5_VIA_UI_ENABLE
+#if defined(NRF5_VIA_UI_ENABLE) && !defined(NRF5_LIGHTING_DIAGNOSTICS)
     } else if (current.data[0] == 0x82) {
         nrf5_ui_diagnostics(current.data);
         nrf_via_send(current.data, 32);
+#endif
+#ifdef NRF5_VIA_UI_ENABLE
     } else if (nrf5_ui_command(current.data, current.source)) {
         nrf_via_send(current.data, 32);
 #endif

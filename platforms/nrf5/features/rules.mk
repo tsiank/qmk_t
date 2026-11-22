@@ -17,6 +17,19 @@ ifeq ($(strip $(NRF5_CONFIG_ENABLE)),yes)
 endif
 
 # UI modules also work without music/client features.
+ifeq ($(strip $(NRF5_ESB_ROLE)),tx)
+    ifeq ($(strip $(NRF5_CONFIG_ENABLE)),yes)
+        OPT_DEFS += -DNRF5_LIGHTING_DIAGNOSTICS
+        ifneq ($(strip $(NRF5_VIA_UI_ENABLE)),yes)
+            SRC += platforms/nrf5/features/via_ui_diagnostics.c
+        endif
+        ifeq ($(strip $(RGBLIGHT_ENABLE)),yes)
+            OPT_DEFS += -DNRF5_ESB_INDICATOR_ENABLE
+            SRC += platforms/nrf5/features/esb_indicator.c
+        endif
+    endif
+endif
+
 ifeq ($(strip $(NRF5_OLED_STATUS_ENABLE)),yes)
     ifneq ($(strip $(OLED_ENABLE)),yes)
         $(error NRF5_OLED_STATUS_ENABLE requires OLED_ENABLE = yes)
