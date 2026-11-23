@@ -58,6 +58,7 @@
 #endif
 #ifdef NRF5_ESB_ENABLE
 #    include "nrf5_esb.h"
+#    include "esb_wake.h"
 #    include "outputselect.h"
 #endif
 #ifdef NRF5_OLED_STATUS_ENABLE
@@ -128,6 +129,7 @@ int main(void) {
 #ifdef NRF5_ESB_ENABLE
     nrf5_esb_init();
     nrf5_output_init();
+    nrf5_esb_wake_init();
 #endif
 
     #ifdef MIDI_ENABLE
@@ -157,6 +159,7 @@ int main(void) {
             /* Nothing to do */
         }
 #ifdef NRF5_ESB_ENABLE
+        nrf5_esb_wake_begin();
         nrf5_esb_task();
         nrf5_output_task();
 #ifdef NRF5_ESB_TX
@@ -219,6 +222,10 @@ int main(void) {
             APP_ERROR_CHECK(ret);
             scan_interval = desired_interval;
         }
+#endif
+#ifdef NRF5_ESB_ENABLE
+        nrf5_esb_wake_update();
+        if (nrf5_esb_wake_pending()) continue;
 #endif
         // Restore the fast timer before sleeping when USB, music or a GPIO
         // interrupt wakes standby. Keep processing queued reports after scans.

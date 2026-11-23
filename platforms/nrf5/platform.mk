@@ -31,6 +31,9 @@ ifneq ($(strip $(NRF5_ESB_ROLE)),)
 endif
 
 ifeq ($(strip $(NRF5_WIRELESS_POWER_ENABLE)),yes)
+  ifeq ($(strip $(NRF5_ESB_ROLE)),tx)
+    NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/esb_wake.c
+  endif
   NRFSRC_FILES += $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c
 endif
 

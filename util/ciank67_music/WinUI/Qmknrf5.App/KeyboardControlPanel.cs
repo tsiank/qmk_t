@@ -23,6 +23,10 @@ internal sealed class KeyboardControlPanel
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly CancellationTokenSource cancellation = new();
     private IKeyboardControlTransport? transport;
+    private IViaTransport? batteryTransport;
+    private readonly TextBlock batteryStatus = new() { Text = "电量：未连接", TextWrapping = TextWrapping.Wrap };
+    private DateTime nextBatteryRead;
+
     private KeyboardControlState? lastState;
     public event Action<byte>? CapabilitiesChanged;
     private Task? operation;
@@ -45,6 +49,8 @@ internal sealed class KeyboardControlPanel
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         buttons.Children.Add(connect); buttons.Children.Add(disconnect); connectionPanel.Children.Add(buttons);
         connectionPanel.Children.Add(status);
+        connectionPanel.Children.Add(batteryStatus);
+        AutomationProperties.SetAutomationId(batteryStatus, "KeyboardBatteryStatus");
         foreach(string name in new[]{"自动 · USB 常亮／蓝牙空闲熄屏","常亮","熄屏"})screen.Items.Add(new ComboBoxItem {Content=name});
         connectionPanel.Children.Add(screen);
         connectionPanel.Children.Add(syncClock); connectionPanel.Children.Add(clockStatus);
@@ -213,18 +219,11 @@ internal sealed class KeyboardControlPanel
         await RequestAsync(token:timeout.Token);
         status.Text=$"已连接 · {choice.Name} · 状态自动同步中";
     }
-    public async Task EnableMusicLightsAsync(DeviceChoice choice,LightTarget target,CancellationToken token)
+    public Task RefreshMusicLightsAsync(DeviceChoice choice)
     {
-        if(choice.Kind==ConnectionKind.Preview)return;
-        token.ThrowIfCancellationRequested();
-        await SelectDeviceAsync(choice);
-        await QueueAsync(async deviceToken=>{
-            using var deadline=CancellationTokenSource.CreateLinkedTokenSource(deviceToken,token);deadline.CancelAfter(TimeSpan.FromSeconds(25));
-            manualDisconnect=false;
-            if(transport is null)await ConnectAsync(choice,deadline.Token);
-            var state=await KeyboardControlProtocol.EnableMusicLightsAsync(transport!,target,deadline.Token,lastState?.Capabilities??(byte)31);
-            if(state is not null)ApplyState(state);
-        },propagate:true);
+        if (closed || suspended || transport is null || device?.Id != choice.Id || device.Kind != choice.Kind)
+            return Task.CompletedTask;
+        return QueueAsync(token => RequestAsync(token:token));
     }
     private async Task RequestAsync(byte mask=0,byte values=0,KeyboardMusicMode selectedMode=KeyboardMusicMode.Off,bool background=false,CancellationToken token=default)
     {
@@ -240,6 +239,31 @@ internal sealed class KeyboardControlPanel
         // undo its toggle or dismiss the mode menu while the command waits.
         if (closed || (background && (busy || mode.IsDropDownOpen || screen.IsDropDownOpen))) return;
         ApplyState(state);
+        if (DateTime.UtcNow >= nextBatteryRead) await ReadBatteryAsync(token);
+    }
+    private async Task ReadBatteryAsync(CancellationToken token)
+    {
+        if (device is null) return;
+        nextBatteryRead = DateTime.UtcNow.AddSeconds(60);
+        try
+        {
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+            deadline.CancelAfter(TimeSpan.FromSeconds(6));
+            batteryTransport ??= await ViaDevices.OpenAsync(device, deadline.Token);
+            var state = await KeyboardBatteryProtocol.ReadAsync(batteryTransport, deadline.Token);
+            token.ThrowIfCancellationRequested();
+            batteryStatus.Text = state?.Description ?? "电量：当前固件未提供电量查询。";
+            if (state is null || !state.Supported) nextBatteryRead = DateTime.MaxValue;
+            else if (!state.HasSample) nextBatteryRead = DateTime.UtcNow.AddSeconds(10);
+        }
+        catch (Exception ex)
+        {
+            batteryStatus.Text = "电量：暂时无法读取";
+            var previous = batteryTransport; batteryTransport = null;
+            if (previous is not null) { try { await previous.DisposeAsync(); } catch (Exception) { } }
+            token.ThrowIfCancellationRequested();
+            Program.Trace("Battery read: " + ex.Message);
+        }
     }
     private async Task SynchronizeClockAsync(CancellationToken token)
     {
@@ -280,6 +304,9 @@ internal sealed class KeyboardControlPanel
     }
     private async Task DisconnectAsync(bool showStatus)
     {
+        var battery = batteryTransport; batteryTransport = null; nextBatteryRead = DateTime.MinValue;
+        batteryStatus.Text = "电量：未连接";
+        if (battery is not null) { try { await battery.DisposeAsync(); } catch (Exception ex) { Program.Trace("Battery dispose: " + ex.Message); } }
         var previous = transport; transport = null;lastState=null;lastClockSync=null;UpdateClockStatus();
         if (previous is not null){try{await previous.DisposeAsync();}catch(Exception ex){Program.Trace("Control dispose: "+ex.Message);}}
         if (showStatus) status.Text = "控制已断开，键盘保留当前开关状态。";

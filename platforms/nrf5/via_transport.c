@@ -3,8 +3,12 @@
 #include "via_transport.h"
 #ifdef NRF5_ESB_ENABLE
 #    include "nrf5_esb.h"
+#    include "esb_radio.h"
 #endif
 #include "raw_hid.h"
+#ifdef NRF5_CONFIG_ENABLE
+#    include "features/battery.h"
+#endif
 #include "eeprom_nrf.h"
 #include "app_util_platform.h"
 #include <string.h>
@@ -146,6 +150,9 @@ void nrf_via_task(void) {
     } else if (current.data[0] == 0x84) {
         nrf5_esb_command(current.data, current.source == NRF_VIA_USB);
         nrf_via_send(current.data, 32);
+    } else if (current.data[0] == 0x87) {
+        nrf5_esb_radio_diagnostics(current.data);
+        nrf_via_send(current.data, 32);
     } else if (current.data[0] == 0x83) {
         nrf5_esb_diagnostics(current.data);
         nrf_via_send(current.data, 32);
@@ -156,6 +163,11 @@ void nrf_via_task(void) {
         nrf_via_send(current.data, 32);
     } else if (current.data[0] == 0x85) {
         nrf5_lighting_diagnostics(current.data);
+        nrf_via_send(current.data, 32);
+#endif
+#ifdef NRF5_CONFIG_ENABLE
+    } else if (current.data[0] == 0x86) {
+        nrf5_battery_command(current.data);
         nrf_via_send(current.data, 32);
 #endif
     } else if (current.data[0] == 0x80) {

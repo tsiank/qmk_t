@@ -34,6 +34,10 @@ static volatile uint8_t rx_head, rx_tail;
 static volatile bool session_idle, result_ready, tx_pending, tx_acked;
 static volatile uint32_t radio_error;
 static volatile uint32_t counters[5];
+// ACK cache hits, completed ACK TX, CRC errors, rejected ACK, FIFO enqueues,
+// main-context ACK cache writes. Keep the existing 0x83 counters unchanged.
+static volatile uint32_t details[6];
+static volatile uint8_t last_rx_length, last_rx_s1, last_rx_match, last_ack_reject;
 static volatile bool enabled;
 static volatile uint32_t address;
 typedef struct { uint8_t length, reply_length, packet[NRF5_ESB_PAYLOAD_MAX], reply[64]; } ack_cache_t;
@@ -63,6 +67,10 @@ static void listen(uint8_t next_state) {
 }
 static void transmit(rf_packet_t *packet, uint8_t next_state) {
     state = next_state;
+    // Start ACK reception in hardware at TX completion. A software RXEN from
+    // the SoftDevice callback can arrive after the peer's ACK preamble.
+    NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk |
+        (next_state == RF_SEND_DATA ? RADIO_SHORTS_DISABLED_RXEN_Msk : 0);
     if (next_state == RF_SEND_ACK) NRF_RADIO->TXADDRESS = NRF_RADIO->RXMATCH;
     NRF_RADIO->PACKETPTR = (uint32_t)(uintptr_t)packet;
     NRF_RADIO->EVENTS_END = NRF_RADIO->EVENTS_DISABLED = 0;
@@ -109,8 +117,17 @@ static void radio_event(void) {
     bool complete = NRF_RADIO->EVENTS_END != 0;
     NRF_RADIO->EVENTS_END = 0;
     if (now_us() >= STOP_US - 500) return;
+    if (state == RF_WAIT_ACK || state == RF_LISTEN) {
+        last_rx_length = rx.length; last_rx_s1 = rx.s1; last_rx_match = NRF_RADIO->RXMATCH;
+        if (complete && !NRF_RADIO->CRCSTATUS) details[2]++;
+    }
     if (state == RF_SEND_DATA) {
-        listen(RF_WAIT_ACK);
+        // DISABLED_RXEN already started RX ramp-up. Set its buffer before
+        // READY, and remove the shortcut so the ACK end does not restart RX.
+        NRF_RADIO->SHORTS = RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk;
+        state = RF_WAIT_ACK;
+        NRF_RADIO->PACKETPTR = (uint32_t)(uintptr_t)&rx;
+        NRF_RADIO->EVENTS_END = NRF_RADIO->EVENTS_DISABLED = 0;
         NRF_TIMER0->EVENTS_COMPARE[1] = 0;
         NRF_TIMER0->CC[1] = now_us() + ACK_WAIT_US;
         NRF_TIMER0->INTENSET = IRQ_TIMER_ACK;
@@ -123,8 +140,15 @@ static void radio_event(void) {
             tx_acked = true; state = RF_IDLE;
             counters[2]++;
             NRF_TIMER0->INTENCLR = IRQ_TIMER_ACK;
-        } else listen(RF_WAIT_ACK);
+        } else {
+            details[3]++;
+            last_ack_reject = (!complete ? 16 : 0) | (!NRF_RADIO->CRCSTATUS ? 1 : 0) |
+                (rx.s1 != tx.s1 ? 2 : 0) | (rx.length != NRF5_ESB_ACK_SIZE && rx.length != 64 && rx.length != 24 ? 4 : 0) |
+                (!data_ack && !pair_ack ? 8 : 0);
+            listen(RF_WAIT_ACK);
+        }
     } else if (state == RF_SEND_ACK) {
+        if (complete) details[1]++;
         listen(RF_LISTEN);
     } else if (state == RF_LISTEN) {
         uint8_t next = (rx_tail + 1) % NRF5_ESB_QUEUE_SIZE;
@@ -134,12 +158,14 @@ static void radio_event(void) {
             // frame, so an altered ciphertext with the same counter is not ACKed.
             uint8_t index = cache_index;
             if (cache_ready && cached[index].length == rx.length && !memcmp(cached[index].packet, rx.data, rx.length)) {
+                details[0]++;
                 ack.length = cached[index].reply_length; ack.s1 = rx.s1;
                 memcpy(ack.data, cached[index].reply, ack.length);
                 transmit(&ack, RF_SEND_ACK);
                 return;
             }
             if (next == rx_head) { listen(RF_LISTEN); return; }
+            details[4]++;
             received[rx_tail] = rx;
             counters[3]++;
             __DMB(); rx_tail = next;
@@ -265,6 +291,7 @@ void nrf5_esb_radio_cache_ack(const uint8_t *packet, uint8_t length, const uint8
 uint8_t nrf5_esb_radio_reply(uint8_t reply[64]) { memcpy(reply, last_ack, last_ack_length); return last_ack_length; }
 void nrf5_esb_radio_cache_reply(const uint8_t *packet, uint8_t length, const uint8_t *reply, uint8_t reply_length) {
     if (length > 64 || reply_length > 64 || reply_length < 24) return;
+    details[5]++;
     uint8_t index = cache_index ^ 1;
     cached[index].length = length; cached[index].reply_length = reply_length;
     memcpy(cached[index].packet, packet, length); memcpy(cached[index].reply, reply, reply_length);
@@ -281,4 +308,19 @@ void nrf5_esb_radio_configure(bool active, uint32_t value) {
 uint32_t nrf5_esb_radio_error(void) { return radio_error; }
 void nrf5_esb_radio_counters(uint32_t values[5]) {
     for (uint8_t i = 0; i < 5; i++) values[i] = counters[i];
+}
+
+void nrf5_esb_radio_diagnostics(uint8_t data[32]) {
+    memset(data + 1, 0, 31); data[1] = 1;
+#ifdef NRF5_ESB_TX
+    data[2] = 1;
+#else
+    data[2] = 2;
+#endif
+    data[3] = last_ack_reject;
+    for (unsigned i = 0; i < 6; i++) {
+        uint32_t value = details[i];
+        for (unsigned b = 0; b < 4; b++) data[4 + i*4 + b] = value >> (24 - b*8);
+    }
+    data[28] = last_rx_length; data[29] = last_rx_s1; data[30] = last_rx_match; data[31] = tx.s1;
 }

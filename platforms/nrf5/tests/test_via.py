@@ -20,7 +20,8 @@ class ViaTests(unittest.TestCase):
 #include "via_transport.h"
 #include <assert.h>
 #include <string.h>
-static int processed, usb, ble;
+static int processed, usb, ble, battery;
+void nrf5_battery_command(uint8_t *data) {battery++;data[1]=1;data[2]=3;data[3]=42;}
 static bool ready = true;
 static uint8_t result[32];
 static uint16_t last_sequence;
@@ -63,11 +64,15 @@ int main(void) {
     assert(usb==prior+2&&processed==prior_processed+2&&result[0]==1&&result[1]==0xB6&&result[31]==0xD7);
     assert(!nrf_via_usb_receive(control,31));assert(!nrf_via_usb_receive(control,34));assert(!nrf_via_usb_receive(NULL,33));
     assert(!memcmp(interrupt,(uint8_t[]){1,0xA5},2));assert(control[0]==0&&control[1]==1); // Never mutate SDK DMA memory.
+    // The private cached battery query uses the requester's transport.
+    memset(request,0,32);request[0]=0x86;request[1]=1;request[31]=0xCD;
+    assert(nrf_via_receive(request,32,0,0));run();assert(battery==1&&result[3]==42&&result[31]==0xCD);
+    assert(nrf_via_receive(request,32,1,0x5678));run();assert(battery==2&&last_sequence==0x5678&&result[31]==0xCD);
     return 0;
 }
 ''')
             binary = work/'test'
             subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-fsanitize=address,undefined','-fno-pie','-no-pie',
-                '-DVIA_ENABLE', '-DDYNAMIC_KEYMAP_LAYER_COUNT=7','-DMATRIX_ROWS=5','-DMATRIX_COLS=14',
+                '-DVIA_ENABLE', '-DNRF5_CONFIG_ENABLE', '-DDYNAMIC_KEYMAP_LAYER_COUNT=7','-DMATRIX_ROWS=5','-DMATRIX_COLS=14',
                 '-I',d,'-I',str(ROOT/'platforms/nrf5'),str(ROOT/'platforms/nrf5/via_transport.c'),str(work/'test.c'),'-o',str(binary)],check=True,capture_output=True,text=True)
             subprocess.run([str(binary)],check=True,capture_output=True,text=True,env={**os.environ,'ASAN_OPTIONS':'detect_leaks=1'})

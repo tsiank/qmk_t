@@ -100,6 +100,7 @@ int main(void){if(!setjmp(done))dongle_main();assert(power_ok&&sd&&usb&&initiali
 static uint32_t now;
 static bool pairing_busy,flash_pending;
 static int queries,windows;
+void nrf5_esb_radio_diagnostics(uint8_t p[32]){p[1]=1;p[2]=2;}
 static bool rf_connected;
 static unsigned midi_appends,forwarded;static uint8_t forward[32],forward_kind,forward_length;static bool forward_latest,midi_block;static uint8_t midi_sent[4];
 bool nrf5_esb_connected(void){return rf_connected;}
@@ -132,11 +133,48 @@ int main(void){
  uint8_t data[32]={0,0,4};
  assert(nrf5_usb_esb_report(NRF5_ESB_KEYBOARD,data,8));assert(dma[0]!=data&&dma[0][2]==4);
  data[2]=9;assert(!nrf5_usb_esb_report(NRF5_ESB_MOUSE,data,5));assert(dma[0][2]==4);
+ // Real interrupt OUT: getter returns capacity 33 but payload starts at [0].
+ memset(output_report,0,33);output_report[0]=0x84;output_report[2]=1;
+ output_report[30]=0x12;output_report[31]=0x34;output_report[32]=0xA5;output_length=33;
+ control_event(&control,APP_USBD_HID_USER_EVT_OUT_REPORT_READY);nrf5_dongle_usb_task();
+ assert(dma[4]&&dma[4][0]==0x84&&dma[4][25]==0x12&&dma[4][26]==0x34);complete(&control);
  request(0);nrf5_dongle_usb_task();assert(windows==1);assert(dma[4]&&dma[4][25]==0x12&&dma[4][26]==0x34);
  assert(dma[0][2]==4);complete(&control);complete(&kbd);
  assert(nrf5_usb_esb_report(NRF5_ESB_NKRO,data,31));assert(dma_size[1]==31);complete(&nkro);
  assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,data,5));assert(dma_size[2]==5);complete(&mouse);
+ // Empty periodic mouse snapshots must not look like fresh Windows input.
+ uint8_t motion[5]={0};
+ assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&!dma[2]);
+ assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&!dma[2]);
+ motion[0]=1;assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&dma[2]);complete(&mouse);
+ assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&!dma[2]);
+ motion[0]=0;assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&dma[2]);complete(&mouse);
+ assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&!dma[2]);
+ for(unsigned i=1;i<5;i++){
+  motion[i]=1;
+  for(unsigned repeat=0;repeat<2;repeat++){
+   assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&dma[2]);complete(&mouse);
+  }
+  motion[i]=0;
+ }
  assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,data,3));assert(dma_size[3]==3);complete(&extra);
+ // Alternating periodic system/consumer releases are independently deduplicated.
+ uint8_t usage[3]={REPORT_ID_SYSTEM,0,0};
+ assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&dma[3]);complete(&extra);
+ usage[0]=REPORT_ID_CONSUMER;assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&dma[3]);complete(&extra);
+ for(unsigned i=0;i<4;i++){
+  usage[0]=i%2?REPORT_ID_SYSTEM:REPORT_ID_CONSUMER;
+  assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&!dma[3]);
+ }
+ usage[0]=REPORT_ID_CONSUMER;usage[1]=0xE9;
+ assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&dma[3]);complete(&extra);
+ assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&!dma[3]);
+ usage[1]=0;assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&dma[3]);complete(&extra);
+ // Repeated taps still carry a fresh down and up each time.
+ for(unsigned i=0;i<4;i++){
+  usage[1]=i%2?0:0xE9;
+  assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&dma[3]);complete(&extra);
+ }
  output_report[0]=0;output_report[1]=2;output_length=2;report_event(&nkro,APP_USBD_HID_USER_EVT_OUT_REPORT_READY);
  assert(nrf5_usb_driver()->keyboard_leds()==2);
  uint8_t led_diag[3];nrf5_esb_led_diagnostics(led_diag);assert(led_diag[0]==2&&led_diag[1]==0&&led_diag[2]==1);
@@ -151,19 +189,19 @@ int main(void){
  // VIA responses are correlated by the wireless token, and C7 commands retain
  // their complete payload. Local diagnostics/DFU remain independent.
  rf_connected=true;midi_panic=0;
- memset(output_report,0,33);output_report[1]=0x81;output_length=33;
+ memset(output_report,0,33);output_report[0]=0x81;output_report[32]=0xA5;output_length=33;
  control_event(&control,APP_USBD_HID_USER_EVT_OUT_REPORT_READY);nrf5_dongle_usb_task();
  assert(remote_pending==1&&!dma[4]&&forward[0]==0x81);
  uint8_t via_reply[32]={0x81,1,5,14};
  assert(nrf5_bridge_up_deliver(NRF5_BRIDGE_VIA,remote_token+1,via_reply,32)&&remote_pending==1);
  assert(nrf5_bridge_up_deliver(NRF5_BRIDGE_VIA,remote_token,via_reply,32));
  nrf5_dongle_usb_task();assert(dma[4]&&dma[4][2]==5);complete(&control);
- memset(output_report,0,33);output_report[1]=0xC7;output_report[2]=1;output_report[4]=3;
- for(unsigned i=5;i<21;i++)output_report[i]=i;
+ memset(output_report,0,33);output_report[0]=0xC7;output_report[1]=1;output_report[3]=3;
+ for(unsigned i=4;i<20;i++)output_report[i]=i+1;
+ output_report[32]=0xA5;
  control_event(&control,APP_USBD_HID_USER_EVT_OUT_REPORT_READY);nrf5_dongle_usb_task();
  assert(!dma[4]&&forward_kind==NRF5_ESB_DOWN_MUSIC&&forward_length==20&&forward_latest&&forward[19]==20);
- output_report[2]=4;output_report[3]=29;output_report[4]=0;
- memset(output_report+5,0,28);
+ memset(output_report,0,33);output_report[1]=0xC7;output_report[2]=4;output_report[3]=29;
  control_event(&control,APP_USBD_HID_USER_EVT_OUT_REPORT_READY);nrf5_dongle_usb_task();assert(remote_pending==2&&!dma[4]);
  uint8_t control_reply[20]={0xC7,0x83,29,3,0,2,31,7};
  assert(nrf5_bridge_up_deliver(NRF5_BRIDGE_CONTROL,0,control_reply,20));
@@ -191,6 +229,12 @@ int main(void){
  usb_event(APP_USBD_EVT_POWER_REMOVED);usb_event(APP_USBD_EVT_STOPPED);assert(!power_enabled&&!started);
  core_state=1;usb_event(APP_USBD_EVT_POWER_DETECTED);usb_event(APP_USBD_EVT_POWER_READY);nrf5_dongle_usb_task();assert(windows==1);
  usb_event(APP_USBD_EVT_DRV_RESET);core_state=3;nrf5_dongle_usb_task();assert(windows==2);
+ // A fresh USB host gets an initial released state even after prior deduplication.
+ memset(motion,0,5);assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&dma[2]);complete(&mouse);
+ assert(nrf5_usb_esb_report(NRF5_ESB_MOUSE,motion,5)&&!dma[2]);
+ usage[0]=REPORT_ID_CONSUMER;usage[1]=usage[2]=0;
+ assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&dma[3]);complete(&extra);
+ assert(nrf5_usb_esb_report(NRF5_ESB_EXTRA,usage,3)&&!dma[3]);
 }
 ''', {'nrf5_usb.h': USB, 'host_driver.h': helpers.HOST,
       'bootloader.h':'#pragma once\nvoid bootloader_jump(void);',

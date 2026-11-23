@@ -16,3 +16,6 @@ void nrf5_esb_radio_cache_reply(const uint8_t *packet, uint8_t length, const uin
 uint32_t nrf5_esb_radio_error(void);
 // slots, transmissions, valid ACKs, accepted RX packets, denied grants.
 void nrf5_esb_radio_counters(uint32_t counters[5]);
+
+// Read-only RF counters, without encrypted payloads or pairing keys.
+void nrf5_esb_radio_diagnostics(uint8_t data[32]);

@@ -4,8 +4,8 @@
 #define PRODUCT "Qmknrf5 2.4G Receiver"
 #undef PRODUCT_ID
 #define PRODUCT_ID 0x8A43
-// USB descriptor revision: adds the AudioControl/MIDIStreaming interfaces.
-#define APP_USBD_DEVICE_VER_MINOR 1
+// USB descriptor revision: fixes HID interrupt OUT report decoding.
+#define APP_USBD_DEVICE_VER_MINOR 2
 #undef NKRO_EPSIZE
 #define NKRO_EPSIZE 31
 // Keep the pad's existing Flash record area when replacing its full firmware.

@@ -423,12 +423,25 @@ public sealed partial class MainWindow : Window
         await using var transport = connected;
         token.ThrowIfCancellationRequested();
         using IAudioSource? audio = useDemo ? null : await Task.Run(() => new LoopbackAudio(audioId));
-        await keyboardControls.EnableMusicLightsAsync(choice,Volatile.Read(ref settings).Target,token);
-        token.ThrowIfCancellationRequested();
         using var power = new WindowsPowerRequest();
-        status.Text = choice.Kind == ConnectionKind.Preview ? "离线预览中 · 不向键盘发送数据" : "已连接 · 音乐律动中（允许熄屏）";
-        await MusicSession.RunAsync(transport, audio, () => Volatile.Read(ref settings),
-            bands => Volatile.Write(ref latestBands, bands), token);
+        async Task RunMusicAsync(CancellationToken sessionToken)
+        {
+            sessionToken.ThrowIfCancellationRequested();
+            status.Text = choice.Kind == ConnectionKind.Preview ? "离线预览中 · 不向键盘发送数据" : "已连接 · 音乐律动中（允许熄屏）";
+            await MusicSession.RunAsync(transport, audio, () => Volatile.Read(ref settings),
+                bands => Volatile.Write(ref latestBands, bands), sessionToken);
+        }
+        try
+        {
+            if (choice.Kind == ConnectionKind.Preview) await RunMusicAsync(token);
+            else if (transport is IKeyboardControlTransport control)
+                await KeyboardControlProtocol.RunWithMusicLightsAsync(control,Volatile.Read(ref settings).Target,RunMusicAsync,token);
+            else throw new IOException("该连接不支持灯光开关恢复。");
+        }
+        finally
+        {
+            if (!closing && !firmwareMaintenance) await keyboardControls.RefreshMusicLightsAsync(choice);
+        }
     }
 
     private async Task<bool> PrepareFirmwareAsync()

@@ -213,9 +213,16 @@ void nrf5_music_task(void) {
     if (underglow_owned && timer_elapsed(last_frame) < 33) return;
     underglow_owned = true;
     last_frame = timer_read();
+    // An enabled base can retain zero brightness from earlier configuration.
+    // Music gets a temporary visible level; never rewrite the user's HSV/EEPROM.
+    uint8_t brightness = rgblight_get_val();
+    if (!brightness) brightness = 128;
+#ifdef RGBLIGHT_LIMIT_VAL
+    brightness = MIN(brightness, RGBLIGHT_LIMIT_VAL);
+#endif
     for (uint8_t i = 0; i < RGBLIGHT_LED_COUNT; ++i) {
         uint8_t band = (uint16_t)i * MUSIC_BANDS / RGBLIGHT_LED_COUNT;
-        uint8_t value = (uint16_t)frame.bands[band] * rgblight_get_val() / 255;
+        uint8_t value = (uint16_t)frame.bands[band] * brightness / 255;
         rgb_t color = hsv_to_rgb((hsv_t){frame.monochrome ? rgblight_get_hue() : band * 12,
                                        frame.monochrome ? rgblight_get_sat() : 255, value});
         if (frame.monochrome && frame.custom_color) color = selected_rgb(frame.color, value);

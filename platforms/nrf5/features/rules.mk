@@ -4,6 +4,7 @@ ifeq ($(strip $(NRF5_CONFIG_ENABLE)),yes)
     OPT_DEFS += -DNRF5_CONFIG_ENABLE
     COMMON_VPATH += platforms/nrf5/features
     SRC += platforms/nrf5/features/features.c \
+           platforms/nrf5/features/battery.c \
            platforms/nrf5/features/lighting.c \
            platforms/nrf5/features/midi_typing.c \
            platforms/nrf5/features/underglow_test.c

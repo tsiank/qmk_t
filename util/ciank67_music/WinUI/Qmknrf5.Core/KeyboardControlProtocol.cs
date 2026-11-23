@@ -30,6 +30,41 @@ public static class KeyboardControlProtocol
         if((state.Flags&mask)!=mask)throw new IOException("所选律动灯组未能开启，请检查键盘灯光配置。");
         return state;
     }
+    // Capture fresh device state, rather than a potentially stale UI poll.
+    // Cleanup uses this same physical connection and outlives Stop's token.
+    public static async Task RunWithMusicLightsAsync(IKeyboardControlTransport transport, LightTarget target,
+        Func<CancellationToken,Task> run, CancellationToken token)
+    {
+        if ((target & ~LightTarget.Both) != 0) throw new ArgumentOutOfRangeException(nameof(target));
+        token.ThrowIfCancellationRequested();
+        if (target == LightTarget.None) { await run(token); return; }
+        var original = await transport.ControlAsync(0,0,KeyboardMusicMode.Off,token);
+        byte mask = (byte)((byte)target & original.Capabilities & 3);
+        if (mask == 0) throw new IOException("此键盘不支持所选律动灯组。");
+        Exception? failure = null, restoreFailure = null;
+        try
+        {
+            await EnableMusicLightsAsync(transport,target,token,original.Capabilities);
+            await run(token);
+        }
+        catch (Exception error) { failure = error; }
+        finally
+        {
+            // Also restore after an enable write applied but its ACK was lost.
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+            try
+            {
+                byte values = (byte)(original.Flags & mask);
+                var restored = await transport.ControlAsync(mask,values,KeyboardMusicMode.Off,deadline.Token);
+                if ((restored.Flags & mask) != values) throw new IOException("键盘未确认原灯光开关状态。");
+            }
+            catch (Exception error) { restoreFailure = error; }
+        }
+        if (restoreFailure is not null)
+            throw new IOException("律动已结束，但恢复原灯光开关失败：" + restoreFailure.Message,
+                failure is null ? restoreFailure : new AggregateException(failure,restoreFailure));
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
     public static byte[] Command(byte sequence, byte mask = 0, byte values = 0, KeyboardMusicMode mode = KeyboardMusicMode.Off)
     {
         if ((mask & ~31) != 0 || (values & ~15) != 0 || (byte)mode > 3) throw new ArgumentOutOfRangeException(nameof(mask));

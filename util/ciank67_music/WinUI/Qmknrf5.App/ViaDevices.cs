@@ -94,6 +94,7 @@ internal sealed class ViaUsbConnection : IViaTransport
                         if (length == 33 && data[0] == 0 && (data[1] == request[0] || data[1] == 0xFF)) {
                             if (request[0] == 0xC7 && data[1] == 0xC7 && data[3] != request[2]) continue;
                             if (data[1] == 0x84 && (data[26] != request[30] || data[27] != request[31])) continue;
+                            if (data[1] == 0x86 && !data.AsSpan(29,4).SequenceEqual(request.AsSpan(28,4))) continue;
                             return data[1..];
                         }
                     }
@@ -113,10 +114,13 @@ internal sealed class ViaBluetooth : IViaTransport
     private readonly GattSession session;
     private readonly GattDeviceService service;
     private readonly GattCharacteristic rx, state;
-    private readonly SemaphoreSlim gate = new(1, 1);
+    // All consumers of one keyboard share its single VIA reply slot.
+    private static readonly SharedDevicePool<SemaphoreSlim> gates = new(_ => new(1,1), value => value.Dispose());
+    private readonly SharedDevicePool<SemaphoreSlim>.Lease gateLease;
+    private SemaphoreSlim gate => gateLease.Value;
     private ushort sequence = (ushort)System.Security.Cryptography.RandomNumberGenerator.GetInt32(1, ushort.MaxValue);
     private ViaBluetooth(BluetoothLEDevice device, GattSession session, GattDeviceService service, GattCharacteristic rx, GattCharacteristic state)
-    { this.device = device; this.session = session; this.service = service; this.rx = rx; this.state = state; }
+    { this.device = device; this.session = session; this.service = service; this.rx = rx; this.state = state; gateLease = gates.Acquire(device.DeviceId); }
     public static async Task<ViaBluetooth> OpenAsync(string id, CancellationToken token)
     {
         BluetoothLEDevice? device = null; GattSession? session = null; GattDeviceService? service = null;
@@ -172,5 +176,5 @@ internal sealed class ViaBluetooth : IViaTransport
         finally { gate.Release(); }
     }
     public ValueTask DisposeAsync()
-    { session.MaintainConnection = false; service.Dispose(); session.Dispose(); device.Dispose(); gate.Dispose(); return ValueTask.CompletedTask; }
+    { session.MaintainConnection = false; service.Dispose(); session.Dispose(); device.Dispose(); gateLease.Dispose(); return ValueTask.CompletedTask; }
 }

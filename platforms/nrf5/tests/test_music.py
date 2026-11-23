@@ -191,6 +191,7 @@ uint16_t timer_elapsed(uint16_t);
 unsigned critical_depth;
 static uint32_t now;
 static bool matrix = true, under = true, selftest;
+static uint8_t under_brightness = 100;
 static unsigned restores, flushes, timer_disables;
 static uint8_t matrix_value[RGB_MATRIX_LED_COUNT], matrix_sat[RGB_MATRIX_LED_COUNT], matrix_hue[RGB_MATRIX_LED_COUNT], under_value[18], under_hue[18], under_sat[18];
 led_config_t g_led_config = {.point = {{0,0}, {224,64}, {112,32}, {0,64}}, .flags = {1,1,1,1}};
@@ -209,7 +210,7 @@ void rgb_matrix_set_color(int i,uint8_t r,uint8_t g,uint8_t b) { assert(i>=0 && 
 bool rgblight_is_enabled(void) { return under; }
 void rgblight_mode_noeeprom(uint8_t mode) { assert(mode==7); restores++; }
 uint8_t rgblight_get_mode(void) { return 7; }
-uint8_t rgblight_get_val(void) { return 100; }
+uint8_t rgblight_get_val(void) { return under_brightness; }
 uint8_t rgblight_get_hue(void) { return 23; }
 uint8_t rgblight_get_sat(void) { return 180; }
 void rgblight_timer_disable(void) { timer_disables++; }
@@ -517,6 +518,22 @@ int main(void) {
     assert(matrix_hue[0]!=matrix_hue[1] && !memcmp(values,matrix_value,4));
 }
 ''')
+        self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
+
+    def test_zero_saved_underglow_brightness_is_visible_only_during_music(self):
+        self.write('test.c', self.renderer_prefix() + r"""
+int main(void) {
+    under_brightness=0;
+    uint8_t packet[20]={0xC7,1,9,2};memset(packet+4,255,16);
+    assert(music_stream_receive(packet,20,MUSIC_SOURCE_ESB));nrf5_music_task();
+    assert(flushes==1&&under_brightness==0);
+    for(unsigned i=0;i<18;i++)assert(under_value[i]==128);
+    under=false;now+=40;nrf5_music_task();assert(flushes==2&&under_brightness==0);
+    under=true;now+=40;nrf5_music_task();assert(flushes==3);
+    packet[3]=0;assert(music_stream_receive(packet,20,MUSIC_SOURCE_ESB));nrf5_music_task();
+    assert(restores==1&&under_brightness==0);
+}
+""")
         self.run_native(['platforms/nrf5/music_stream.c', 'platforms/nrf5/features/music.c'])
 
     def test_custom_rgb_recolors_both_effects_and_underglow(self):

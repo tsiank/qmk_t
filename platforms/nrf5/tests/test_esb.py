@@ -256,6 +256,7 @@ static fake_timer_t peripheral_timer;
 #define RADIO_CRCCNF_LEN_Two 2
 #define RADIO_SHORTS_READY_START_Msk 1
 #define RADIO_SHORTS_END_DISABLE_Msk 2
+#define RADIO_SHORTS_DISABLED_RXEN_Msk 4
 #define RADIO_INTENSET_DISABLED_Msk 16
 #define RADIO_STATE_STATE_Disabled 0
 #define TIMER_INTENSET_COMPARE0_Msk 1
@@ -299,17 +300,28 @@ int main(void){
  assert(!nrf5_esb_radio_send(p,n));assert(requests==1);
  signal_callback(NRF_RADIO_CALLBACK_SIGNAL_TYPE_START);
  assert(irq_enabled[0]&&irq_enabled[1]&&state==RF_SEND_DATA);
+ assert((NRF_RADIO->SHORTS&RADIO_SHORTS_DISABLED_RXEN_Msk)!=0);
+ // Hardware must begin RX at DISABLED, before the application callback runs.
+ assert(NRF_RADIO->TASKS_RXEN==0);
  assert(NRF_TIMER0->CC[0]<SLOT_US && NRF_RADIO->PCNF0==(8|(3<<16)));
  NRF_TIMER0->CC[2]=300;event();assert(state==RF_WAIT_ACK);
+ assert((NRF_RADIO->SHORTS&RADIO_SHORTS_DISABLED_RXEN_Msk)==0);
+ assert(NRF_RADIO->PACKETPTR==(uint32_t)(uintptr_t)&rx&&NRF_RADIO->TASKS_RXEN==0);
  assert(NRF_TIMER0->CC[1]==1000);
  // No ACK -> stop RX and retransmit, without calling any SVC at priority 0.
  NRF_TIMER0->CC[2]=1000;NRF_TIMER0->EVENTS_COMPARE[1]=1;
  signal_callback(NRF_RADIO_CALLBACK_SIGNAL_TYPE_TIMER0);
  assert(state==RF_SEND_DATA && requests==1);
+ assert((NRF_RADIO->SHORTS&RADIO_SHORTS_DISABLED_RXEN_Msk)!=0);
  NRF_TIMER0->CC[2]=1300;event();assert(state==RF_WAIT_ACK);
  rx.length=NRF5_ESB_ACK_SIZE;rx.s1=tx.s1;rx.data[0]=0xA2;
  memcpy(rx.data+1,tx.data+4,12);rx.data[13]=2;
- NRF_RADIO->CRCSTATUS=1;NRF_TIMER0->CC[2]=1500;event();
+ NRF_RADIO->CRCSTATUS=1;NRF_TIMER0->CC[2]=1450;
+ rx.s1=tx.s1^2;event();assert(!tx_acked&&state==RF_WAIT_ACK);
+ uint8_t diagnostic[32]={0x87};nrf5_esb_radio_diagnostics(diagnostic);
+ assert(diagnostic[0]==0x87&&diagnostic[1]==1&&diagnostic[2]==1&&diagnostic[3]==2);
+ assert(diagnostic[19]==1&&diagnostic[28]==30&&diagnostic[29]==(tx.s1^2)&&diagnostic[31]==tx.s1);
+ rx.s1=tx.s1;NRF_TIMER0->CC[2]=1500;event();
  assert(tx_acked&&state==RF_IDLE);uint8_t reply[30];nrf5_esb_radio_ack(reply);assert(reply[13]==2);
  assert(action.callback_action==NRF_RADIO_SIGNAL_CALLBACK_ACTION_END);
  assert(!irq_enabled[0]&&!irq_enabled[1]);
@@ -341,6 +353,9 @@ int main(void){
  nrf5_esb_radio_cache_ack(p,n,response);event();
  assert(state==RF_SEND_ACK && ack.length==30 && ack.s1==5 && ack.data[13]==2);
  event();assert(state==RF_LISTEN);
+ uint8_t diagnostic[32]={0x87};nrf5_esb_radio_diagnostics(diagnostic);
+ assert(diagnostic[0]==0x87&&diagnostic[1]==1&&diagnostic[2]==2);
+ assert(diagnostic[7]==1&&diagnostic[11]==1&&diagnostic[23]==1&&diagnostic[27]==1);
  // Fill the ISR -> main FIFO. Do not ACK a packet that cannot be retained.
  cache_ready=false;for(int i=0;i<NRF5_ESB_QUEUE_SIZE-1;i++){event();assert(state==RF_LISTEN);}
  event();assert(state==RF_LISTEN);

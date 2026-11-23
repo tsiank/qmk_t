@@ -307,6 +307,17 @@ void fixture_key_material(uint8_t *k){memcpy(k,persisted.key,16);}
         data=(C.c_uint8*len(payload)).from_buffer_copy(bytes(payload))
         self.assertTrue(node.fixture_bridge_push(kind,token,data,len(payload)))
 
+    def test_private_battery_request_survives_encrypted_bridge(self):
+        self.bridge_nodes()
+        packet=bytearray(32);packet[0]=0x86;packet[1]=1;packet[28:]=b'BAT1'
+        self.bridge_push(self.rx,9,bytes(packet),0xBADD)
+        for _ in range(100): self.step()
+        output=(C.c_uint8*32)()
+        n=self.rx.fixture_bridge_last(output)
+        self.assertEqual(n,32)
+        self.assertEqual(bytes(output[:n]),bytes(packet))
+        self.assertEqual(self.rx.fixture_bridge_token(),0xBADD)
+
     def test_bridge_via_control_music_midi_and_typing_survive_dropped_acks(self):
         self.bridge_nodes()
         via=bytes([4])+bytes(range(1,32))

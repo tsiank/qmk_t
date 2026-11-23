@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // USB HID bridge and receiver management. Independent of QMK/VIA services.
 #include "nrf5_usb.h"
+#include "esb_radio.h"
 #include "nrf5_esb.h"
 #include "esb_packet.h"
 #include "esb_pair.h"
@@ -32,6 +33,10 @@ APP_USBD_HID_GENERIC_GLOBAL_DEF(control, 4, control_event,
 
 static uint8_t leds, hid_buffers[4][32];
 static uint8_t led_report_prefix, led_report_count;
+static bool mouse_state_valid;
+static uint8_t last_mouse_buttons;
+static bool extra_state_valid[2];
+static uint16_t last_extra_usage[2];
 static const app_usbd_class_inst_t *hid_active;
 static uint8_t requests[4][32], request_head, request_count, reply[32];
 static bool reply_ready, control_busy, dfu_requested, dfu_armed;
@@ -84,11 +89,26 @@ bool nrf5_usb_esb_report(uint8_t kind, const uint8_t *data, uint8_t length) {
     if (hid_active || app_usbd_core_state_get() != APP_USBD_STATE_Configured) return false;
     const app_usbd_hid_generic_t *hid;
     uint8_t index;
+    int8_t extra_slot = -1;
     switch (kind) {
         case NRF5_ESB_KEYBOARD: if (length != 8) return true; hid = &kbd; index = 0; break;
         case NRF5_ESB_NKRO: if (length != 31) return true; hid = &nkro; index = 1; break;
-        case NRF5_ESB_MOUSE: if (length != 5) return true; hid = &mouse; index = 2; break;
-        case NRF5_ESB_EXTRA: if (length != 3) return true; hid = &extra; index = 3; break;
+        case NRF5_ESB_MOUSE:
+            if (length != 5) return true;
+            // RF snapshots recover lost button releases, but forwarding every
+            // stationary duplicate makes Windows see input even while idle.
+            // Relative motion/scroll must always pass, including repeated deltas.
+            if (mouse_state_valid && data[0] == last_mouse_buttons &&
+                !(data[1] || data[2] || data[3] || data[4])) return true;
+            hid = &mouse; index = 2; break;
+        case NRF5_ESB_EXTRA:
+            if (length != 3) return true;
+            extra_slot = data[0] == REPORT_ID_SYSTEM ? 0 : data[0] == REPORT_ID_CONSUMER ? 1 : -1;
+            // Consumer and system collections retain independent states. Even
+            // an unchanged released consumer report counts as input on Windows.
+            if (extra_slot >= 0 && extra_state_valid[extra_slot] &&
+                last_extra_usage[extra_slot] == ((uint16_t)data[1] | (uint16_t)data[2] << 8)) return true;
+            hid = &extra; index = 3; break;
         default: return true;
     }
     memcpy(hid_buffers[index], data, length);
@@ -96,6 +116,13 @@ bool nrf5_usb_esb_report(uint8_t kind, const uint8_t *data, uint8_t length) {
     if (rc != NRF_SUCCESS) {
         UNUSED_RETURN_VALUE(hid_generic_clear_buffer(app_usbd_hid_generic_class_inst_get(hid)));
         return false;
+    }
+    if (kind == NRF5_ESB_MOUSE) {
+        last_mouse_buttons = data[0]; mouse_state_valid = true;
+    }
+    if (extra_slot >= 0) {
+        last_extra_usage[extra_slot] = (uint16_t)data[1] | (uint16_t)data[2] << 8;
+        extra_state_valid[extra_slot] = true;
     }
     hid_active = app_usbd_hid_generic_class_inst_get(hid);
     return true;
@@ -122,7 +149,9 @@ static void control_event(app_usbd_class_inst_t const *instance, app_usbd_hid_us
     size_t length;
     const uint8_t *data = app_usbd_hid_generic_out_report_get(app_usbd_hid_generic_class_get(instance), &length);
     if (!data) return;
-    if (length == 33 && data[0] == 0) { data++; length--; }
+    // SDK reports buffer capacity, not transfer length. Interrupt OUT puts
+    // 32 payload bytes at [0]; SET_REPORT prepends its synthetic zero ID.
+    if (length == 33) { if (data[0] == 0) data++; length = 32; }
     if (length != 32 || request_count == 4) return;
     memcpy(requests[(request_head + request_count) % 4], data, 32);
     request_count++;
@@ -132,7 +161,8 @@ static void reset_transfers(void) {
     hid_active = NULL;
     control_busy = reply_ready = dfu_requested = dfu_armed = false;
     request_head = request_count = 0;
-    leds = 0;
+    leds = 0; mouse_state_valid = false; last_mouse_buttons = 0;
+    memset(extra_state_valid, 0, sizeof(extra_state_valid));
     remote_pending=0;nrf5_esb_reset_link();reply_ready=false;
     memset(requests, 0, sizeof(requests));
     memset(reply, 0, sizeof(reply));
@@ -185,6 +215,7 @@ void nrf5_dongle_usb_task(void) {
                 else dfu_requested = true;
             }
         } else if (reply[0] == 0x83) nrf5_esb_diagnostics(reply);
+        else if (reply[0] == 0x87) nrf5_esb_radio_diagnostics(reply);
         else if(reply[0]==0xC7) {
             bool valid=reply[1]>=1 && reply[1]<=6;
             for(unsigned i=20;i<32;i++)valid &= reply[i]==0;
