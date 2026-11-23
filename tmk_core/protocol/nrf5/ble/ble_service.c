@@ -62,6 +62,7 @@
 #include "ble_conn_params.h"
 #ifdef NRF5_WIRELESS_POWER_ENABLE
 #    include "ble_power.h"
+#    include "wireless_power.h"
 #endif
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
@@ -97,6 +98,9 @@
 #endif
 
 uint8_t              keyboard_ble_led_stats = 0;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+static volatile bool ble_manual_stop;
+#endif
 static volatile bool ble_disable            = true; /**< Handle of the current connection. */
 #ifdef NRF5_ESB_TX
 static volatile bool ble_pair_pending, ble_pair_disconnect_requested, ble_pairing_open;
@@ -354,6 +358,9 @@ void advertising_start(bool erase_bonds) {
         ret = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
         APP_ERROR_CHECK(ret);
         ble_disable = false;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        ble_manual_stop = false;
+#endif
     }
 }
 
@@ -407,7 +414,29 @@ void nrf5_ble_pairing_task(void) {
 }
 #endif
 
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+void nrf5_ble_reconnect_task(void) {
+#ifdef NRF5_ESB_TX
+    const uint8_t mode = nrf5_esb_settings()->mode;
+    // Do not reopen BLE during the delayed transition to USB/2.4G or while
+    // the explicit pairing task owns the disconnect/open sequence.
+    if ((mode != NRF5_MODE_BLE && mode != NRF5_MODE_AUTO) || ble_pair_pending || !nrf5_output_ble_allowed()) return;
+#else
+    if (where_to_send() != OUTPUT_BLUETOOTH) return;
+#endif
+    if (m_conn_handle != BLE_CONN_HANDLE_INVALID || !ble_disable || ble_manual_stop || nrf5_wireless_idle() || nrf5_eeprom_pending()) return;
+    // Real input or USB power clears wireless idle, even when the route stays
+    // BLE. A stopped advertiser must not require a USB-driven mode change.
+    advertising_start(false);
+}
+#endif
+
 void ble_disconnect(void) {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    // DISC and route/pairing transitions are intentional. Only an explicit
+    // advertising request or a later BLE route entry may undo this stop.
+    ble_manual_stop = true;
+#endif
     ret_code_t ret;
     if (m_conn_handle != BLE_CONN_HANDLE_INVALID) {
         ret_code_t ret;
@@ -480,6 +509,9 @@ void restart_advertising_id(uint8_t id) {
         ret = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
         APP_ERROR_CHECK(ret);
         ble_disable = false;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        ble_manual_stop = false;
+#endif
     }
 }
 
@@ -638,6 +670,12 @@ void reset_power_save_counter(void) {
 }
 
 void nrf5_power_task(void) {
+#if defined(NRF5_WIRELESS_POWER_ENABLE) && !NRF5_WIRELESS_SYSTEM_OFF_ENABLE
+    // Stay in GPIO-wakeable System ON standby, including after advertising
+    // expires or the old 2000-second sleep counter reaches its deadline.
+    reset_power_save_counter();
+    return;
+#endif
 #ifdef NRF5_ESB_ENABLE
     if (nrf5_esb_settings_pending() || nrf5_pair_busy()) return;
 #endif
@@ -1008,6 +1046,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
             break;
 
         case BLE_ADV_EVT_IDLE:
+            // The SDK has stopped advertising. Leaving this flag false makes
+            // advertising_start() silently refuse every later restart.
+            ble_disable = true;
 #ifdef NRF5_ESB_TX
             ble_pairing_open = false;
 #endif
@@ -1105,6 +1146,11 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
             // report containing the Caps lock state.
             // disabling alert 3. signal - used for capslock ON
             keyboard_ble_led_stats = 0;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+            // Restart in the main loop, once the output route and any explicit
+            // pairing/mode request have settled. No peer/advertising work here.
+            ble_disable = true;
+#else
 #ifdef NRF5_ESB_TX
             if (nrf5_output_ble_allowed() && !ble_disable) {
                 ble_disable = true;
@@ -1119,6 +1165,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
                     APP_ERROR_CHECK(ret);
                 }
             }
+#endif
             // err_code = bsp_indication_set(BSP_INDICATE_ALERT_OFF);
             // APP_ERROR_CHECK(err_code);
 

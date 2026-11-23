@@ -22,3 +22,7 @@ void ble_disconnect(void);
 void reset_power_save_counter(void);
 void battery_level_update(nrf_saadc_value_t value, uint16_t size);
 // void send_midis(void);
+
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+void nrf5_ble_reconnect_task(void);
+#endif

@@ -297,7 +297,7 @@ static struct {uint32_t ENABLE;} usb_reg;
 typedef int ret_code_t;
 static volatile uint16_t power_save_counter;
 static volatile bool automatic_sleep_pending;
-static bool pending;
+static bool pending,ble_disable;
 static int irq,lights,sleeps,adc,outputs,senses,clears;
 static jmp_buf off;
 static void sleep_mode_enter(void);

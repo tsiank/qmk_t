@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class BlePowerTests(unittest.TestCase):
-    def run_case(self, case):
+    def run_case(self, case, dynamic=True):
         if not shutil.which('cc'):
             self.skipTest('Native C compiler is required')
         headers = {
@@ -60,6 +60,18 @@ int main(int argc,char **argv){
  unsigned scenario=atoi(argv[1]);
  nrf5_ble_power_task();assert(!calls);
  now=0x7ffff-1000;event(BLE_GAP_EVT_CONNECTED,7,profiles[0]);nrf5_ble_power_task();
+ if(scenario==3){
+  power_idle=true;
+  for(unsigned i=0;i<3600;i++){advance(1024);}
+  assert(!calls && connection==7 && target==0);
+  power_idle=false;advance(1024);assert(!calls);
+  // If the host reconnects with R16-like latency, request baseline parameters.
+  event(BLE_GAP_EVT_DISCONNECTED,7,profiles[1]);event(BLE_GAP_EVT_CONNECTED,7,profiles[1]);
+  nrf5_ble_power_task();advance(5*1024);
+  assert(calls==1 && last.slave_latency==3 && last.conn_sup_timeout==43);
+  event(BLE_GAP_EVT_CONN_PARAM_UPDATE,7,last);power_idle=true;advance(40*1024);assert(calls==1);
+  return 0;
+ }
  power_idle=true;advance(5*1024-1);assert(!calls);advance(1);assert(calls==1);
  assert(last.slave_latency==9 && last.conn_sup_timeout==100);
  if(scenario==0){
@@ -98,7 +110,8 @@ int main(int argc,char **argv){
             command=['cc','-std=gnu11','-Wall','-Wextra','-Werror','-Wno-unused-parameter',
                      '-fsanitize=address,undefined','-fno-pie','-no-pie','-I',str(work),
                      '-I',str(ROOT/'platforms/nrf5'),'-DBLE_HID_MIN_INTERVAL=7.5','-DBLE_HID_MAX_INTERVAL=20',
-                     '-DBLE_HID_SLAVE_LATENCY=3','-DBLE_HID_TIMEOUT=430',str(work/'test.c'),'-o',str(binary)]
+                     '-DBLE_HID_SLAVE_LATENCY=3','-DBLE_HID_TIMEOUT=430',
+                     f'-DNRF5_BLE_DYNAMIC_IDLE_ENABLE={int(dynamic)}',str(work/'test.c'),'-o',str(binary)]
             for cmd in (command,[str(binary),str(case)]):
                 result=subprocess.run(cmd,capture_output=True,text=True,
                                       env={**os.environ,'ASAN_OPTIONS':'detect_stack_use_after_return=1'})
@@ -112,3 +125,6 @@ int main(int argc,char **argv){
 
     def test_busy_retry_and_handle_reuse_ignore_stale_svc_completion(self):
         self.run_case(2)
+
+    def test_default_parameters_stay_stable_through_hour_long_idle(self):
+        self.run_case(3,dynamic=False)

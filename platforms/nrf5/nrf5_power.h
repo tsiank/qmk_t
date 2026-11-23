@@ -8,4 +8,9 @@
 static inline bool nrf5_usb_powered(void) {
     return (NRF_POWER->USBREGSTATUS & POWER_USBREGSTATUS_VBUSDETECT_Msk) != 0 || NRF_USBD->ENABLE != 0;
 }
+// The GPIO standby path preserves connections and the first key. Automatic
+// System OFF requires separate bootloader/wake validation and is opt-in.
+#ifndef NRF5_WIRELESS_SYSTEM_OFF_ENABLE
+#    define NRF5_WIRELESS_SYSTEM_OFF_ENABLE 0
+#endif
 void nrf5_power_task(void);

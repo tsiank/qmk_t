@@ -174,6 +174,7 @@ int main(void) {
 #endif
 #ifdef NRF5_WIRELESS_POWER_ENABLE
         nrf5_wireless_power_task();
+        nrf5_ble_reconnect_task();
         nrf5_ble_power_task();
 #endif
         const bool scanned = keyboard_scan_pending;

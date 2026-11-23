@@ -80,7 +80,7 @@ void nrf5_ble_power_task(void) {
         if (timer_elapsed32(connected_at) < 5 * 1024) return;
         settled = true;
     }
-    const uint8_t wanted = nrf5_wireless_idle() ? 1 : 0;
+    const uint8_t wanted = NRF5_BLE_DYNAMIC_IDLE_ENABLE && nrf5_wireless_idle() ? 1 : 0;
     if (target != wanted) {
         target = wanted;
         attempts = busy_attempts = 0;
