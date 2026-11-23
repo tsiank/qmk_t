@@ -74,3 +74,9 @@ ifeq ($(strip $(NRF5_VIA_UI_ENABLE)),yes)
     OPT_DEFS += -DNRF5_VIA_UI_ENABLE
     SRC += platforms/nrf5/features/via_ui.c platforms/nrf5/features/via_ui_oled.c platforms/nrf5/features/via_ui_diagnostics.c
 endif
+
+# Optional wireless idle policy and GPIO-triggered matrix wake.
+ifeq ($(strip $(NRF5_WIRELESS_POWER_ENABLE)),yes)
+    OPT_DEFS += -DNRF5_WIRELESS_POWER_ENABLE
+    SRC += platforms/nrf5/wireless_power.c
+endif

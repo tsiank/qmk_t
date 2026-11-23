@@ -219,3 +219,8 @@
 // as on ciank_pad, rather than submitting the whole 2 KiB in one write.
 #    define NRF_FSTORAGE_SD_MAX_WRITE_SIZE 128
 #endif
+
+// Wireless standby uses low-power PORT sensing; active typing keeps 6 ms scans.
+#define NRF5_MATRIX_IDLE_ENABLE
+#define GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS MATRIX_COLS
+#define NRFX_GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS MATRIX_COLS

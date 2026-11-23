@@ -10,6 +10,9 @@
 #include "process_clicky.h"
 #endif
 #include "app_util_platform.h"
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+#    include "wireless_power.h"
+#endif
 #include <string.h>
 #ifdef NRF5_CLOCK_ENABLE
 #    include "nrf5_clock.h"
@@ -113,6 +116,11 @@ void nrf5_keyboard_control_task(void) {
     if (apply) { memcpy(command, pending, 20); source = pending_source; ready = false; }
     CRITICAL_REGION_EXIT();
     if (apply) {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        // Explicit writes wake idle lighting, even if the requested enabled
+        // state already matches. Read-only polling and clock sync do not.
+        if ((command[1] == 3 && command[3]) || command[1] == 6) nrf5_wireless_note_activity();
+#endif
 #ifdef NRF5_CLOCK_ENABLE
         if (command[1] == 5) nrf5_clock_set(command[3], command[4], command[5], (uint16_t)command[6] | ((uint16_t)command[7] << 8));
 #endif

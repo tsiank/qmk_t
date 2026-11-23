@@ -81,6 +81,9 @@ typedef struct is31fl3741_driver_t {
     uint8_t scaling_buffer_0[IS31FL3741_SCALING_0_REGISTER_COUNT];
     uint8_t scaling_buffer_1[IS31FL3741_SCALING_1_REGISTER_COUNT];
     bool    scaling_buffer_dirty;
+#ifdef PROTOCOL_NRF5
+    bool    sleeping;
+#endif
 } PACKED is31fl3741_driver_t;
 
 is31fl3741_driver_t driver_buffers[IS31FL3741_DRIVER_COUNT] = {{
@@ -92,52 +95,73 @@ is31fl3741_driver_t driver_buffers[IS31FL3741_DRIVER_COUNT] = {{
     .scaling_buffer_dirty = false,
 }};
 
-void is31fl3741_write_register(uint8_t index, uint8_t reg, uint8_t data) {
+static bool write_register_checked(uint8_t index, uint8_t reg, uint8_t data) {
 #if IS31FL3741_I2C_PERSISTENCE > 0
     for (uint8_t i = 0; i < IS31FL3741_I2C_PERSISTENCE; i++) {
-        if (i2c_write_register(i2c_addresses[index] << 1, reg, &data, 1, IS31FL3741_I2C_TIMEOUT) == I2C_STATUS_SUCCESS) break;
+        if (i2c_write_register(i2c_addresses[index] << 1, reg, &data, 1, IS31FL3741_I2C_TIMEOUT) == I2C_STATUS_SUCCESS) return true;
     }
 #else
-    i2c_write_register(i2c_addresses[index] << 1, reg, &data, 1, IS31FL3741_I2C_TIMEOUT);
+    return i2c_write_register(i2c_addresses[index] << 1, reg, &data, 1, IS31FL3741_I2C_TIMEOUT) == I2C_STATUS_SUCCESS;
 #endif
+    return false;
+}
+
+void is31fl3741_write_register(uint8_t index, uint8_t reg, uint8_t data) {
+    write_register_checked(index, reg, data);
+}
+
+static bool select_page_checked(uint8_t index, uint8_t page) {
+    return write_register_checked(index, IS31FL3741_REG_COMMAND_WRITE_LOCK, IS31FL3741_COMMAND_WRITE_LOCK_MAGIC) &&
+           write_register_checked(index, IS31FL3741_REG_COMMAND, page);
 }
 
 void is31fl3741_select_page(uint8_t index, uint8_t page) {
-    is31fl3741_write_register(index, IS31FL3741_REG_COMMAND_WRITE_LOCK, IS31FL3741_COMMAND_WRITE_LOCK_MAGIC);
-    is31fl3741_write_register(index, IS31FL3741_REG_COMMAND, page);
+    select_page_checked(index, page);
+}
+
+static bool write_pwm_page(uint8_t index, uint8_t page, const uint8_t *buffer, uint16_t length, uint8_t chunk) {
+    if (!select_page_checked(index, page)) return false;
+    for (uint16_t offset = 0; offset < length; offset += chunk) {
+        bool written = false;
+        // At least one attempt; persistence controls additional driver retries.
+        for (unsigned attempt = 0; attempt < (IS31FL3741_I2C_PERSISTENCE > 0 ? IS31FL3741_I2C_PERSISTENCE : 1); ++attempt) {
+            if (i2c_write_register(i2c_addresses[index] << 1, offset, buffer + offset, chunk, IS31FL3741_I2C_TIMEOUT) == I2C_STATUS_SUCCESS) {
+                written = true;
+                break;
+            }
+        }
+        if (!written) return false;
+    }
+    return true;
+}
+
+static bool write_pwm_buffer_checked(uint8_t index) {
+    return write_pwm_page(index, IS31FL3741_COMMAND_PWM_0, driver_buffers[index].pwm_buffer_0, IS31FL3741_PWM_0_REGISTER_COUNT, 30) &&
+           write_pwm_page(index, IS31FL3741_COMMAND_PWM_1, driver_buffers[index].pwm_buffer_1, IS31FL3741_PWM_1_REGISTER_COUNT, 19);
 }
 
 void is31fl3741_write_pwm_buffer(uint8_t index) {
-    is31fl3741_select_page(index, IS31FL3741_COMMAND_PWM_0);
-
-    // Transmit PWM0 registers in 6 transfers of 30 bytes.
-
-    // Iterate over the pwm_buffer_0 contents at 30 byte intervals.
-    for (uint8_t i = 0; i < IS31FL3741_PWM_0_REGISTER_COUNT; i += 30) {
-#if IS31FL3741_I2C_PERSISTENCE > 0
-        for (uint8_t j = 0; j < IS31FL3741_I2C_PERSISTENCE; j++) {
-            if (i2c_write_register(i2c_addresses[index] << 1, i, driver_buffers[index].pwm_buffer_0 + i, 30, IS31FL3741_I2C_TIMEOUT) == I2C_STATUS_SUCCESS) break;
-        }
-#else
-        i2c_write_register(i2c_addresses[index] << 1, i, driver_buffers[index].pwm_buffer_0 + i, 30, IS31FL3741_I2C_TIMEOUT);
-#endif
-    }
-
-    is31fl3741_select_page(index, IS31FL3741_COMMAND_PWM_1);
-
-    // Transmit PWM1 registers in 9 transfers of 19 bytes.
-
-    // Iterate over the pwm_buffer_1 contents at 19 byte intervals.
-    for (uint8_t i = 0; i < IS31FL3741_PWM_1_REGISTER_COUNT; i += 19) {
-#if IS31FL3741_I2C_PERSISTENCE > 0
-        for (uint8_t i = 0; i < IS31FL3741_I2C_PERSISTENCE; i++) {
-            if (i2c_write_register(i2c_addresses[index] << 1, i, driver_buffers[index].pwm_buffer_1 + i, 19, IS31FL3741_I2C_TIMEOUT) == I2C_STATUS_SUCCESS) break;
-        }
-#else
-        i2c_write_register(i2c_addresses[index] << 1, i, driver_buffers[index].pwm_buffer_1 + i, 19, IS31FL3741_I2C_TIMEOUT);
-#endif
-    }
+    write_pwm_buffer_checked(index);
 }
+
+#ifdef PROTOCOL_NRF5
+static bool pwm_is_black(uint8_t index) {
+    for (unsigned i = 0; i < IS31FL3741_PWM_0_REGISTER_COUNT; ++i)
+        if (driver_buffers[index].pwm_buffer_0[i]) return false;
+    for (unsigned i = 0; i < IS31FL3741_PWM_1_REGISTER_COUNT; ++i)
+        if (driver_buffers[index].pwm_buffer_1[i]) return false;
+    return true;
+}
+
+static bool set_sleep(uint8_t index, bool sleep) {
+    if (driver_buffers[index].sleeping == sleep) return true;
+    if (!select_page_checked(index, IS31FL3741_COMMAND_FUNCTION) ||
+        !write_register_checked(index, IS31FL3741_FUNCTION_REG_CONFIGURATION,
+                                sleep ? (IS31FL3741_CONFIGURATION & ~1u) : IS31FL3741_CONFIGURATION)) return false;
+    driver_buffers[index].sleeping = sleep;
+    return true;
+}
+#endif
 
 void is31fl3741_init_drivers(void) {
     i2c_init();
@@ -169,8 +193,15 @@ void is31fl3741_init(uint8_t index) {
 
     is31fl3741_select_page(index, IS31FL3741_COMMAND_FUNCTION);
 
+#ifdef PROTOCOL_NRF5
+    // Keep outputs asleep until the first complete, nonblack frame is ready.
+    driver_buffers[index].sleeping = false;
+    set_sleep(index, true);
+    driver_buffers[index].pwm_buffer_dirty = true;
+#else
     // Set to Normal operation
     is31fl3741_write_register(index, IS31FL3741_FUNCTION_REG_CONFIGURATION, IS31FL3741_CONFIGURATION);
+#endif
 
     // Set Golbal Current Control Register
     is31fl3741_write_register(index, IS31FL3741_FUNCTION_REG_GLOBAL_CURRENT, IS31FL3741_GLOBAL_CURRENT);
@@ -245,8 +276,20 @@ void is31fl3741_set_led_control_register(uint8_t index, bool red, bool green, bo
 
 void is31fl3741_update_pwm_buffers(uint8_t index) {
     if (driver_buffers[index].pwm_buffer_dirty) {
-        is31fl3741_write_pwm_buffer(index);
-
+#ifdef PROTOCOL_NRF5
+        // Inspect the final rendered frame, including music and indicators.
+        // Do not stop shared I2C: OLED and other devices must remain usable.
+        if (pwm_is_black(index)) {
+            if (set_sleep(index, true)) driver_buffers[index].pwm_buffer_dirty = false;
+            return;
+        }
+#endif
+        // On wake, overwrite both pages while outputs are still asleep so an
+        // old animation cannot flash. Keep dirty on failure for the next flush.
+        if (!write_pwm_buffer_checked(index)) return;
+#ifdef PROTOCOL_NRF5
+        if (!set_sleep(index, false)) return;
+#endif
         driver_buffers[index].pwm_buffer_dirty = false;
     }
 }

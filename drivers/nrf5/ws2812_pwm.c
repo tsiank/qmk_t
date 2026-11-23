@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "ws2812.h"
 #include "nrfx_pwm.h"
+#include "nrf_gpio.h"
 
 // A common-mode sample is one whole PWM period, not one sample per channel.
 #define NS_TO_TICKS(ns) (((ns) * 16UL + 500) / 1000)
@@ -35,6 +36,7 @@ _Static_assert(MAX_FRAME_SAMPLES <= 0x7FFF, "WS2812 frame exceeds nRF PWM EasyDM
 
 static const nrfx_pwm_t pwm = NRFX_PWM_INSTANCE(0);
 static bool initialized;
+static uint8_t output_pin;
 static ws2812_led_t pixels[WS2812_LED_COUNT];
 // EasyDMA reads RAM. Keep the full frame alive and avoid a large IRQ stack frame.
 static nrf_pwm_values_common_t frame[MAX_FRAME_SAMPLES];
@@ -55,6 +57,7 @@ static bool init_pwm(uint8_t pin) {
     config.step_mode = NRF_PWM_STEP_AUTO;
     // Completion is polled in the main loop; no PWM callback is required.
     initialized = nrfx_pwm_init(&pwm, &config, NULL) == NRFX_SUCCESS;
+    if (initialized) output_pin = pin;
     return initialized;
 }
 
@@ -100,10 +103,18 @@ static void send_frame(uint16_t length) {
     };
     nrfx_pwm_simple_playback(&pwm, &sequence, 1, NRFX_PWM_FLAG_STOP);
     while (!nrfx_pwm_is_stopped(&pwm)) {}
+    // STOP alone leaves the peripheral enabled. Release its clock/DMA after
+    // the latch interval, retaining a driven-low DIN even when LED power is off.
+    nrfx_pwm_uninit(&pwm);
+    initialized = false;
+    nrf_gpio_pin_clear(output_pin);
+    nrf_gpio_cfg_output(output_pin);
 }
 
 void ws2812_init(void) {
-    init_pwm(WS2812_DI_PIN);
+    // Allocate PWM only when a frame is actually sent.
+    nrf_gpio_pin_clear(WS2812_DI_PIN);
+    nrf_gpio_cfg_output(WS2812_DI_PIN);
 }
 
 void ws2812_set_color(int index, uint8_t red, uint8_t green, uint8_t blue) {

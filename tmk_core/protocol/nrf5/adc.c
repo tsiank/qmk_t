@@ -47,7 +47,11 @@ void adc_init() {
     ret_code_t                 err_code;
     nrf_saadc_channel_config_t channel_config = NRFX_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN3);
 
-    err_code = nrf_drv_saadc_init(NULL, adc_event_handler);
+    // Battery sampling is sparse. The SDK low-power path ends each sample
+    // instead of keeping the analog acquisition resources started between ticks.
+    nrf_drv_saadc_config_t config = NRF_DRV_SAADC_DEFAULT_CONFIG;
+    config.low_power_mode = true;
+    err_code = nrf_drv_saadc_init(&config, adc_event_handler);
     APP_ERROR_CHECK(err_code);
 
     err_code = nrfx_saadc_channel_init(0, &channel_config);

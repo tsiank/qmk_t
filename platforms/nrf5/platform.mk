@@ -30,6 +30,10 @@ ifneq ($(strip $(NRF5_ESB_ROLE)),)
   NRF_LDFLAGS += $(SDK_ROOT)/external/nrf_oberon/lib/cortex-m4/hard-float/liboberon_2.0.7.a
 endif
 
+ifeq ($(strip $(NRF5_WIRELESS_POWER_ENABLE)),yes)
+  NRFSRC_FILES += $(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_gpiote.c
+endif
+
 ifeq ($(strip $(MIDI_ENABLE)),yes)
   NRFSRC_FILES += $(PLATFORM_COMMON_DIR)/midi_transport.c \
                   $(PLATFORM_COMMON_DIR)/midi_codec.c \

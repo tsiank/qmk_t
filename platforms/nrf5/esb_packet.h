@@ -11,6 +11,7 @@
 #define NRF5_ESB_QUEUE_SIZE 32
 #define NRF5_ESB_TIMEOUT_MS 300
 #define NRF5_ESB_REFRESH_MS 40
+#define NRF5_ESB_SNAPSHOT_MS 1000
 
 enum nrf5_esb_kind {
     NRF5_ESB_KEYBOARD = 1,

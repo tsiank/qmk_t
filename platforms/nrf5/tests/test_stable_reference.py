@@ -63,7 +63,9 @@ typedef struct { nrf_pwm_values_t values; uint16_t length, repeats, end_delay; }
 int nrfx_pwm_init(const nrfx_pwm_t *, const nrfx_pwm_config_t *, void (*handler)(int));
 uint32_t nrfx_pwm_simple_playback(const nrfx_pwm_t *, const nrf_pwm_sequence_t *, uint16_t, uint32_t);
 bool nrfx_pwm_is_stopped(const nrfx_pwm_t *);
+void nrfx_pwm_uninit(const nrfx_pwm_t *);
 ''')
+        self.write('nrf_gpio.h', '#include <stdint.h>\nvoid nrf_gpio_pin_clear(uint32_t);\nvoid nrf_gpio_cfg_output(uint32_t);\n')
         harness = self.write('pwm_test.c', r'''
 #include <assert.h>
 #include <stdio.h>
@@ -79,6 +81,9 @@ uint32_t nrfx_pwm_simple_playback(const nrfx_pwm_t *p, const nrf_pwm_sequence_t 
     return 0;
 }
 bool nrfx_pwm_is_stopped(const nrfx_pwm_t *p) { return true; }
+void nrfx_pwm_uninit(const nrfx_pwm_t *p) {}
+void nrf_gpio_pin_clear(uint32_t pin) { assert(pin == 6); }
+void nrf_gpio_cfg_output(uint32_t pin) { assert(pin == 6); }
 int main(void) {
     rgb_led_t pixels[18];
     for (unsigned i = 0; i < 18; i++) {

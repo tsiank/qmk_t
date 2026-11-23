@@ -145,6 +145,81 @@ int main(void) {
                          '-DRGB_MATRIX_DISABLE_SHARED_KEYCODES',
                          *['-DRGBLIGHT_EFFECT_' + effect for effect in effects]])
 
+    def test_is31_shutdown_wake_and_i2c_failure_recovery(self):
+        self.write('progmem.h', '#include <string.h>\n#define PROGMEM\n#define memcpy_P memcpy\n')
+        self.write('util.h', '#define PACKED __attribute__((packed))\n')
+        self.write('gpio.h', '')
+        self.write('wait.h', 'void wait_ms(unsigned);\n')
+        self.write('i2c_master.h', '#include <stdint.h>\n#define I2C_STATUS_SUCCESS 0\nvoid i2c_init(void);\nint i2c_write_register(uint8_t, uint8_t, const uint8_t *, uint16_t, uint16_t);\n')
+        self.write('test.c', r'''
+#include <assert.h>
+#include <string.h>
+#include "is31fl3741.h"
+const is31fl3741_led_t g_is31fl3741_leds[2] = {
+    {.driver=0, .r=0, .g=1, .b=2},
+    {.driver=0, .r=0x1A8, .g=0x1A9, .b=0x1AA}
+};
+static uint8_t page, registers[5][256];
+static bool awake, fail_sleep, fail_page, fail_pwm, fail_wake;
+static unsigned writes, wakes, sleeps, pwm_bytes;
+void i2c_init(void) {}
+void wait_ms(unsigned ms) {}
+int i2c_write_register(uint8_t address, uint8_t reg, const uint8_t *data, uint16_t length, uint16_t timeout) {
+    assert(address == 0x60 && length && reg + length <= 256);
+    writes++;
+    if (reg == 0xFE) return 0;
+    if (reg == 0xFD) { if (fail_page) return -1; page = *data; return 0; }
+    if (page == 4 && reg == 0) {
+        if ((!(*data & 1) && fail_sleep) || ((*data & 1) && fail_wake)) return -1;
+        awake = *data & 1;
+        if (awake) {
+            wakes++;
+            // A complete current frame must have replaced both stale pages.
+            assert(pwm_bytes >= 351);
+        } else sleeps++;
+    }
+    if (page < 2) {
+        if (fail_pwm) return -1;
+        pwm_bytes += length;
+    }
+    memcpy(registers[page] + reg, data, length);
+    return 0;
+}
+int main(void) {
+    is31fl3741_init_drivers();
+    assert(!awake && sleeps == 1);
+    is31fl3741_flush();
+    unsigned idle_writes = writes;
+    for (unsigned i=0; i<10; i++) {
+        is31fl3741_set_color_all(0,0,0); is31fl3741_flush();
+    }
+    assert(writes == idle_writes); // no periodic black-frame I2C traffic
+    // Indicator-only output on the second PWM page must wake the driver.
+    is31fl3741_set_color(1,255,255,255);
+    fail_pwm=true; is31fl3741_flush(); assert(!awake);
+    fail_pwm=false; fail_wake=true; is31fl3741_flush(); assert(!awake);
+    fail_wake=false; is31fl3741_flush();
+    assert(awake && wakes==1 && registers[1][170]==255 && registers[0][0]==0);
+    // Failed page/config writes must be retried without losing the off request.
+    is31fl3741_set_color_all(0,0,0);
+    fail_page=true; is31fl3741_flush(); assert(awake);
+    fail_page=false; fail_sleep=true; is31fl3741_flush(); assert(awake);
+    fail_sleep=false; is31fl3741_flush(); assert(!awake && sleeps==2);
+    // Change colours while asleep: stale white pixels must not reappear.
+    pwm_bytes=0;
+    is31fl3741_set_color(0,32,64,96); is31fl3741_flush();
+    assert(awake && wakes==2 && registers[0][0]==32 && registers[0][2]==96);
+    assert(registers[1][168]==0 && registers[1][170]==0);
+    // Failed normal PWM writes are retried even without another colour change.
+    is31fl3741_set_color(0,7,8,9);
+    fail_pwm=true; is31fl3741_flush(); assert(registers[0][0]==32);
+    fail_pwm=false; is31fl3741_flush(); assert(registers[0][0]==7);
+}
+''')
+        self.run_native(['drivers/led/issi/is31fl3741.c'],
+                        ['-I', str(ROOT / 'drivers/led/issi'), '-DPROTOCOL_NRF5',
+                         '-DIS31FL3741_LED_COUNT=2', '-DIS31FL3741_I2C_ADDRESS_1=0x30'])
+
     def check_pwm(self, rgbw):
         self.write('nrfx_pwm.h', r'''
 #pragma once
@@ -167,18 +242,24 @@ typedef struct { union { const uint16_t *p_common; } values; uint16_t length, re
 int nrfx_pwm_init(const nrfx_pwm_t *, const nrfx_pwm_config_t *, void (*handler)(int));
 uint32_t nrfx_pwm_simple_playback(const nrfx_pwm_t *, const nrf_pwm_sequence_t *, uint16_t, uint32_t);
 bool nrfx_pwm_is_stopped(const nrfx_pwm_t *);
+void nrfx_pwm_uninit(const nrfx_pwm_t *);
 ''')
+        self.write('nrf_gpio.h', '#include <stdint.h>\nvoid nrf_gpio_pin_clear(uint32_t);\nvoid nrf_gpio_cfg_output(uint32_t);\n')
         self.write('test.c', r'''
 #include <assert.h>
 #include "nrfx_pwm.h"
 #include "drivers/nrf5/ws2812.h"
 static const uint16_t *samples;
-static unsigned count, frames, polls, inits;
+static unsigned count, frames, polls, inits, uninits;
+static bool enabled;
+void nrfx_pwm_uninit(const nrfx_pwm_t *pwm) { assert(enabled && polls > 1); enabled = false; uninits++; }
+void nrf_gpio_pin_clear(uint32_t pin) { assert(pin == 6 && !enabled); }
+void nrf_gpio_cfg_output(uint32_t pin) { assert(pin == 6 && !enabled); }
 int nrfx_pwm_init(const nrfx_pwm_t *pwm, const nrfx_pwm_config_t *config, void (*handler)(int)) {
     assert(handler == NULL && config->output_pins[0] == 6);
     assert(config->base_clock == NRF_PWM_CLK_16MHz && config->top_value == 20);
     assert(config->load_mode == NRF_PWM_LOAD_COMMON && config->step_mode == NRF_PWM_STEP_AUTO);
-    inits++; return 0;
+    assert(!enabled); enabled = true; inits++; return 0;
 }
 uint32_t nrfx_pwm_simple_playback(const nrfx_pwm_t *pwm, const nrf_pwm_sequence_t *sequence, uint16_t repeats, uint32_t flags) {
     assert(repeats == 1 && flags == NRFX_PWM_FLAG_STOP);
@@ -227,7 +308,7 @@ int main(void) {
     ws2812_set_color_all(0, 0, 0);
     ws2812_flush();
     for (unsigned i = 0; i < 18 * channels; i++) assert(byte(i) == 0);
-    assert(inits == 1 && frames == 2 && polls >= 2);
+    assert(inits == 2 && uninits == 2 && !enabled && frames == 2 && polls >= 2);
     return 0;
 }
 ''')
@@ -280,7 +361,8 @@ void eeconfig_update_rgblight(const rgblight_config_t *);
 typedef struct { bool caps_lock; } led_t;
 const rgblight_segment_t PROGMEM my_capslock_layer[]''' + caps_code + r'''
 static rgb_t pixels[RGBLIGHT_LED_COUNT];
-static bool power;
+static bool power, wireless_idle;
+bool nrf5_wireless_idle(void) { return wireless_idle; }
 uint16_t test_time;
 static unsigned settling, frames, power_ready_at;
 void wait_us(unsigned us) { assert(us == 2000 && power); test_time += us / 1000; settling++; }
@@ -348,12 +430,23 @@ int main(void) {
     check(false, false);
     rgblight_enable_noeeprom();
     check(false, true);
+    // Wireless idle blanks once, cuts power, and retains all user settings.
+    wireless_idle=true;rgblight_set();
+    assert(!power && rgblight_is_enabled());
+    unsigned idle_frames=frames;
+    rgblight_set();rgblight_set();assert(frames==idle_frames);
+    rgblight_enable_noeeprom();assert(!power); // direct power-on paths obey idle
+    wireless_idle=false;rgblight_mode_noeeprom(rgblight_get_mode());check(false,true);
+    rgblight_disable_noeeprom();check(true,false);
+    wireless_idle=true;rgblight_set();assert(!power && !rgblight_is_enabled());
+    wireless_idle=false;rgblight_set();check(true,false); // Caps survives wake
 }
 ''')
         self.run_native(['quantum/rgblight/rgblight.c', 'quantum/color.c'],
                         ['-I', str(ROOT / 'quantum/rgblight'), '-I', str(ROOT),
                          '-DRGBLIGHT_ENABLE', '-DRGBLIGHT_LED_COUNT=18', '-DRGBLIGHT_LAYERS',
                          '-DRGBLIGHT_LAYERS_OVERRIDE_RGB_OFF', '-DRGB_PWR_PIN=8', '-DPROTOCOL_NRF5',
+                         '-DNRF5_WIRELESS_POWER_ENABLE', '-I', str(ROOT / 'platforms/nrf5'),
                          '-include', str(self.work / 'nrf_gpio.h')])
 
     def test_underglow_selftest_patterns_and_restore(self):

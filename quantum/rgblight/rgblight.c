@@ -13,6 +13,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+#    include "wireless_power.h"
+#endif
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -216,6 +219,9 @@ void eeconfig_debug_rgblight(void) {
 //����RGB��Դ
 void rgb_pwr_on(void)
 {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    if (nrf5_wireless_idle()) return;
+#endif
 #if defined(PROTOCOL_NRF5) && (defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE))
     bool was_off = false;
 #    ifdef RGB_PWR_PIN
@@ -940,6 +946,21 @@ void rgblight_wakeup(void) {
 #endif
 
 void rgblight_set(void) {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    static bool idle_blanked;
+    if (nrf5_wireless_idle()) {
+        if (!idle_blanked) {
+            // Blank once while powered, then cut the rail. Suppress overlays
+            // until real activity wakes us, without changing the user's config.
+            rgblight_driver.set_color_all(0, 0, 0);
+            rgblight_driver.flush();
+            rgb_pwr_off();
+            idle_blanked = true;
+        }
+        return;
+    }
+    idle_blanked = false;
+#endif
 #if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
     bool power_needed = rgblight_config.enable;
 #    if defined(RGBLIGHT_LAYERS) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)

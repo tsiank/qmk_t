@@ -508,6 +508,8 @@ bool nrf5_esb_ack_seal(const uint8_t k[16],const uint8_t *p,uint64_t c,uint8_t l
 void nrf5_esb_radio_cache_ack(const uint8_t *p,uint8_t n,const uint8_t a[30]){(void)p;(void)n;(void)a;}
 
 static uint32_t clock_ms;
+static bool power_idle;
+bool nrf5_wireless_idle(void){return power_idle;}
 static bool busy,done,acked;
 static uint8_t sent[64],sent_length;
 uint32_t timer_read32(void){return clock_ms;}
@@ -549,11 +551,30 @@ int main(void){
  drain();assert(nrf5_esb_connected());
  // Held mouse buttons are refreshed, relative movement is never replayed.
  report_mouse_t m={.buttons=1,.x=7};driver.send_mouse(&m);nrf5_esb_task();drain();
+ snapshot_at=clock_ms;
+ clock_ms+=41;nrf5_esb_task();
+ assert(sent[2]==NRF5_ESB_HEARTBEAT && count==1);drain();
+ // Heartbeats keep the link alive until the less frequent full snapshot.
+ while(clock_ms-snapshot_at<NRF5_ESB_SNAPSHOT_MS-41) {
+  clock_ms+=41;nrf5_esb_task();assert(sent[2]==NRF5_ESB_HEARTBEAT);drain();
+  assert(nrf5_esb_connected());
+ }
  clock_ms+=41;nrf5_esb_task();
  for(int i=0;i<4;i++)complete(true);
- assert(sent[2]==NRF5_ESB_MOUSE && sent[16]==1 && sent[17]==0);
+ assert(sent[2]==NRF5_ESB_MOUSE && sent[16]==1 && sent[17]==0);drain();
+ // Idle background discovery backs off, while its three authentication
+ // retries retain 40-unit spacing and reuse the identical HELLO packet.
+ nrf5_esb_set_active(false);nrf5_esb_set_probe(true);power_idle=true;
+ nrf5_esb_task();assert(busy && sent[2]==NRF5_ESB_HELLO);
+ uint8_t probe[64];memcpy(probe,sent,sent_length);complete(false);
+ assert(!busy);clock_ms+=40;nrf5_esb_task();assert(busy&&!memcmp(probe,sent,sent_length));complete(false);
+ clock_ms+=40;nrf5_esb_task();assert(busy&&!memcmp(probe,sent,sent_length));complete(false);
+ clock_ms+=1999;nrf5_esb_task();assert(!busy);
+ clock_ms++;nrf5_esb_task();assert(busy && sent[2]==NRF5_ESB_HELLO);complete(true);
+ power_idle=false;clock_ms+=499;nrf5_esb_task();assert(!busy);
+ clock_ms++;nrf5_esb_task();assert(busy);
 }
-''', self.transport_headers(), ['-DNRF5_ESB_TX', '-DRAW_ENABLE'])
+''', self.transport_headers(), ['-DNRF5_ESB_TX', '-DRAW_ENABLE', '-DNRF5_WIRELESS_POWER_ENABLE'])
 
     def test_receiver_usb_busy_duplicate_frames_disconnect_and_restart(self):
         self.run_c(r'''

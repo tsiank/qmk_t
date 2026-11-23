@@ -568,11 +568,14 @@ bool is_audio_on(void);void audio_on(void);void audio_off(void);void stop_all_no
         stream=ROOT/'platforms/nrf5/music_stream.c'
         self.run_c(r"""
 #define KEYBOARD_CONTROL_ENABLE
+#define NRF5_WIRELESS_POWER_ENABLE
 #include <assert.h>
 #include <string.h>
 #include "quantum.h"
 #include "music_stream.h"
 int critical_depth;static bool matrix=true,under=true,audio=true,clicky,typing,local,midi,busy;
+static unsigned wakeups;
+void nrf5_wireless_note_activity(void){assert(!critical_depth);wakeups++;}
 static unsigned changes,replies,ble_replies,stops;static uint8_t ack[20];
 #define FLAG(name,var) bool name(void){return var;}
 FLAG(rgb_matrix_is_enabled,matrix) FLAG(rgblight_is_enabled,under) FLAG(is_audio_on,audio)
@@ -593,11 +596,12 @@ int main(void){
  uint8_t p[20]={0xc7,4,1};music_frame_t frame;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(!changes&&!replies);
  nrf5_keyboard_control_task();assert(ack[0]==0xc7&&ack[1]==0x83&&ack[2]==1&&ack[3]==7&&ack[4]==0&&ack[5]==1);
+ assert(!wakeups);
  assert(!changes&&!music_stream_read(&frame)); // polling is read-only, not music keepalive
  p[1]=3;p[2]=2;p[3]=1;p[4]=0;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(matrix); // no QMK in receive IRQ
- nrf5_keyboard_control_task();assert(!matrix&&under&&audio&&changes==1&&ack[3]==6);
- assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(changes==1); // idempotent
+ nrf5_keyboard_control_task();assert(wakeups==1);assert(!matrix&&under&&audio&&changes==1&&ack[3]==6);
+ assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(changes==1 && wakeups==2); // idempotent settings still wake standby
  p[3]=8;p[4]=8;assert(music_stream_receive(p,20,MUSIC_SOURCE_BLE));nrf5_keyboard_control_task();assert(clicky&&ble_replies==1);
  p[3]=16;p[4]=0;p[5]=3;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(typing&&ack[4]==3&&stops==1);
  p[5]=2;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(midi&&!typing&&!local&&ack[4]==2);
@@ -611,9 +615,10 @@ int main(void){
  assert(midi&&!local&&!typing&&ack[4]==2);
  unsigned same=changes;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();assert(changes==same);
+ unsigned before_wakes=wakeups;
  unsigned before=changes;p[1]=4;p[3]=p[4]=p[5]=0;p[2]=255;
  busy=true;assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));nrf5_keyboard_control_task();
- busy=false;nrf5_keyboard_control_task();assert(ack[2]==255&&changes==before);
+ busy=false;nrf5_keyboard_control_task();assert(ack[2]==255&&changes==before && wakeups==before_wakes);
  p[3]=1;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB)); // query cannot modify state
  p[1]=3;p[3]=32;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));
  p[3]=16;p[5]=4;assert(!music_stream_receive(p,20,MUSIC_SOURCE_USB));

@@ -74,6 +74,9 @@ int main(void) {
     assert(music_stream_read(&frame));
     now += 749; assert(music_stream_read(&frame));
     now += 1; assert(!music_stream_read(&frame));
+    // A short RTC returning to the old timestamp must not revive expired music.
+    now = UINT32_MAX - 100; assert(!music_stream_read(&frame));
+    now += 750;
     data[2] = 0;
     assert(music_stream_receive(data, 20, MUSIC_SOURCE_BLE));
     assert(music_stream_read(&frame) && frame.sequence == 0);

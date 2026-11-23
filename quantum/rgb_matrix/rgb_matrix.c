@@ -16,6 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+#    include "wireless_power.h"
+#endif
 #include "rgb_matrix.h"
 #include "progmem.h"
 #include "eeconfig.h"
@@ -319,6 +322,9 @@ static void rgb_task_start(void) {
     // Ideally we would also stop sending zeros to the LED driver PWM buffers
     // while suspended and just do a software shutdown. This is a cheap hack for now.
     bool suspend_backlight = suspend_state ||
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+                             nrf5_wireless_idle() ||
+#endif
 #if RGB_MATRIX_TIMEOUT > 0
                              (last_input_activity_elapsed() > (uint32_t)RGB_MATRIX_TIMEOUT) ||
 #endif // RGB_MATRIX_TIMEOUT > 0

@@ -9,6 +9,9 @@
 #endif
 #include "nrf5_usb.h"
 #include "timer.h"
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+#    include "wireless_power.h"
+#endif
 #include "nrf_soc.h"
 #ifdef RAW_ENABLE
 #    include "via_transport.h"
@@ -71,7 +74,7 @@ static uint8_t leds(void) {
 
 #ifdef NRF5_ESB_TX
 static uint64_t session;
-static uint32_t refresh_at, oldest_at, in_flight;
+static uint32_t refresh_at, snapshot_at, oldest_at, in_flight;
 static bool sending, nkro_mode, hello_sent;
 #ifdef NRF5_ESB_BRIDGE_ENABLE
 static bool sending_bridge, prefer_bridge, bridge_pending;
@@ -299,7 +302,7 @@ void nrf5_esb_set_active(bool value) {
     // Keep the authenticated discovery session when AUTO hands input over to
     // the receiver. Clearing it here would immediately select BLE again.
     if (!probing) { connected = false; challenge = 0; session = 0; }
-    probe_ready = false; probe_attempts = 0; probe_at = nrf5_esb_now() - 500;
+    probe_ready = false; probe_attempts = 0; probe_at = nrf5_esb_now() - 2000;
 #else
     connected = false; challenge = 0;
 #endif
@@ -312,7 +315,7 @@ void nrf5_esb_set_active(bool value) {
 void nrf5_esb_set_probe(bool enabled) {
     if (probing == enabled) return;
     probing = enabled;
-    probe_ready = false; probe_attempts = 0; probe_at = nrf5_esb_now() - 500;
+    probe_ready = false; probe_attempts = 0; probe_at = nrf5_esb_now() - 2000;
     if (!active) {
         connected = false; challenge = session = 0;
         head = count = 0;
@@ -414,7 +417,7 @@ void nrf5_esb_task(void) {
             // bounded burst; create a fresh sequence for the next burst.
             if (verified || probe_attempts >= 3) {
                 probe_ready = false; probe_attempts = 0; probe_at = now;
-            } else probe_at = now - 460; // next retry in 40 timer units
+            } else probe_at = now; // next retry in 40 timer units
         }
     }
     if (!usable) { connected = false; return; }
@@ -438,7 +441,13 @@ void nrf5_esb_task(void) {
         // Input belongs to USB/BLE. No snapshots, queued releases or relative
         // mouse movement may escape through background discovery.
         head = count = 0;
-        if (sending || now - probe_at < 500) return;
+        uint32_t probe_interval = 500;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        if (nrf5_wireless_idle()) probe_interval = 2000;
+#endif
+        // Keep the short authentication retry burst even in idle mode.
+        if (probe_ready) probe_interval = 40;
+        if (sending || now - probe_at < probe_interval) return;
         if (!probe_ready) {
             nrf5_esb_report_t hello = {.kind = NRF5_ESB_HELLO};
             uint8_t length = nrf5_esb_encode(outgoing, session, next_sequence++, &hello);
@@ -454,7 +463,15 @@ void nrf5_esb_task(void) {
         head = count = 0; release_all(); snapshot(); oldest_at = now;
     }
     if (!count && now - refresh_at >= NRF5_ESB_REFRESH_MS) {
-        snapshot(); refresh_at = now;
+        // One authenticated heartbeat suffices to keep the link alive and
+        // collect LED/control downlinks. Refresh all five HID states less
+        // often; changed input still enters the reliable queue immediately.
+        if (now - snapshot_at >= NRF5_ESB_SNAPSHOT_MS) {
+            snapshot(); snapshot_at = now;
+        } else {
+            append(NRF5_ESB_HEARTBEAT, NULL, 0);
+        }
+        refresh_at = now;
     }
 #ifdef NRF5_ESB_BRIDGE_ENABLE
     nrf5_esb_report_t service;

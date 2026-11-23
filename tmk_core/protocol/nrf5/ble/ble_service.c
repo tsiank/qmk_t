@@ -883,6 +883,10 @@ static void timers_start(void) {
  */
 static void sleep_mode_enter(void) {
     if (nrf5_usb_powered()) return;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    extern void nrf5_wireless_before_system_off(void);
+    nrf5_wireless_before_system_off();
+#endif
 #ifdef IS31FL3737
     i2c_stop();
 #endif

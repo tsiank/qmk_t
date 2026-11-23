@@ -52,6 +52,9 @@
 #include "keyboard.h"
 #include "eeprom.h"
 #include "nrf5_power.h"
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+#    include "wireless_power.h"
+#endif
 #ifdef NRF5_ESB_ENABLE
 #    include "nrf5_esb.h"
 #    include "outputselect.h"
@@ -92,6 +95,10 @@ static void keyboard_scan_handler(void* p_context) {
     // current QMK lighting/storage code must not execute inside app_timer IRQs.
     keyboard_scan_pending = true;
 }
+
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+void nrf5_keyboard_scan_wake(void) { keyboard_scan_pending = true; }
+#endif
 
 static void log_init(void) {
     ret_code_t err_code = NRF_LOG_INIT(NULL);
@@ -141,6 +148,9 @@ int main(void) {
         advertising_start(false);
     }
 
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    uint32_t scan_interval = KEYBOARD_SCAN_INTERVAL;
+#endif
     while (true) {
         while (app_usbd_event_queue_process()) {
             /* Nothing to do */
@@ -161,8 +171,15 @@ int main(void) {
 #ifdef EXTRAKEY_ENABLE
         nrf5_usb_extra_task();
 #endif
-        if (keyboard_scan_pending) {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        nrf5_wireless_power_task();
+#endif
+        const bool scanned = keyboard_scan_pending;
+        if (scanned) {
             keyboard_scan_pending = false;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+            nrf5_wireless_prepare_scan();
+#endif
             keyboard_task();
 #ifdef AUDIO_ENABLE
             nrf_audio_task();
@@ -185,8 +202,23 @@ int main(void) {
 #ifdef NRF5_CONFIG_ENABLE
             nrf5_features_task();
 #endif
-        } else {
-            idle_state_handle();
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+            nrf5_wireless_power_task();
+            nrf5_wireless_finish_scan();
+#endif
         }
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        uint32_t desired_interval = nrf5_wireless_scan_interval();
+        if (desired_interval != scan_interval) {
+            ret = app_timer_stop(m_keyboard_scan_timer);
+            APP_ERROR_CHECK(ret);
+            ret = app_timer_start(m_keyboard_scan_timer, APP_TIMER_TICKS(desired_interval), NULL);
+            APP_ERROR_CHECK(ret);
+            scan_interval = desired_interval;
+        }
+#endif
+        // Restore the fast timer before sleeping when USB, music or a GPIO
+        // interrupt wakes standby. Keep processing queued reports after scans.
+        if (!scanned && !keyboard_scan_pending) idle_state_handle();
     }
 }

@@ -7,6 +7,7 @@
 
 static music_frame_t latest;
 static uint32_t received_at;
+static bool stream_valid;
 static struct { bool valid; music_rgb_t value; } colors[3];
 
 bool music_stream_receive(const uint8_t *data, size_t length, music_source_t source) {
@@ -47,23 +48,27 @@ bool music_stream_receive(const uint8_t *data, size_t length, music_source_t sou
     memcpy(latest.bands, data + 4, MUSIC_BANDS);
     latest.source = source;
     received_at = now;
+    stream_valid = latest.flags != 0;
     CRITICAL_REGION_EXIT();
     return true;
 }
 
 bool music_stream_read(music_frame_t *frame) {
-    uint32_t timestamp;
+    bool valid;
     CRITICAL_REGION_ENTER();
+    // Latch expiration: nRF's short RTC wrap must not resurrect an old frame
+    // and wake idle lighting. Check and clear under the same lock as reception.
+    if (stream_valid && timer_elapsed32(received_at) >= MUSIC_TIMEOUT_MS) stream_valid = false;
     *frame = latest;
-    timestamp = received_at;
+    valid = stream_valid;
     CRITICAL_REGION_EXIT();
-    return frame->flags != 0 && timer_elapsed32(timestamp) < MUSIC_TIMEOUT_MS;
+    return valid;
 }
 
 void music_stream_disconnect(music_source_t source) {
     if (source != MUSIC_SOURCE_USB && source != MUSIC_SOURCE_BLE && source != MUSIC_SOURCE_ESB) return;
     CRITICAL_REGION_ENTER();
     colors[source - 1].valid = false;
-    if (latest.source == source) latest.flags = 0;
+    if (latest.source == source) { latest.flags = 0; stream_valid = false; }
     CRITICAL_REGION_EXIT();
 }
