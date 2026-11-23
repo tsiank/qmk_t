@@ -11,6 +11,58 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class PowerTests(unittest.TestCase):
+    def test_battery_sampling_batch_preserves_sleep_timer_and_usb_reset(self):
+        cc = shutil.which('cc')
+        if not cc:
+            self.skipTest('Native C compiler is required')
+        service = (ROOT/'tmk_core/protocol/nrf5/ble/ble_service.c').read_text()
+        start = service.index('static void battery_level_meas_timeout_handler(void *p_context) {')
+        end = start + service[start:].index('{') + 1
+        depth = 1
+        while depth:
+            depth += (service[end] == '{') - (service[end] == '}')
+            end += 1
+        function = service[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory)
+            (work/'test.c').write_text(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+#define NRF5_WIRELESS_POWER_ENABLE
+#define POWER_SAVE_TIMEOUT 2000
+#define UNUSED_PARAMETER(x) (void)(x)
+static bool powered, automatic_sleep_pending;
+static uint16_t power_save_counter;
+static unsigned samples,sleep_requests;
+bool nrf5_usb_powered(void){return powered;}
+void request_automatic_sleep(void){sleep_requests++;automatic_sleep_pending=true;}
+void adc_start(void){samples++;}
+''' + function + r'''
+int main(void){
+ for(unsigned i=0;i<4;i++)battery_level_meas_timeout_handler(NULL);
+ assert(samples==4 && power_save_counter==4);
+ for(unsigned i=0;i<26;i++)battery_level_meas_timeout_handler(NULL);
+ assert(samples==4 && power_save_counter==30);
+ for(unsigned i=0;i<60;i++)battery_level_meas_timeout_handler(NULL);
+ assert(samples==12 && power_save_counter==90 && !sleep_requests);
+ // USB suppresses measurement/sleep and re-arms a fresh four-sample batch.
+ powered=true;automatic_sleep_pending=true;battery_level_meas_timeout_handler(NULL);
+ assert(samples==12 && !power_save_counter && !automatic_sleep_pending);
+ powered=false;for(unsigned i=0;i<4;i++)battery_level_meas_timeout_handler(NULL);
+ assert(samples==16 && power_save_counter==4);
+ power_save_counter=1001;battery_level_meas_timeout_handler(NULL);
+ assert(sleep_requests==1 && automatic_sleep_pending);
+}
+''')
+            binary = work/'test'
+            for command in ([cc,'-std=gnu11','-Wall','-Wextra','-Werror',
+                             '-fsanitize=address,undefined','-fno-pie','-no-pie',
+                             str(work/'test.c'),'-o',str(binary)], [str(binary)]):
+                result=subprocess.run(command,capture_output=True,text=True)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
     def test_low_power_sampling_keeps_battery_updates_and_recycles_both_buffers(self):
         cc = shutil.which('cc')
         if not cc:

@@ -67,6 +67,11 @@ bool keyboard_control_receive(const uint8_t *data, music_source_t source) {
         ready = true;
     }
     CRITICAL_REGION_EXIT();
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    // Even a read-only request must get its reply promptly while the fallback
+    // timer is slow; scheduling work does not wake the lighting activity state.
+    if (accepted) nrf5_keyboard_scan_wake();
+#endif
     return accepted;
 }
 

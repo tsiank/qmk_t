@@ -202,6 +202,11 @@ NRFINC_FOLDERS += \
   $(SDK_ROOT)/modules/nrfx/hal \
   $(SDK_ROOT)/modules/nrfx/mdk \
 
+ifeq ($(strip $(NRF5_WIRELESS_POWER_ENABLE)),yes)
+  # One owner for dynamic HID parameters; do not run the legacy timer in parallel.
+  NRFSRC_FILES := $(filter-out $(SDK_ROOT)/components/ble/common/ble_conn_params.c,$(NRFSRC_FILES))
+endif
+
 ifeq ($(strip $(NRF5_ESB_DONGLE)),yes)
   # SoC services (RNG, Flash, Timeslot) stay enabled; no BLE HID/peer manager.
   NRFSRC_FILES := $(filter-out $(SDK_ROOT)/components/ble/% $(SDK_ROOT)/components/softdevice/common/nrf_sdh_ble.c,$(NRFSRC_FILES))

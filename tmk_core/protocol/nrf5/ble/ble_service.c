@@ -60,6 +60,9 @@
 #include "ble_bas.h"
 #include "ble_dis.h"
 #include "ble_conn_params.h"
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+#    include "ble_power.h"
+#endif
 #include "nrf_sdh.h"
 #include "nrf_sdh_soc.h"
 #include "app_timer.h"
@@ -599,6 +602,9 @@ static void request_automatic_sleep(void) {
 }
 
 static void battery_level_meas_timeout_handler(void *p_context) {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    static uint8_t battery_phase;
+#endif
     UNUSED_PARAMETER(p_context);
 #ifdef KBD_WDT_ENABLE
     nrf_drv_wdt_channel_feed(m_channel_id);
@@ -608,12 +614,20 @@ static void battery_level_meas_timeout_handler(void *p_context) {
         power_save_counter = 0;
 #endif
         automatic_sleep_pending = false;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+        battery_phase = 0;
+#endif
         return;
     }
 #ifdef POWER_SAVE_TIMEOUT
     if (power_save_counter++ > POWER_SAVE_TIMEOUT / 2) request_automatic_sleep();
 #endif
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    if (battery_phase < 4) adc_start();
+    battery_phase = (battery_phase + 1) % 30;
+#else
     adc_start();
+#endif
 }
 
 void reset_power_save_counter(void) {
@@ -835,6 +849,7 @@ static void services_init(void) {
  *
  * @param[in]   nrf_error   Error code containing information about what went wrong.
  */
+#ifndef NRF5_WIRELESS_POWER_ENABLE
 static void conn_params_error_handler(uint32_t nrf_error) { APP_ERROR_HANDLER(nrf_error); }
 
 /**@brief Function for initializing the Connection Parameters module.
@@ -857,6 +872,7 @@ static void conn_params_init(void) {
     err_code = ble_conn_params_init(&cp_init);
     APP_ERROR_CHECK(err_code);
 }
+#endif
 
 /**@brief Function for the Timer initialization.
  */
@@ -1042,6 +1058,9 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
  */
 static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     ret_code_t err_code;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    nrf5_ble_power_event(p_ble_evt);
+#endif
 
     switch (p_ble_evt->header.evt_id) {
         case BLE_GAP_EVT_CONNECTED:
@@ -1335,7 +1354,9 @@ void ble_service_init(void) {
     gatt_init();
     services_init();
     advertising_init();
+#ifndef NRF5_WIRELESS_POWER_ENABLE
     conn_params_init();
+#endif
     peer_manager_init();
 
     // Start execution.

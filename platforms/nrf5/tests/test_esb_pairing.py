@@ -98,6 +98,9 @@ static uint32_t radio_address;
 static uint8_t latest_key;
 #ifdef FIXTURE_BRIDGE
 #include "esb_bridge.h"
+static bool fixture_power_idle;
+bool nrf5_wireless_idle(void){return fixture_power_idle;}
+void fixture_idle(bool value){fixture_power_idle=value;}
 static unsigned bridge_events[12],bridge_resets;
 static uint8_t bridge_last[32],bridge_last_length;
 static uint16_t bridge_last_token;
@@ -241,6 +244,7 @@ void fixture_key_material(uint8_t *k){memcpy(k,persisted.key,16);}
         for role in ('TX','RX','DONGLE','AUTO','BRIDGE_TX','BRIDGE_RX','BRIDGE_AUTO','BRIDGE_DONGLE'):
             command=['cc','-shared','-fPIC','-std=gnu11','-Wall','-Wextra','-Werror','-I',str(w),'-I',str(PLATFORM),'-I',str(OBERON),'-I',str(OBERON/'include'),'-DNRF5_ESB_'+('RX' if role.endswith('DONGLE') else 'TX' if role.endswith('AUTO') else role.removeprefix('BRIDGE_'))]
             if role.startswith('BRIDGE_'): command+=['-DNRF5_ESB_BRIDGE_ENABLE','-DFIXTURE_BRIDGE',str(PLATFORM/'esb_bridge.c')]
+            if role == 'BRIDGE_TX': command+=['-DNRF5_WIRELESS_POWER_ENABLE']
             if role.endswith('DONGLE'): command+=['-DNRF5_ESB_DONGLE']
             if role.endswith('AUTO'): command+=['-DFIXTURE_ROUTING','-DNRF5_ESB_ENABLE','-I',str(PLATFORM.parents[1]/'tmk_core/protocol/nrf5')]
             if role in ('TX','BRIDGE_TX'): command+=['-DNRF5_ESB_PAIR_COMBO={{4,0},{4,10}}']
@@ -326,6 +330,29 @@ void fixture_key_material(uint8_t *k){memcpy(k,persisted.key,16);}
         self.tx.fixture_key(0);self.advance(8);self.assertEqual(self.rx.fixture_latest(),0)
         self.advance(50);self.assertEqual(self.tx.fixture_bridge_events(10),1)
         n=self.tx.fixture_bridge_last(output);self.assertEqual(bytes(output[:n]),bytes([0xc7,1,99,3])+bytes([99])*16)
+
+    def test_bridge_idle_keeps_first_key_and_accelerates_control_burst(self):
+        self.bridge_nodes()
+        self.tx.fixture_idle.argtypes=[C.c_bool]
+        self.tx.fixture_idle(True)
+        self.advance(120)
+        before=len(self.frames)
+        self.advance(100)
+        # One second at idle: ~10 heartbeats, not the former ~25; no disconnect.
+        self.assertLessEqual(len(self.frames)-before,12)
+        self.assertTrue(self.tx.nrf5_esb_connected());self.assertTrue(self.rx.nrf5_esb_connected())
+        self.tx.fixture_key(4);self.advance(3);self.assertEqual(self.rx.fixture_latest(),4)
+        self.tx.fixture_key(0);self.advance(3);self.assertEqual(self.rx.fixture_latest(),0)
+        via=bytes(range(32));self.bridge_push(self.rx,9,via,0x2345)
+        self.advance(35) # includes initial idle poll, fragments and reply <500 ms
+        self.assertEqual(self.rx.fixture_bridge_events(1),1)
+        self.assertEqual(self.rx.fixture_bridge_token(),0x2345)
+        self.bridge_push(self.rx,11,bytes([9,0x90,64,80]));self.advance(10)
+        self.assertEqual(self.tx.fixture_bridge_events(11),1)
+        self.bridge_push(self.rx,10,bytes([0xc7,1,1,3])+bytes([80])*16)
+        self.advance(10);self.assertEqual(self.tx.fixture_bridge_events(10),1)
+        self.advance(120) # lease expires back to idle without resetting the link
+        self.assertTrue(self.tx.nrf5_esb_connected());self.assertTrue(self.rx.nrf5_esb_connected())
 
     def test_bridge_auto_modes_recover_without_leaking_bluetooth_or_usb_keys(self):
         self.bridge_nodes()

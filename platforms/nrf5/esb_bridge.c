@@ -2,6 +2,9 @@
 #include "esb_bridge.h"
 #include "esb_crypto.h"
 #include <string.h>
+#ifdef NRF5_ESB_TX
+#    include "timer.h"
+#endif
 #define BRIDGE_QUEUE 32
 static inline uint32_t read32(const uint8_t *p) { return (uint32_t)p[0]<<24 | (uint32_t)p[1]<<16 | (uint32_t)p[2]<<8 | p[3]; }
 static void put32(uint8_t *p,uint32_t value) { for(unsigned i=0;i<4;i++)p[i]=value>>(24-8*i); }
@@ -12,12 +15,17 @@ __attribute__((weak)) void nrf5_bridge_link_reset(void) {}
 static nrf5_esb_report_t up[BRIDGE_QUEUE];
 static uint8_t head,count;
 static uint32_t received,confirmed,offered;
-static bool offered_ack;
-void nrf5_bridge_reset(void) { head=count=0;received=confirmed=offered=0;nrf5_bridge_link_reset(); }
-void nrf5_bridge_abort(void) { head=count=0;nrf5_bridge_link_reset(); }
-void nrf5_bridge_tick(void) {}
+static bool offered_ack, service_active;
+static uint32_t service_at;
+void nrf5_bridge_reset(void) { service_active=false;head=count=0;received=confirmed=offered=0;nrf5_bridge_link_reset(); }
+void nrf5_bridge_abort(void) { service_active=false;head=count=0;nrf5_bridge_link_reset(); }
+void nrf5_bridge_tick(void) {
+    if (service_active && ((timer_read32() - service_at) & 0x7FFFFu) >= 1024) service_active = false;
+}
+bool nrf5_bridge_fast_poll(void) { return service_active || count || received != confirmed; }
 bool nrf5_bridge_send(uint8_t channel,uint16_t token,const uint8_t *data,uint8_t length) {
     if (!data || !length || length>32 || count+(length>24?2:1)>BRIDGE_QUEUE) return false;
+    service_active = true; service_at = timer_read32();
     for(uint8_t offset=0;offset<length;offset+=24) {
         nrf5_esb_report_t *r=&up[(head+count)%BRIDGE_QUEUE];
         uint8_t size=length-offset;if(size>24)size=24;
@@ -47,6 +55,7 @@ void nrf5_bridge_down(const uint8_t ext[34],const uint8_t key[16],uint64_t sessi
     for(unsigned i=6+r.length;i<26;i++)if(ext[i])return;
     memcpy(p+16,ext+6,r.length);memcpy(p+16+r.length,ext+26,8);
     if(!nrf5_esb_open(key,challenge,p,length))return;
+    service_active = true; service_at = timer_read32();
     if(sequence==received)return;
     if(nrf5_bridge_down_deliver(r.kind,p+16,r.length))received=sequence;
 }

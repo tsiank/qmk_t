@@ -104,7 +104,7 @@ int main(int argc,char **argv) {
         scan();assert(initializations==1); // fallback must not repeatedly allocate
         activity++;nrf5_wireless_power_task();assert(!nrf5_wireless_idle());return 0;
     }
-    assert(nrf5_wireless_scan_interval()==100);
+    assert(nrf5_wireless_scan_interval()==1000);
     for(unsigned i=0;i<sizeof(inputs);i++)assert(senses[inputs[i]]);
     for(unsigned i=0;i<sizeof(outputs);i++)assert(drive_mask&(1u<<outputs[i]));
     // IRQ must disable all level senses and schedule a real scan immediately.

@@ -574,6 +574,8 @@ bool is_audio_on(void);void audio_on(void);void audio_off(void);void stop_all_no
 #include "quantum.h"
 #include "music_stream.h"
 int critical_depth;static bool matrix=true,under=true,audio=true,clicky,typing,local,midi,busy;
+static unsigned scan_wakes;
+void nrf5_keyboard_scan_wake(void){scan_wakes++;}
 static unsigned wakeups;
 void nrf5_wireless_note_activity(void){assert(!critical_depth);wakeups++;}
 static unsigned changes,replies,ble_replies,stops;static uint8_t ack[20];
@@ -596,7 +598,7 @@ int main(void){
  uint8_t p[20]={0xc7,4,1};music_frame_t frame;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(!changes&&!replies);
  nrf5_keyboard_control_task();assert(ack[0]==0xc7&&ack[1]==0x83&&ack[2]==1&&ack[3]==7&&ack[4]==0&&ack[5]==1);
- assert(!wakeups);
+ assert(!wakeups && scan_wakes==1);
  assert(!changes&&!music_stream_read(&frame)); // polling is read-only, not music keepalive
  p[1]=3;p[2]=2;p[3]=1;p[4]=0;
  assert(music_stream_receive(p,20,MUSIC_SOURCE_USB));assert(matrix); // no QMK in receive IRQ

@@ -54,6 +54,7 @@
 #include "nrf5_power.h"
 #ifdef NRF5_WIRELESS_POWER_ENABLE
 #    include "wireless_power.h"
+#    include "ble_power.h"
 #endif
 #ifdef NRF5_ESB_ENABLE
 #    include "nrf5_esb.h"
@@ -173,6 +174,7 @@ int main(void) {
 #endif
 #ifdef NRF5_WIRELESS_POWER_ENABLE
         nrf5_wireless_power_task();
+        nrf5_ble_power_task();
 #endif
         const bool scanned = keyboard_scan_pending;
         if (scanned) {

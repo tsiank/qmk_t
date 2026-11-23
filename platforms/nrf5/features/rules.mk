@@ -78,5 +78,5 @@ endif
 # Optional wireless idle policy and GPIO-triggered matrix wake.
 ifeq ($(strip $(NRF5_WIRELESS_POWER_ENABLE)),yes)
     OPT_DEFS += -DNRF5_WIRELESS_POWER_ENABLE
-    SRC += platforms/nrf5/wireless_power.c
+    SRC += platforms/nrf5/wireless_power.c platforms/nrf5/ble_power.c
 endif

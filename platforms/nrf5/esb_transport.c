@@ -462,11 +462,25 @@ void nrf5_esb_task(void) {
     if (!sending && count && now - oldest_at >= NRF5_ESB_TIMEOUT_MS) {
         head = count = 0; release_all(); snapshot(); oldest_at = now;
     }
-    if (!count && now - refresh_at >= NRF5_ESB_REFRESH_MS) {
+    uint32_t refresh_interval = NRF5_ESB_REFRESH_MS;
+    uint32_t snapshot_interval = NRF5_ESB_SNAPSHOT_MS;
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    if (nrf5_wireless_idle()) {
+        refresh_interval = NRF5_ESB_IDLE_REFRESH_MS;
+        snapshot_interval = NRF5_ESB_IDLE_SNAPSHOT_MS;
+#    ifdef NRF5_ESB_BRIDGE_ENABLE
+        if (nrf5_bridge_fast_poll()) {
+            refresh_interval = NRF5_ESB_REFRESH_MS;
+            snapshot_interval = NRF5_ESB_SNAPSHOT_MS;
+        }
+#    endif
+    }
+#endif
+    if (!count && now - refresh_at >= refresh_interval) {
         // One authenticated heartbeat suffices to keep the link alive and
         // collect LED/control downlinks. Refresh all five HID states less
         // often; changed input still enters the reliable queue immediately.
-        if (now - snapshot_at >= NRF5_ESB_SNAPSHOT_MS) {
+        if (now - snapshot_at >= snapshot_interval) {
             snapshot(); snapshot_at = now;
         } else {
             append(NRF5_ESB_HEARTBEAT, NULL, 0);

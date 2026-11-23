@@ -10,7 +10,7 @@
 #    define NRF5_WIRELESS_IDLE_TIMEOUT 30000
 #endif
 #ifndef NRF5_WIRELESS_IDLE_SCAN_INTERVAL
-#    define NRF5_WIRELESS_IDLE_SCAN_INTERVAL 100
+#    define NRF5_WIRELESS_IDLE_SCAN_INTERVAL 1000
 #endif
 void nrf5_wireless_power_task(void);
 void nrf5_wireless_note_activity(void);

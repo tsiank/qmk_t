@@ -562,6 +562,11 @@ int main(void){
  clock_ms+=41;nrf5_esb_task();
  for(int i=0;i<4;i++)complete(true);
  assert(sent[2]==NRF5_ESB_MOUSE && sent[16]==1 && sent[17]==0);drain();
+ // Idle heartbeats slow down, but physical changes never wait for that timer.
+ power_idle=true;refresh_at=snapshot_at=clock_ms;
+ clock_ms+=NRF5_ESB_IDLE_REFRESH_MS-1;nrf5_esb_task();assert(!busy);
+ clock_ms++;nrf5_esb_task();assert(busy && sent[2]==NRF5_ESB_HEARTBEAT);drain();
+ k.keys[0]=7;driver.send_keyboard(&k);nrf5_esb_task();assert(busy && sent[2]==NRF5_ESB_KEYBOARD && sent[18]==7);drain();
  // Idle background discovery backs off, while its three authentication
  // retries retain 40-unit spacing and reuse the identical HELLO packet.
  nrf5_esb_set_active(false);nrf5_esb_set_probe(true);power_idle=true;
