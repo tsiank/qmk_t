@@ -434,6 +434,7 @@ TwinkleTests.Run(Test);
 KeyboardControlTests.Run(Test);
 MusicLightRestoreTests.Run(Test);
 BatteryTests.Run(Test);
+ControlPollTests.Run(Test);
 ViaTests.Run(Test);
 ViaUiTests.Run(Test);
 FirmwareTests.Run(Test);

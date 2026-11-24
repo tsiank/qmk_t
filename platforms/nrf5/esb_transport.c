@@ -88,6 +88,38 @@ static uint8_t outgoing[NRF5_ESB_PAYLOAD_MAX];
 static uint8_t keyboard[8], nkro[31], mouse_buttons;
 static uint8_t system_usage[3] = {REPORT_ID_SYSTEM}, consumer_usage[3] = {REPORT_ID_CONSUMER};
 
+static uint32_t refresh_delay(void) {
+#ifdef NRF5_WIRELESS_POWER_ENABLE
+    if (nrf5_wireless_idle()) {
+#    ifdef NRF5_ESB_BRIDGE_ENABLE
+        if (nrf5_bridge_fast_poll()) return NRF5_ESB_REFRESH_MS;
+#    endif
+        return NRF5_ESB_IDLE_REFRESH_MS;
+    }
+#endif
+    return NRF5_ESB_REFRESH_MS;
+}
+
+uint32_t nrf5_esb_next_wake_ticks(void) {
+    // Keep the existing short service fallback during transactions, retries,
+    // route changes and pairing. Radio IRQs can wake the loop sooner.
+    if (!active || sending || count || nrf5_pair_busy() ||
+        !nrf5_esb_settings()->paired || nrf5_esb_settings_pending() || nrf5_esb_settings_error())
+        return NRF5_ESB_REFRESH_MS;
+#ifdef NRF5_ESB_BRIDGE_ENABLE
+    if (bridge_pending) return NRF5_ESB_REFRESH_MS;
+#endif
+    uint32_t now = nrf5_esb_now();
+    uint32_t interval = refresh_delay(), elapsed = now - refresh_at;
+    uint32_t remaining = elapsed >= interval ? 1 : interval - elapsed;
+    if (connected) {
+        elapsed = now - last_activity;
+        uint32_t supervision = elapsed >= NRF5_ESB_TIMEOUT_MS ? 1 : NRF5_ESB_TIMEOUT_MS - elapsed;
+        if (supervision < remaining) remaining = supervision;
+    }
+    return remaining;
+}
+
 static void snapshot(void) {
     append(NRF5_ESB_KEYBOARD, keyboard, sizeof(keyboard));
     append(NRF5_ESB_NKRO, nkro, sizeof(nkro));
@@ -462,15 +494,13 @@ void nrf5_esb_task(void) {
     if (!sending && count && now - oldest_at >= NRF5_ESB_TIMEOUT_MS) {
         head = count = 0; release_all(); snapshot(); oldest_at = now;
     }
-    uint32_t refresh_interval = NRF5_ESB_REFRESH_MS;
+    uint32_t refresh_interval = refresh_delay();
     uint32_t snapshot_interval = NRF5_ESB_SNAPSHOT_MS;
 #ifdef NRF5_WIRELESS_POWER_ENABLE
     if (nrf5_wireless_idle()) {
-        refresh_interval = NRF5_ESB_IDLE_REFRESH_MS;
         snapshot_interval = NRF5_ESB_IDLE_SNAPSHOT_MS;
 #    ifdef NRF5_ESB_BRIDGE_ENABLE
         if (nrf5_bridge_fast_poll()) {
-            refresh_interval = NRF5_ESB_REFRESH_MS;
             snapshot_interval = NRF5_ESB_SNAPSHOT_MS;
         }
 #    endif

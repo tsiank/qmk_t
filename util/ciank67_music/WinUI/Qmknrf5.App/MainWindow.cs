@@ -79,6 +79,7 @@ public sealed partial class MainWindow : Window
         viaPanel = new ViaPanel(() => keyboard.SelectedItem as DeviceChoice, () => WinRT.Interop.WindowNative.GetWindowHandle(this));
         midiPanel = new MidiPanel(DispatcherQueue);
         keyboardControls = new KeyboardControlPanel(() => keyboard.SelectedItem as DeviceChoice);
+        Activated += (_, args) => keyboardControls.SetForeground(args.WindowActivationState != WindowActivationState.Deactivated);
         wirelessPanel = new WirelessPanel(() => keyboard.SelectedItem as DeviceChoice);
         Closed += (_, _) => wirelessPanel.Close();
         firmwarePanel = new FirmwarePanel(() => WinRT.Interop.WindowNative.GetWindowHandle(this), DispatcherQueue, PrepareFirmwareAsync, FinishFirmware);

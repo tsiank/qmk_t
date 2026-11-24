@@ -579,8 +579,23 @@ int main(void){
  assert(sent[2]==NRF5_ESB_MOUSE && sent[16]==1 && sent[17]==0);drain();
  // Idle heartbeats slow down, but physical changes never wait for that timer.
  power_idle=true;refresh_at=snapshot_at=clock_ms;
+ assert(nrf5_esb_next_wake_ticks()==100);
+ clock_ms+=37;assert(nrf5_esb_next_wake_ticks()==63);clock_ms-=37;
  clock_ms+=NRF5_ESB_IDLE_REFRESH_MS-1;nrf5_esb_task();assert(!busy);
+ assert(nrf5_esb_next_wake_ticks()==1);
  clock_ms++;nrf5_esb_task();assert(busy && sent[2]==NRF5_ESB_HEARTBEAT);drain();
+ assert(nrf5_esb_next_wake_ticks()<=100);
+ // A queued key or pending RF result retains short service, even in idle.
+ k.keys[0]=8;driver.send_keyboard(&k);assert(nrf5_esb_next_wake_ticks()==40);
+ nrf5_esb_task();assert(busy&&nrf5_esb_next_wake_ticks()==40);drain();
+ // An approaching supervision deadline wins over the next heartbeat.
+ uint32_t previous_activity=last_activity;
+ refresh_at=clock_ms;last_activity=clock_ms-290;
+ assert(nrf5_esb_next_wake_ticks()==10);last_activity=previous_activity;
+ // The extended RTC clock survives a raw counter wrap.
+ clock_ms=0x7ffff-20;oldest_at=refresh_at=last_activity=nrf5_esb_now();
+ assert(nrf5_esb_next_wake_ticks()==100);clock_ms+=50;
+ assert(nrf5_esb_next_wake_ticks()==50);
  k.keys[0]=7;driver.send_keyboard(&k);nrf5_esb_task();assert(busy && sent[2]==NRF5_ESB_KEYBOARD && sent[18]==7);drain();
  // Idle background discovery backs off, while its three authentication
  // retries retain 40-unit spacing and reuse the identical HELLO packet.

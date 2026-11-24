@@ -348,7 +348,11 @@ void fixture_key_material(uint8_t *k){memcpy(k,persisted.key,16);}
         self.tx.fixture_idle(True)
         self.advance(120)
         before=len(self.frames)
-        self.advance(100)
+        deadlines=[]
+        for _ in range(100):
+            self.step()
+            deadlines.append(self.tx.nrf5_esb_next_wake_ticks())
+        self.assertGreaterEqual(max(deadlines),80) # idle timer can sleep beyond 40 ticks
         # One second at idle: ~10 heartbeats, not the former ~25; no disconnect.
         self.assertLessEqual(len(self.frames)-before,12)
         self.assertTrue(self.tx.nrf5_esb_connected());self.assertTrue(self.rx.nrf5_esb_connected())
@@ -362,6 +366,7 @@ void fixture_key_material(uint8_t *k){memcpy(k,persisted.key,16);}
         self.assertEqual(self.tx.fixture_bridge_events(11),1)
         self.bridge_push(self.rx,10,bytes([0xc7,1,1,3])+bytes([80])*16)
         self.advance(10);self.assertEqual(self.tx.fixture_bridge_events(10),1)
+        self.assertLessEqual(self.tx.nrf5_esb_next_wake_ticks(),40) # live control lease
         self.advance(120) # lease expires back to idle without resetting the link
         self.assertTrue(self.tx.nrf5_esb_connected());self.assertTrue(self.rx.nrf5_esb_connected())
 

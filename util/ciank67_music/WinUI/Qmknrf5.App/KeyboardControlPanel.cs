@@ -21,6 +21,7 @@ internal sealed class KeyboardControlPanel
     private readonly ComboBox mode = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBlock status = new() { Text = "选择键盘后自动连接控制，控制开关无需开始律动。", TextWrapping = TextWrapping.Wrap };
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly ControlPollSchedule pollSchedule = new();
     private readonly CancellationTokenSource cancellation = new();
     private IKeyboardControlTransport? transport;
     private IViaTransport? batteryTransport;
@@ -101,6 +102,7 @@ internal sealed class KeyboardControlPanel
                 if(transport is null)throw new IOException("键盘控制尚未连接。");
                 using var deadline=CancellationTokenSource.CreateLinkedTokenSource(token);deadline.CancelAfter(TimeSpan.FromSeconds(12));
                 ApplyState(await transport.SetScreenModeAsync((ScreenPowerMode)screen.SelectedIndex,deadline.Token));
+                pollSchedule.ReadCompleted();
             });
         };
         matrix.Toggled += (_,_) => Change(1,matrix.IsOn);
@@ -122,11 +124,13 @@ internal sealed class KeyboardControlPanel
                     _ = QueueAsync(token => ConnectAsync(choice,token));
                 return;
             }
+            if (!pollSchedule.IsDue) return;
             polling = true;
             _ = QueueAsync(token => RequestAsync(background: true,token:token), background: true);
         };
         Controls(); timer.Start();
     }
+    public void SetForeground(bool foreground) => pollSchedule.SetForeground(foreground);
     private static TextBlock Heading(string text) => new() { Text = text, FontSize = 22, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     private static TextBlock Note(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7 };
     private void Controls()
@@ -234,6 +238,7 @@ internal sealed class KeyboardControlPanel
         bool needsInitialSync = state.SupportsClock && !state.ClockSynchronized;
         var localTime = DateTime.Now;
         state = await KeyboardControlProtocol.SynchronizeClockAsync(transport, state, localTime, deadline.Token);
+        pollSchedule.ReadCompleted();
         if (needsInitialSync) lastClockSync = localTime;
         // A pending user command owns the visible state; an older poll must not
         // undo its toggle or dismiss the mode menu while the command waits.

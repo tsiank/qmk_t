@@ -13,6 +13,8 @@ host_driver_t *nrf5_esb_driver(void);
 host_driver_t *nrf5_esb_quiet_driver(void);
 void nrf5_esb_set_active(bool active);
 #ifdef NRF5_ESB_TX
+// Main-context delay in QMK RTC units (1/1024 s), not milliseconds.
+uint32_t nrf5_esb_next_wake_ticks(void);
 // Automatic routing can discover an existing receiver while another host owns
 // input. Background probes contain HELLO only, never keyboard/mouse reports.
 void nrf5_esb_set_probe(bool enabled);
