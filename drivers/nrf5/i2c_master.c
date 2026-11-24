@@ -20,13 +20,32 @@ static const nrfx_twim_t m_twim_master = NRFX_TWIM_INSTANCE(0);
 static volatile int      twim_complete = 0;
 static volatile bool     twim_enable   = false;
 static bool              twim_initialized;
+static volatile bool     twim_powered;
 static uint8_t transmit_buffer[255];
 static uint8_t receive_buffer[255];
 static uint32_t transfer_errors;
 
 uint32_t nrf5_i2c_error_count(void) { return transfer_errors; }
 
-void twim_evt_handler(nrfx_twim_evt_t const* p_event, void* p_context) { twim_complete = p_event->type + 1; }
+static void release_twim(void) {
+    if (!twim_powered) return;
+    nrfx_twim_disable(&m_twim_master);
+    twim_powered = false;
+}
+
+static void acquire_twim(void) {
+    if (twim_powered) return;
+    nrfx_twim_enable(&m_twim_master);
+    twim_powered = true;
+}
+
+void twim_evt_handler(nrfx_twim_evt_t const* p_event, void* p_context) {
+    // SDK 15 clears busy before the STOP/error callback. Disabling only the
+    // peripheral keeps GPIO configuration and OLED/LED device state intact.
+    // This also releases a transfer that completes after its caller timed out.
+    release_twim();
+    twim_complete = p_event->type + 1;
+}
 
 void i2c_init(void) {
     // OLED and matrix drivers share one TWIM instance. Display retries must
@@ -57,7 +76,6 @@ static void i2c_write_register_byte(uint8_t addr, uint8_t reg, uint8_t data) {
 
 void i2c_start(void) {
     if (!twim_initialized) return;
-    if (!twim_enable) nrfx_twim_enable(&m_twim_master);
     twim_enable = true;
 
 #if defined(RGB_MATRIX_IS31FL3733) || defined(RGB_MATRIX_IS31FL3737) || defined(RGB_MATRIX_IS31FL3741)
@@ -91,7 +109,7 @@ void i2c_stop(void) {
 #ifndef OLED_ENABLE
     // A light-off request must not disconnect the display sharing this bus.
     twim_enable = false;
-    nrfx_twim_disable(&m_twim_master);
+    if (!nrfx_twim_is_busy(&m_twim_master)) release_twim();
 #endif
 }
 
@@ -119,7 +137,9 @@ i2c_status_t i2c_transmit(uint8_t address, const uint8_t* data, uint16_t length,
     // also outlives a timed-out caller and is not reused while DMA remains busy.
     memcpy(transmit_buffer, data, length);
     twim_complete = 0;
+    acquire_twim();
     if (nrfx_twim_tx(&m_twim_master, address >> 1, transmit_buffer, length, false) != NRFX_SUCCESS) {
+        if (!nrfx_twim_is_busy(&m_twim_master)) release_twim();
         ++transfer_errors;
         return I2C_STATUS_ERROR;
     }
@@ -130,7 +150,9 @@ i2c_status_t i2c_receive(uint8_t address, uint8_t* data, uint16_t length, uint16
     if (!twim_enable || !data || length == 0 || length > sizeof(receive_buffer)) return I2C_STATUS_ERROR;
     if (nrfx_twim_is_busy(&m_twim_master)) { ++transfer_errors; return I2C_STATUS_ERROR; }
     twim_complete = 0;
+    acquire_twim();
     if (nrfx_twim_rx(&m_twim_master, address >> 1, receive_buffer, length) != NRFX_SUCCESS) {
+        if (!nrfx_twim_is_busy(&m_twim_master)) release_twim();
         ++transfer_errors;
         return I2C_STATUS_ERROR;
     }

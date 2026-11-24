@@ -76,8 +76,8 @@ int main(int argc,char **argv){
  assert(last.slave_latency==9 && last.conn_sup_timeout==100);
  if(scenario==0){
   event(BLE_GAP_EVT_CONN_PARAM_UPDATE,7,last);nrf5_ble_power_task();assert(calls==1);
-  for(unsigned i=0;i<600;i++){advance(1024);}
-  assert(calls==1); // cross multiple RTC wraps
+  for(unsigned i=0;i<7200;i++){advance(1024);}
+  assert(calls==1 && connection==7); // two hours, across many RTC wraps
   power_idle=false;nrf5_ble_power_task();assert(calls==2 && last.slave_latency==3 && last.conn_sup_timeout==43);
   event(BLE_GAP_EVT_CONN_PARAM_UPDATE,7,last);advance(20*1024);assert(calls==2);
   event(BLE_GAP_EVT_DISCONNECTED,7,last);power_idle=true;advance(20*1024);assert(calls==2);

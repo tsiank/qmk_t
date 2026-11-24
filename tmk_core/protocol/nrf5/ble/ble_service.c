@@ -88,6 +88,7 @@
 #endif
 #include "nrf5_power.h"
 #include "eeprom_nrf.h"
+#include "timer.h"
 
 #ifdef RGBLIGHT_ENABLE
 #include "progmem.h"
@@ -169,7 +170,12 @@ nrf_drv_wdt_channel_id m_channel_id;
 #define ISSI_COMMANDREGISTER_WRITELOCK 0xFE
 #define ISSI_PAGE_FUNCTION 0x03
 
-APP_TIMER_DEF(m_battery_timer_id); /**< Battery timer. */
+#if defined(NRF5_WIRELESS_POWER_ENABLE) && !defined(KBD_WDT_ENABLE) && !NRF5_WIRELESS_SYSTEM_OFF_ENABLE
+#    define NRF5_BATTERY_COALESCED
+static uint32_t battery_maintenance_at;
+#else
+APP_TIMER_DEF(m_battery_timer_id); /**< Battery/WDT/deep-sleep timer. */
+#endif
 
 BLE_BAS_DEF(m_bas);                 /**< Structure used to identify the battery service. */
 NRF_BLE_GATT_DEF(m_gatt);           /**< GATT module instance. */
@@ -669,6 +675,18 @@ void reset_power_save_counter(void) {
     automatic_sleep_pending = false;
 }
 
+void nrf5_battery_task(void) {
+#ifdef NRF5_BATTERY_COALESCED
+    // Reuse GPIO backup scans / RF / BLE wakeups instead of a separate IRQ.
+    // Keep the two-second phases and four-sample/minute batch. Missed phases
+    // are coalesced, never replayed as a burst of ADC requests after a stall.
+    uint32_t elapsed = timer_elapsed32(battery_maintenance_at);
+    if (elapsed < 2 * 1024) return;
+    battery_maintenance_at = (timer_read32() - elapsed % (2 * 1024)) & 0x7FFFFu;
+    battery_level_meas_timeout_handler(NULL);
+#endif
+}
+
 void nrf5_power_task(void) {
 #if defined(NRF5_WIRELESS_POWER_ENABLE) && !NRF5_WIRELESS_SYSTEM_OFF_ENABLE
     // Stay in GPIO-wakeable System ON standby, including after advertising
@@ -915,20 +933,26 @@ static void conn_params_init(void) {
 /**@brief Function for the Timer initialization.
  */
 static void timers_init(void) {
+#ifndef NRF5_BATTERY_COALESCED
     ret_code_t err_code;
 
     // Create battery timer.
     err_code = app_timer_create(&m_battery_timer_id, APP_TIMER_MODE_REPEATED, battery_level_meas_timeout_handler);
     APP_ERROR_CHECK(err_code);
+#endif
 }
 
 /**@brief Function for starting timers.
  */
 static void timers_start(void) {
+#ifdef NRF5_BATTERY_COALESCED
+    battery_maintenance_at = timer_read32();
+#else
     ret_code_t err_code;
 
     err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
     APP_ERROR_CHECK(err_code);
+#endif
 }
 
 /**@brief Function for putting the chip into sleep mode.

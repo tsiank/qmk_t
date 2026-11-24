@@ -4,6 +4,11 @@
 // This board has a wired battery divider; opt in rather than sampling floating pins.
 #define NRF5_BATTERY_ENABLE
 
+// Keep the link connected in idle; restore baseline parameters on real input.
+#define NRF5_BLE_DYNAMIC_IDLE_ENABLE 1
+#define NRF5_BLE_IDLE_LATENCY 9
+#define NRF5_BLE_IDLE_TIMEOUT 1000
+
 /* Bluetooth connection setting*/
 #define BLE_HID_MIN_INTERVAL 7.5    /**UNIT_1_25_MS< Minimum connection interval (7.5 ms) */
 //#define BLE_HID_MAX_INTERVAL 30   /**UNIT_1_25_MS< Maximum connection interval (30 ms). */

@@ -25,4 +25,5 @@ void battery_level_update(nrf_saadc_value_t value, uint16_t size);
 
 #ifdef NRF5_WIRELESS_POWER_ENABLE
 void nrf5_ble_reconnect_task(void);
+void nrf5_battery_task(void);
 #endif

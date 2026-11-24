@@ -63,6 +63,67 @@ int main(void){
                 result=subprocess.run(command,capture_output=True,text=True)
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
+    def test_coalesced_maintenance_reuses_main_loop_and_preserves_watchdog_fallback(self):
+        if not shutil.which('cc'):
+            self.skipTest('Native C compiler is required')
+        service = (ROOT/'tmk_core/protocol/nrf5/ble/ble_service.c').read_text()
+        def function(signature):
+            start = service.index(signature + ' {')
+            end = service.index('{', start) + 1
+            depth = 1
+            while depth:
+                depth += (service[end] == '{') - (service[end] == '}')
+                end += 1
+            return service[start:end]
+        start = service.index('#if defined(NRF5_WIRELESS_POWER_ENABLE) && !defined(KBD_WDT_ENABLE)')
+        declarations = service[start:service.index('#endif', start) + len('#endif')]
+        functions = '\n'.join(function(name) for name in (
+            'void nrf5_battery_task(void)', 'static void timers_init(void)', 'static void timers_start(void)'))
+        source = r'''#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+#define APP_TIMER_DEF(name) static unsigned name
+#define APP_TIMER_MODE_REPEATED 1
+#define BATTERY_LEVEL_MEAS_INTERVAL 2000
+#define APP_ERROR_CHECK(x) assert((x)==0)
+typedef int ret_code_t;
+static unsigned creates,starts,samples;
+static uint32_t now;
+uint32_t timer_read32(void){return now & 0x7ffffu;}
+uint32_t timer_elapsed32(uint32_t at){return (timer_read32()-at)&0x7ffffu;}
+static void battery_level_meas_timeout_handler(void *context){(void)context;samples++;}
+int app_timer_create(unsigned *id,unsigned kind,void (*cb)(void *)){
+ assert(kind==1&&cb==battery_level_meas_timeout_handler);*id=1;creates++;return 0;
+}
+int app_timer_start(unsigned id,unsigned interval,void *context){assert(id==1&&interval==2000&&!context);starts++;return 0;}
+''' + declarations + '\n' + functions + r'''
+int main(void){
+ now=0x7ffffu-1000;timers_init();timers_start();
+#ifdef NRF5_BATTERY_COALESCED
+ assert(!creates&&!starts);now+=2047;nrf5_battery_task();assert(!samples);
+ now++;nrf5_battery_task();assert(samples==1);
+ for(unsigned i=0;i<3600;i++){now+=1024;nrf5_battery_task();}
+ assert(samples==1801); // an hour, crossing the RTC wrap repeatedly
+ now+=20*1024;nrf5_battery_task();assert(samples==1802);
+ nrf5_battery_task();assert(samples==1802); // no catch-up burst
+#else
+ assert(creates==1&&starts==1);now+=2048;nrf5_battery_task();assert(!samples);
+ battery_level_meas_timeout_handler(NULL);assert(samples==1);
+#endif
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            work=Path(directory);(work/'test.c').write_text(source)
+            for flags in (['-DNRF5_WIRELESS_POWER_ENABLE'],
+                          ['-DNRF5_WIRELESS_POWER_ENABLE','-DKBD_WDT_ENABLE'],
+                          ['-DNRF5_WIRELESS_POWER_ENABLE','-DNRF5_WIRELESS_SYSTEM_OFF_ENABLE=1'], []):
+                with self.subTest(flags=flags):
+                    command=['cc','-std=gnu11','-fsanitize=address,undefined','-fno-pie','-no-pie',*flags,str(work/'test.c'),'-o',str(work/'test')]
+                    for cmd in (command,[str(work/'test')]):
+                        result=subprocess.run(cmd,capture_output=True,text=True)
+                        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
     def test_low_power_sampling_keeps_battery_updates_and_recycles_both_buffers(self):
         cc = shutil.which('cc')
         if not cc:

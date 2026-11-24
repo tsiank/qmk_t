@@ -56,46 +56,51 @@ int nrfx_twim_rx(const nrfx_twim_t*,uint8_t,uint8_t*,size_t);
 #include "'''+str(ROOT/'drivers/nrf5/i2c_master.c')+r'''"
 static uint32_t now;
 static unsigned init_calls,enable_calls,disable_calls,led_writes,init_failures=1;
-static bool busy;
+static bool busy,hw_enabled;
 static unsigned delay=2,remaining;
-static int failure;
+static int failure,completion_type;
 static const uint8_t *last_dma;
 static void (*callback)(const nrfx_twim_evt_t*,void*);
 uint32_t timer_read32(void){return now;}
 uint32_t timer_elapsed32(uint32_t at){return now-at;}
 int nrfx_twim_init(const nrfx_twim_t*a,const nrfx_twim_config_t*b,void(*cb)(const nrfx_twim_evt_t*,void*),void*d){callback=cb;init_calls++;if(init_failures){init_failures--;return 8;}return 0;}
-void nrfx_twim_enable(const nrfx_twim_t*a){enable_calls++;}
-void nrfx_twim_disable(const nrfx_twim_t*a){busy=false;disable_calls++;}
+void nrfx_twim_enable(const nrfx_twim_t*a){assert(!hw_enabled&&!busy);hw_enabled=true;enable_calls++;}
+void nrfx_twim_disable(const nrfx_twim_t*a){assert(hw_enabled&&!busy);hw_enabled=false;disable_calls++;}
 bool nrfx_twim_is_busy(const nrfx_twim_t*a){return busy;}
-static void finish(void){nrfx_twim_evt_t event={0};busy=false;callback(&event,NULL);}
+static void finish(void){nrfx_twim_evt_t event={completion_type};busy=false;callback(&event,NULL);}
 void nrf_pwr_mgmt_run(void){now++;if(busy&&remaining&&!--remaining)finish();}
 int nrfx_twim_tx(const nrfx_twim_t*a,uint8_t address,const uint8_t*data,size_t length,bool stop){
-    assert((address==0x3c||address==0x30)&&data==transmit_buffer&&length<=255);
+    assert(hw_enabled&&(address==0x3c||address==0x30)&&data==transmit_buffer&&length<=255);
     if(address==0x30){led_writes++;if(length==2&&data[0]==0xfd)assert(data[1]==4);}
     if(failure)return 9;
     last_dma=data;busy=true;remaining=delay;return 0;
 }
 int nrfx_twim_rx(const nrfx_twim_t*a,uint8_t address,uint8_t*data,size_t length){
-    assert(data==receive_buffer);memset(data,0x5a,length);busy=true;remaining=delay;return 0;
+    assert(hw_enabled&&data==receive_buffer);if(failure)return 9;memset(data,0x5a,length);busy=true;remaining=delay;return 0;
 }
 int main(void){
     static const uint8_t flash[]={0,0xae,0xa4};
     i2c_init();assert(init_calls==1&&!enable_calls&&nrf5_i2c_error_count()==1);
-    i2c_init();unsigned initial_led_writes=led_writes;i2c_init();assert(init_calls==2&&enable_calls==1&&initial_led_writes==led_writes);assert(i2c_transmit(0x78,flash,3,20)==0);assert(last_dma!=flash&&!memcmp(last_dma,flash,3));
+    i2c_init();unsigned initial_led_writes=led_writes;i2c_init();assert(init_calls==2&&enable_calls==disable_calls&&initial_led_writes==led_writes&&!hw_enabled);assert(i2c_transmit(0x78,flash,3,20)==0);assert(last_dma!=flash&&!memcmp(last_dma,flash,3)&&!hw_enabled);
     delay=0;uint32_t before=now;assert(i2c_transmit(0x78,flash,3,5)==I2C_STATUS_TIMEOUT);assert(now-before==5);
+    assert(hw_enabled&&busy);unsigned enables_before=enable_calls;
     uint8_t replacement[]={1,2,3};assert(i2c_transmit(0x78,replacement,3,5)==I2C_STATUS_ERROR);assert(!memcmp(last_dma,flash,3));
+    assert(hw_enabled&&enable_calls==enables_before); // timed-out DMA is still owned
     finish();delay=2;assert(i2c_write_register(0x78,0x40,replacement,3,20)==0);assert(last_dma[0]==0x40&&last_dma[3]==3);
     uint8_t output[4]={1,2,3,4};assert(i2c_receive(0x78,output,4,20)==0);assert(output[0]==0x5a);
+    completion_type=1;assert(i2c_transmit(0x78,flash,3,20)==I2C_STATUS_ERROR);assert(!hw_enabled);completion_type=0;
     delay=0;memset(output,0,4);assert(i2c_receive(0x78,output,4,5)==I2C_STATUS_TIMEOUT);assert(output[0]==0);finish();
     failure=1;assert(i2c_transmit(0x78,flash,1,20)==I2C_STATUS_ERROR);
+    assert(!hw_enabled);assert(i2c_receive(0x78,output,4,20)==I2C_STATUS_ERROR);assert(!hw_enabled);
     assert(i2c_transmit(0x78,NULL,1,20)==I2C_STATUS_ERROR);assert(i2c_transmit(0x78,flash,256,20)==I2C_STATUS_ERROR);
     assert(nrf5_i2c_error_count()>=4);
     failure=0;delay=2;i2c_stop();
 #ifdef OLED_ENABLE
-    assert(!disable_calls);assert(i2c_transmit(0x78,flash,3,20)==0);
+    assert(!hw_enabled&&twim_enable);assert(i2c_transmit(0x78,flash,3,20)==0);
 #else
-    assert(disable_calls==1);assert(i2c_transmit(0x78,flash,3,20)==I2C_STATUS_ERROR);
+    assert(!hw_enabled&&!twim_enable);assert(i2c_transmit(0x78,flash,3,20)==I2C_STATUS_ERROR);
 #endif
+    assert(enable_calls==disable_calls); // success, errors and late IRQs all release clocks
     i2c_start();assert(init_calls==2);return 0;
 }
 ''',flags=('-DRGB_MATRIX_IS31FL3741','-DDRIVER_ADDR_1=0x30',*(('-DOLED_ENABLE',) if shared_oled else ())))
