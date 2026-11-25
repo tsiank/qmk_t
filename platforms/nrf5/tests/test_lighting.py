@@ -366,8 +366,15 @@ bool nrf5_wireless_idle(void) { return wireless_idle; }
 uint16_t test_time;
 static unsigned settling, frames, power_ready_at;
 void wait_us(unsigned us) { assert(us == 2000 && power); test_time += us / 1000; settling++; }
-uint32_t nrf_gpio_pin_out_read(uint32_t pin) { assert(pin == 8); return !power; }
-void nrf_gpio_pin_write(uint32_t pin, uint32_t value) { assert(pin == 8); if (!value && !power) power_ready_at = test_time + 2; power = !value; }
+static bool rail_on(uint32_t value) {
+#ifdef RGB_PWR_PIN_REVERSE
+    return value != 0;
+#else
+    return value == 0;
+#endif
+}
+uint32_t nrf_gpio_pin_out_read(uint32_t pin) { assert(pin == 8); return rail_on(1) ? power : !power; }
+void nrf_gpio_pin_write(uint32_t pin, uint32_t value) { assert(pin == 8); bool next=rail_on(value);if (next && !power) power_ready_at = test_time + 2; power = next; }
 void nrf_gpio_cfg_output(uint32_t pin) { assert(pin == 8); }
 static void init(void) {}
 static void flush(void) { if (power) assert((int16_t)(test_time - power_ready_at) >= 0); frames++; }
@@ -442,10 +449,11 @@ int main(void) {
     wireless_idle=false;rgblight_set();check(true,false); // Caps survives wake
 }
 ''')
-        self.run_native(['quantum/rgblight/rgblight.c', 'quantum/color.c'],
+        for pin_flag in ('-DRGB_PWR_PIN=8', '-DRGB_PWR_PIN_REVERSE=8'):
+            self.run_native(['quantum/rgblight/rgblight.c', 'quantum/color.c', 'platforms/nrf5/lighting_runtime.c'],
                         ['-I', str(ROOT / 'quantum/rgblight'), '-I', str(ROOT),
                          '-DRGBLIGHT_ENABLE', '-DRGBLIGHT_LED_COUNT=18', '-DRGBLIGHT_LAYERS',
-                         '-DRGBLIGHT_LAYERS_OVERRIDE_RGB_OFF', '-DRGB_PWR_PIN=8', '-DPROTOCOL_NRF5',
+                         '-DRGBLIGHT_LAYERS_OVERRIDE_RGB_OFF', pin_flag, '-DPROTOCOL_NRF5',
                          '-DNRF5_WIRELESS_POWER_ENABLE', '-I', str(ROOT / 'platforms/nrf5'),
                          '-include', str(self.work / 'nrf_gpio.h')])
 

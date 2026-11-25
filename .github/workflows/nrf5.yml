@@ -1,0 +1,84 @@
+name: nRF5 compatibility
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [qmk_tsiank_dev]
+  pull_request:
+    paths:
+      - '.gitmodules'
+      - 'Makefile'
+      - 'builddefs/**'
+      - 'data/**'
+      - 'drivers/**'
+      - 'platforms/**'
+      - 'quantum/**'
+      - 'tmk_core/**'
+      - 'keyboards/ciank67/**'
+      - 'keyboards/ciank_pad/**'
+      - 'keyboards/handwired/onekey/**'
+      - 'lib/**'
+      - 'util/nrf5/**'
+      - '.github/workflows/nrf5.yml'
+
+concurrency:
+  group: nrf5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check out pinned native test dependencies
+        run: git submodule update --init lib/nrf5 lib/printf
+      - name: Install native test dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc python3-cryptography python3-jsonschema
+      - name: Check upstream inventory and SDK pin
+        run: /usr/bin/python3 util/nrf5/check_upstream.py
+      - name: Run nRF5 regression tests
+        run: /usr/bin/python3 -m unittest discover -s platforms/nrf5/tests
+
+  firmware:
+    runs-on: ubuntu-latest
+    container: ghcr.io/qmk/qmk_cli
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: keyboard
+            target: ciank67:default
+          - name: oled-encoder
+            target: ciank_pad:test
+          - name: receiver
+            target: ciank_pad:esb_rx
+          - name: avr-underglow
+            target: handwired/onekey/promicro:rgb
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check out pinned firmware dependencies
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git submodule update --init lib/nrf5 lib/printf lib/lufa
+      - name: Compile without flashing
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -o pipefail
+          make "$TARGET" 2>&1 | tee build.log
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: nrf5-${{ matrix.name }}
+          path: |
+            build.log
+            .build/*.bin
+            .build/*.hex

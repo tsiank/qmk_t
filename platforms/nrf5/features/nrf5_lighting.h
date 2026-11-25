@@ -3,6 +3,7 @@
 #pragma once
 
 #include "quantum.h"
+#include "../lighting_runtime.h"
 
 bool nrf5_process_lighting(uint16_t keycode, keyrecord_t *record, uint16_t combined_toggle);
 void nrf5_lighting_report(void);

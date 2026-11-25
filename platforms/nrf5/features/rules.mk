@@ -1,5 +1,9 @@
 # Common Qmknrf5 configuration/music features. Include after the keyboard's
 # RGB/audio/MIDI settings, so QMK discovers custom effects before compiling.
+ifneq ($(filter yes,$(strip $(RGBLIGHT_ENABLE)) $(strip $(RGB_MATRIX_ENABLE))),)
+    SRC += platforms/nrf5/lighting_runtime.c
+endif
+
 ifeq ($(strip $(NRF5_CONFIG_ENABLE)),yes)
     OPT_DEFS += -DNRF5_CONFIG_ENABLE
     COMMON_VPATH += platforms/nrf5/features

@@ -17,7 +17,7 @@ class DefaultKeymapTests(unittest.TestCase):
         keys = re.sub(r'/\*.*?\*/', '', keys, flags=re.S)
         keys = re.sub(r'//[^\n]*', '', keys)
         mode_defs = section(source, '#ifdef NRF5_ESB_TX', '\n#endif')
-        functions = {'LAYOUT', 'LT', 'LALT_T', 'RSFT_T', 'MO', 'TG', 'TO'}
+        functions = {'LAYOUT', 'LT', 'LALT_T', 'RSFT_T', 'MO', 'TG', 'TO', 'LCTL', 'LSFT'}
         aliases = {'MATRIX_ROWS', 'MATRIX_COLS', 'PROGMEM', 'NRF5_RADIO_MODE_KEY', 'NRF5_AUTO_MODE_KEY'}
         names = set(re.findall(r'\b[A-Z][A-Z0-9_]+\b', keys)) | {'KC_TRNS', 'KC_NO', 'OU_AUTO', 'OU_2P4G'}
         defines = ['#define KC_NO 0', '#define KC_TRNS 1', '#define _______ KC_TRNS']
@@ -25,6 +25,8 @@ class DefaultKeymapTests(unittest.TestCase):
             defines.append(f'#define {name} {n}')
         for n, name in enumerate(sorted(functions-{'LAYOUT'}), 1):
             if name == 'LT': defines.append('#define LT(layer,key) (0x4000 | ((layer)<<8) | (key))')
+            elif name == 'LCTL': defines.append('#define LCTL(key) (0x0100 | (key))')
+            elif name == 'LSFT': defines.append('#define LSFT(key) (0x0200 | (key))')
             else: defines.append(f'#define {name}(key) ({0x5000+n*0x100} | (key))')
         layout = json.loads((root/'keyboards/ciank67/keyboard.json').read_text())['layouts']['LAYOUT']['layout']
         cells = {(key['matrix'][0],key['matrix'][1]):f'k{i}' for i,key in enumerate(layout)}
@@ -86,6 +88,7 @@ int main(void){
  keypos_t q={1,1}, three={0,3};
  assert(keymap_key_to_keycode(layer_switch_get_layer(q),q)==KC_5);
  assert(keymaps[_DVORAKR][4][7]==MO(_FN));
+ assert(keymaps[_DVORAKR][4][8]==LCTL(LSFT(KC_N)));
  assert(keymaps[_QWERTY][4][6]==MO(_FN)&&keymaps[_QWERTY][4][7]==KC_RALT);
  for(int l=_NUM;l<=_FN;l++){
   layer_state=1<<l;

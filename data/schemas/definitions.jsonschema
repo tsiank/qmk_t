@@ -145,7 +145,7 @@
             },
             {
                 "type": "string",
-                "pattern": "^[A-K]\\d{1,2}|(\\d)$"
+                "pattern": "^[0-9]{1,2}$"
             },
             {
                 "type": "string",

@@ -13,9 +13,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifdef NRF5_WIRELESS_POWER_ENABLE
-#    include "wireless_power.h"
-#endif
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -28,11 +25,6 @@
 #include "led_tables.h"
 #include <lib/lib8tion/lib8tion.h>
 #include "eeconfig.h"
-
-#if defined(PROTOCOL_NRF5)
-#include "nrf_gpio.h"
-#include "wait.h"
-#endif
 
 #ifdef RGBLIGHT_SPLIT
 /* for split keyboard */
@@ -125,12 +117,6 @@ animation_status_t animation_status = {};
 rgblight_segment_t const *const *rgblight_layers = NULL;
 
 static bool deferred_set_layer_state = false;
-#    if defined(PROTOCOL_NRF5) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
-// A static indicator has no animation to send another frame after power-up.
-// Retry the current state briefly; never retain a snapshot of an old layer.
-static uint8_t layer_refresh_remaining;
-static uint16_t layer_refresh_timer;
-#    endif
 #endif
 
 rgblight_ranges_t rgblight_ranges = {0, RGBLIGHT_LED_COUNT, 0, RGBLIGHT_LED_COUNT, RGBLIGHT_LED_COUNT};
@@ -216,44 +202,11 @@ void eeconfig_debug_rgblight(void) {
     dprintf("rgblight_config.speed = %d\n", rgblight_config.speed);
 }
 
-//����RGB��Դ
-void rgb_pwr_on(void)
-{
-#ifdef NRF5_WIRELESS_POWER_ENABLE
-    if (nrf5_wireless_idle()) return;
-#endif
-#if defined(PROTOCOL_NRF5) && (defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE))
-    bool was_off = false;
-#    ifdef RGB_PWR_PIN
-    was_off |= nrf_gpio_pin_out_read(RGB_PWR_PIN) != 0;
-#    endif
-#    ifdef RGB_PWR_PIN_REVERSE
-    was_off |= nrf_gpio_pin_out_read(RGB_PWR_PIN_REVERSE) == 0;
-#    endif
-#endif
-#ifdef RGB_PWR_PIN
-    nrf_gpio_pin_write(RGB_PWR_PIN, 0);
-#endif
-#ifdef RGB_PWR_PIN_REVERSE
-    nrf_gpio_pin_write(RGB_PWR_PIN_REVERSE, 1);
-#endif
-#if defined(PROTOCOL_NRF5) && (defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE))
-    // Allow the switched LED rail and the pixels' reset circuit to settle
-    // before their first data frame. Already-powered animations don't wait.
-    if (was_off) wait_us(2000);
-#endif
-}
-
-//�ر�RGB��Դ
-void rgb_pwr_off(void)
-{
-#ifdef RGB_PWR_PIN
-    nrf_gpio_pin_write(RGB_PWR_PIN, 1);
-#endif
-#ifdef RGB_PWR_PIN_REVERSE
-    nrf_gpio_pin_write(RGB_PWR_PIN_REVERSE, 0);
-#endif
-}
+// Hardware power switching and recovery policy belong to a platform adapter.
+__attribute__((weak)) void rgblight_platform_init(void) {}
+__attribute__((weak)) bool rgblight_platform_prepare(bool power_needed) { return true; }
+__attribute__((weak)) void rgblight_platform_finish(bool power_needed) {}
+__attribute__((weak)) void rgblight_platform_task(bool layer_changed, bool animation_running) {}
 
 void rgblight_init(void) {
     /* if already initialized, don't do it again.
@@ -277,22 +230,13 @@ void rgblight_init(void) {
 
     rgblight_timer_init(); // setup the timer
 
-//��ʼ��RGB power���ƽ�
-#ifdef RGB_PWR_PIN
-    nrf_gpio_cfg_output(RGB_PWR_PIN);
-#endif
-#ifdef RGB_PWR_PIN_REVERSE
-    nrf_gpio_cfg_output(RGB_PWR_PIN_REVERSE);
-#endif
+    rgblight_platform_init();
     rgblight_driver.init();
 
     if (rgblight_config.enable) {
         rgblight_mode_noeeprom(rgblight_config.mode);
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
-        rgb_pwr_on();
     } else {
-        rgb_pwr_off();
-#endif
+        rgblight_platform_finish(false);
     }
 
     is_rgblight_initialized = true;
@@ -432,9 +376,6 @@ void rgblight_toggle_noeeprom(void) {
 }
 
 void rgblight_enable(void) {
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
-    rgb_pwr_on();
-#endif
     rgblight_config.enable = 1;
     // No need to update EEPROM here. rgblight_mode() will do that, actually
     // eeconfig_update_rgblight(&rgblight_config);
@@ -443,23 +384,12 @@ void rgblight_enable(void) {
 }
 
 void rgblight_enable_noeeprom(void) {
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
-    rgb_pwr_on();
-#endif
     rgblight_config.enable = 1;
     dprintf("rgblight enable [NOEEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
     rgblight_mode_noeeprom(rgblight_config.mode);
 }
 
 void rgblight_disable(void) {
-/*
-#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //����޵�Դ������ػ�ǰ�𲽽�������
-    rgblight_set_val(120);
-    wait_ms(1);
-    rgblight_set_val(60);
-    wait_ms(1);
-#endif
-*/
     rgblight_config.enable = 0;
     eeconfig_update_rgblight(&rgblight_config);
     dprintf("rgblight disable [EEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
@@ -469,14 +399,6 @@ void rgblight_disable(void) {
 }
 
 void rgblight_disable_noeeprom(void) {
-/*
-#if !defined(RGB_PWR_PIN) && !defined(RGB_PWR_PIN_REVERSE) //����޵�Դ������ػ�ǰ�𲽽�������
-    rgblight_set_val(120);
-    wait_ms(1);
-    rgblight_set_val(60);
-    wait_ms(1);
-#endif
-*/
     rgblight_config.enable = 0;
     dprintf("rgblight disable [NOEEPROM]: rgblight_config.enable = %u\n", rgblight_config.enable);
     rgblight_timer_disable();
@@ -946,22 +868,6 @@ void rgblight_wakeup(void) {
 #endif
 
 void rgblight_set(void) {
-#ifdef NRF5_WIRELESS_POWER_ENABLE
-    static bool idle_blanked;
-    if (nrf5_wireless_idle()) {
-        if (!idle_blanked) {
-            // Blank once while powered, then cut the rail. Suppress overlays
-            // until real activity wakes us, without changing the user's config.
-            rgblight_driver.set_color_all(0, 0, 0);
-            rgblight_driver.flush();
-            rgb_pwr_off();
-            idle_blanked = true;
-        }
-        return;
-    }
-    idle_blanked = false;
-#endif
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
     bool power_needed = rgblight_config.enable;
 #    if defined(RGBLIGHT_LAYERS) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
     bool indicator_active = rgblight_layers != NULL && rgblight_status.enabled_layer_mask != 0;
@@ -970,9 +876,8 @@ void rgblight_set(void) {
 #        endif
     power_needed = power_needed || indicator_active;
 #    endif
-    // The indicator can require power while the base lighting stays disabled.
-    if (power_needed) rgb_pwr_on();
-#endif
+    // Indicators can need hardware power while the base remains disabled.
+    if (!rgblight_platform_prepare(power_needed)) return;
     if (!rgblight_config.enable) {
         for (uint8_t i = rgblight_ranges.effect_start_pos; i < rgblight_ranges.effect_end_pos; i++) {
             rgblight_driver.set_color(rgblight_led_index(i), 0, 0, 0);
@@ -992,9 +897,7 @@ void rgblight_set(void) {
 #endif
 
     rgblight_driver.flush();
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)
-    if (!power_needed) rgb_pwr_off();
-#endif
+    rgblight_platform_finish(power_needed);
 }
 
 #ifdef RGBLIGHT_SPLIT
@@ -1204,6 +1107,7 @@ void rgblight_timer_task(void) {
     rgblight_blink_layer_repeat_helper();
 #        endif
 
+    bool layer_changed = deferred_set_layer_state;
     if (deferred_set_layer_state) {
         deferred_set_layer_state = false;
 
@@ -1218,20 +1122,8 @@ void rgblight_timer_task(void) {
             rgblight_set();
         }
 #        endif
-#        if defined(PROTOCOL_NRF5) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
-        layer_refresh_remaining = 2;
-        layer_refresh_timer = sync_timer_read();
-#        endif
     }
-#    if defined(PROTOCOL_NRF5) && defined(RGBLIGHT_LAYERS_OVERRIDE_RGB_OFF)
-    if (layer_refresh_remaining && (uint16_t)(sync_timer_read() - layer_refresh_timer) >= 20) {
-        --layer_refresh_remaining;
-        layer_refresh_timer = sync_timer_read();
-        // Dynamic effects already flush themselves. For static/off modes,
-        // repeat the composed frame, including a just-cleared Caps layer.
-        if (!rgblight_config.enable || !rgblight_status.timer_enabled) rgblight_set();
-    }
-#    endif
+    rgblight_platform_task(layer_changed, rgblight_status.timer_enabled);
 #    endif
 }
 

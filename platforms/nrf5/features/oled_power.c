@@ -9,6 +9,7 @@ static uint32_t last_activity;
 static bool idle_latched;
 
 uint8_t nrf5_oled_get_power_mode(void) { return power_mode; }
+bool oled_platform_can_wake(void) { return nrf5_oled_wake_allowed(); }
 bool nrf5_oled_wake_allowed(void) {
     if (power_mode == 2) return false;
     if (power_mode == 1 || nrf5_usb_powered()) return true;

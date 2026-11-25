@@ -15,6 +15,7 @@
  */
 
 #include QMK_KEYBOARD_H
+#include "lighting_runtime.h"
 //#include "muse.h"
 #include "ble_service.h"
 

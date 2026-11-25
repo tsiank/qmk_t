@@ -326,10 +326,11 @@ void rgblight_disable(void);
 void rgblight_disable_noeeprom(void);
 void rgblight_enabled_noeeprom(bool state);
 
-#if defined(RGB_PWR_PIN) || defined(RGB_PWR_PIN_REVERSE)   //tsiank add
-void rgb_pwr_on(void);
-void rgb_pwr_off(void);
-#endif
+// Platform adapters may gate a composed frame without changing user settings.
+void rgblight_platform_init(void);
+bool rgblight_platform_prepare(bool power_needed);
+void rgblight_platform_finish(bool power_needed);
+void rgblight_platform_task(bool layer_changed, bool animation_running);
 
 /*   hue, sat, val change */
 void rgblight_increase_hue(void);

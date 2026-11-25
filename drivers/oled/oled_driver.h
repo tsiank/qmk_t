@@ -416,6 +416,8 @@ void oled_write_raw_P(const char *data, uint16_t size);
 // Can be used to manually turn on the screen if it is off
 // Returns true if the screen was on or turns on
 bool oled_on(void);
+// Platform policy only; default permits the normal driver wake/render path.
+bool oled_platform_can_wake(void);
 
 // Can be used to manually turn off the screen if it is on
 // Returns true if the screen was off or turns off

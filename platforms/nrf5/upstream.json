@@ -1,0 +1,118 @@
+{
+  "upstream": {
+    "repository": "https://github.com/qmk/qmk_firmware.git",
+    "branch": "master",
+    "commit": "80973aa0b5413e9a5bbbf9293507f39e870f9aa3",
+    "snapshot_date": "2026-11-18"
+  },
+  "sdk": {
+    "path": "lib/nrf5",
+    "commit": "ff4ae8ffce36c123fe0981b0f1a4089afbb0a3cd",
+    "repository": "https://github.com/tsiank/nRF5_SDK.git"
+  },
+  "submodule_overrides": {
+    "lib/chibios": "d7b9d1c87f724bd7c8cd1486d6d0dc3ba52e0d52",
+    "lib/chibios-contrib": "d1c2126d1cd867c50127da84425805e225df8555",
+    "lib/googletest": "ec44c6c1675c25b9827aacd08c02433cccde7780",
+    "lib/lufa": "ce10f7642b0459e409839b23cc91498945119b4d",
+    "lib/nrf5": "ff4ae8ffce36c123fe0981b0f1a4089afbb0a3cd",
+    "lib/printf": "d3b984684bb8a8bdc48cc7a1abecb93ce59bbe3e",
+    "lib/vusb": "bdb53e4c043d089279d9891b68bea77614cb97ee"
+  },
+  "core_patches": {
+    ".gitmodules": {
+      "reason": "Register the pinned nRF5 SDK submodule."
+    },
+    "builddefs/build_keyboard.mk": {
+      "reason": "Include nRF5 feature resolution and SDK source files at the required build phase."
+    },
+    "builddefs/common_features.mk": {
+      "reason": "Select the Nordic EEPROM backend."
+    },
+    "builddefs/common_rules.mk": {
+      "reason": "Allow Nordic startup/vector checks instead of generic linking assumptions."
+    },
+    "data/constants/keycodes/keycodes_0.0.1_lighting.hjson": {
+      "reason": "Keep matrix and underglow keycode control independent."
+    },
+    "data/schemas/definitions.jsonschema": {
+      "reason": "Accept numeric Nordic pin strings without overlapping the AVR port-letter oneOf branch."
+    },
+    "data/schemas/keyboard.jsonschema": {
+      "reason": "Accept the NRF52840 processor in JSON keyboards."
+    },
+    "drivers/led/issi/is31fl3741.c": {
+      "reason": "Retry failed PWM transfers and put a black nRF frame into chip sleep; preserve full upload on wake."
+    },
+    "drivers/oled/oled_driver.c": {
+      "reason": "Generic platform wake/render policy hook; no Nordic dependency."
+    },
+    "drivers/oled/oled_driver.h": {
+      "reason": "Declare the generic display policy hook."
+    },
+    "lib/python/qmk/constants.py": {
+      "reason": "Allow QMK metadata generation for NRF52840."
+    },
+    "platforms/eeprom.h": {
+      "reason": "Declare the nRF deferred EEPROM backend and its capacity."
+    },
+    "platforms/timer.c": {
+      "reason": "Use the Nordic RTC-aware elapsed functions instead of generic 32-bit wrap assumptions."
+    },
+    "quantum/action_layer.c": {
+      "reason": "Cache VIA encoder event source layers until release."
+    },
+    "quantum/compiler_support.h": {
+      "reason": "Generic pre-fallback platform compiler hook; Nordic helper definitions live in platforms/nrf5/_compiler_support.h."
+    },
+    "quantum/keyboard.c": {
+      "reason": "Defer Nordic OLED initialization until clocks, timers and USB are ready."
+    },
+    "quantum/keyboard.h": {
+      "reason": "Expose encoder events to the Nordic VIA UI backend."
+    },
+    "quantum/keymap_common.c": {
+      "reason": "Resolve Nordic VIA encoder events without enabling the incompatible static encoder map."
+    },
+    "quantum/matrix.c": {
+      "reason": "Provide the Nordic matrix pin settling delay declaration."
+    },
+    "quantum/midi/bytequeue/interrupt_setting.c": {
+      "reason": "Implement Nordic-safe MIDI queue critical sections."
+    },
+    "quantum/midi/qmk_midi.c": {
+      "reason": "Route Nordic MIDI audio and correct system-common message classification."
+    },
+    "quantum/process_keycode/process_music.c": {
+      "reason": "Keep local audio and MIDI typing mode state independent."
+    },
+    "quantum/quantum.c": {
+      "reason": "Dispatch Nordic output mode keys when generic connection support is absent."
+    },
+    "quantum/rgb_matrix/rgb_matrix.c": {
+      "reason": "Generic transient effect and platform suspension hooks."
+    },
+    "quantum/rgb_matrix/rgb_matrix.h": {
+      "reason": "Declare transient matrix runtime hooks."
+    },
+    "quantum/rgblight/rgblight.c": {
+      "reason": "Generic lifecycle hooks; indicator/base composition remains in QMK."
+    },
+    "quantum/rgblight/rgblight.h": {
+      "reason": "Declare the generic underglow lifecycle hooks."
+    },
+    "quantum/util.h": {
+      "reason": "Load platform compiler helpers before portable macro fallbacks; no Nordic-specific branch."
+    },
+    "tmk_core/protocol/host.c": {
+      "reason": "Allow Nordic USB, BLE and ESB report routing."
+    }
+  },
+  "portable_sources": [
+    "quantum/rgblight/rgblight.c",
+    "quantum/rgb_matrix/rgb_matrix.c",
+    "drivers/oled/oled_driver.c",
+    "quantum/compiler_support.h",
+    "quantum/util.h"
+  ]
+}

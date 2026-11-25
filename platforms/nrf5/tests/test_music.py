@@ -582,7 +582,8 @@ int main(void) {
 static struct { uint8_t iter; } rgb_effect_params;
 static struct { bool enable; uint8_t mode; } rgb_matrix_config = {true, 7};
 static uint32_t g_rgb_timer, rgb_timer_buffer = 123;
-static bool suspend_state, streaming;
+static bool suspend_state, streaming, platform_suspended;
+static bool rgb_matrix_platform_suspended(void) { return platform_suspended; }
 static uint8_t rgb_current_effect, rgb_task_state;
 enum { RENDERING = 3 };
 static unsigned calls;
@@ -606,6 +607,8 @@ int main(void) {
     assert(rgb_current_effect == 7 && calls == 3);
     rgb_matrix_config.mode = 0; streaming = true; rgb_task_start();
     assert(rgb_current_effect == 0 && calls == 3);
+    rgb_matrix_config.mode = 7; platform_suspended = true; rgb_task_start();
+    assert(rgb_current_effect == 0 && calls == 3 && rgb_matrix_config.enable);
 }
 ''')
         self.run_native([])
